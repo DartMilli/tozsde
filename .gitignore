@@ -1,0 +1,11 @@
+
+charts/
+logs/
+models/
+tensorboard/
+tests/
+tozsde/
+
+patch_P0_P4_full_bundle.zip
+
+.env

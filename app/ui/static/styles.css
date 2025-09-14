@@ -1,0 +1,279 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 2em;
+    background-color: #121212;
+    color: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+h1 {
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+p {
+    text-align: center;
+}
+
+.options-container {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+    width: 90%;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.options-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.options-container::-webkit-scrollbar-track {
+    background: #202020;
+}
+
+.options-container::-webkit-scrollbar-thumb {
+    background-color: #4f4f4f;
+    border-radius: 4px;
+}
+
+.options-container::-webkit-scrollbar-thumb:hover {
+    background: #6a6a6a;
+}
+
+.chart-option {
+    position: relative;
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    margin-right: 10px;
+    border: 1px solid #444;
+    border-radius: 20px;
+    cursor: pointer;
+    text-decoration: none;
+    color: #e0e0e0;
+    background-color: #2a2a2a;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.chart-option:hover {
+    background-color: #3a3a3a;
+    border-color: #666;
+}
+
+.chart-option.active {
+    background-color: #0d6efd;
+    color: #ffffff;
+    border-color: #0d6efd;
+    font-weight: bold;
+}
+
+.chart-container {
+    position: relative;
+    width: 90%;
+    max-width: 1200px;
+    min-height: 300px;
+    margin: 20px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #121212;
+    border: 1px solid #121212;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#chart-image {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #121212;
+    border-radius: 5px;
+    background-color: #121212;
+    display: none;
+}
+
+.spinner {
+    border: 8px solid #333;
+    border-top: 8px solid #0d6efd;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1.5s linear infinite;
+    display: none;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- MÓDOSÍTOTT INDIKÁTOR STÍLUSOK --- */
+
+/* Új konténer a szélesség fixálásához */
+#indicator-table-container {
+    width: 90%;
+    max-width: 1000px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    /* Térköz a panelek között */
+}
+
+/* Maga a panel */
+.indicator-section {
+    /* A margin a gap miatt nem kell, a szélesség 100% a konténerhez képest */
+    width: 100%;
+    padding: 12px 15px;
+    /* Csökkentett belső margó a magassághoz */
+    background-color: #1d1d1d;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+/* A panel címe (H3) */
+.indicator-section h3 {
+    color: #0d6efd;
+    cursor: pointer;
+    margin: 0;
+    /* Alaphelyzetben nincs margó */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Csak akkor van alsó margója, ha nyitva van */
+.indicator-section h3:not(.collapsed) {
+    margin-bottom: 12px;
+}
+
+.indicator-section h3 .toggle-icon {
+    font-size: 1.2em;
+}
+
+.indicator-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #e0e0e0;
+    display: none;
+}
+
+.indicator-table th,
+.indicator-table td {
+    border: 1px solid #444;
+    padding: 10px;
+    vertical-align: top;
+    text-align: left;
+}
+
+.indicator-table th {
+    width: 150px;
+    background-color: #2a2a2a;
+    font-weight: bold;
+    color: #fff;
+}
+
+.indicator-table td {
+    background-color: #1e1e1e;
+}
+
+/* --- CSÚSZKA STÍLUSOK --- */
+.range-slider-container {
+    width: 90%;
+    max-width: 1000px;
+    margin-bottom: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #ccc;
+}
+
+.range-slider-display {
+    font-size: 1em;
+    margin-bottom: 15px;
+    color: #ddd;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+#range-diff-label {
+    color: #aaa;
+    font-style: italic;
+    margin-left: 10px;
+}
+
+.range-slider-wrapper {
+    width: 100%;
+    position: relative;
+    height: 18px;
+}
+
+.slider-track-base,
+.slider-track-highlight {
+    position: absolute;
+    height: 6px;
+    border-radius: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.slider-track-base {
+    background-color: #444;
+    width: 100%;
+    z-index: 0;
+}
+
+.slider-track-highlight {
+    background-color: #0d6efd;
+    z-index: 1;
+}
+
+.range-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    height: 100%;
+    pointer-events: none;
+}
+
+.range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #0d6efd;
+    border: none;
+    cursor: pointer;
+    z-index: 2;
+    pointer-events: auto;
+    position: relative;
+}
+
+.range-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #0d6efd;
+    border: none;
+    cursor: pointer;
+}

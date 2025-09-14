@@ -1,0 +1,14 @@
+{
+    "sma_period": 39,
+    "ema_period": 34,
+    "rsi_period": 29,
+    "macd_fast": 18,
+    "macd_slow": 34,
+    "macd_signal": 5,
+    "bbands_period": 27,
+    "bbands_stddev": 2,
+    "atr_period": 15,
+    "adx_period": 5,
+    "stoch_k": 15,
+    "stoch_d": 4,
+}

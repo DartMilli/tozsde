@@ -1,0 +1,14 @@
+flask
+yfinance
+pandas
+scikit-learn
+mplfinance
+python-dotenv
+pytest
+scipy
+matplotlib
+deap
+stable-baselines3 # ehhez kell még: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+gymnasium
+tensorboard
+tqdm

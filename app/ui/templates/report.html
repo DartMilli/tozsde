@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="hu">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{ ticker }} - Visszatesztelési Riport</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+
+<body>
+    <h1>{{ ticker }} - Visszatesztelési Riport</h1>
+
+    <div class="chart-container" style="min-height: 400px;">
+        <img src="data:image/png;base64,{{ chart_image }}" alt="Teljesítmény grafikon">
+    </div>
+
+    <div id="indicator-table-container">
+        <div class="indicator-section">
+            <h3>Teljesítménymutatók</h3>
+            <table class="indicator-table" style="display: table;">
+                <tr>
+                    <th>Teljes Hozam</th>
+                    <td>{{ "%.2f"|format(metrics.total_return_pct) }} %</td>
+                </tr>
+                <tr>
+                    <th>Sharpe Ráta (évesített)</th>
+                    <td>{{ "%.2f"|format(metrics.sharpe_ratio) }}</td>
+                </tr>
+                <tr>
+                    <th>Maximális Visszaesés</th>
+                    <td>{{ "%.2f"|format(metrics.max_drawdown_pct) }} %</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>
