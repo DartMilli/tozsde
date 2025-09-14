@@ -6,6 +6,8 @@ tensorboard/
 tests/
 tozsde/
 
+app/*/__pycache__
+
 patch_P0_P4_full_bundle.zip
 
 .env
