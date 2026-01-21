@@ -55,15 +55,27 @@ class Backtester:
         )
 
         if len(self.df) < MIN_REQUIRED_BARS + 1:
-            return {
-                "fitness": -100,  # Ezt figyeli a genetikus algoritmus
-                "sharpe_ratio": 0,
-                "total_return_pct": 0,
-                "max_drawdown_pct": 0,
-                "final_value": 0,
-                "trade_count": 0,
-                "equity_curve": pd.Series(),  # A grafikonhoz kell
-            }
+            return BacktestReport(
+                metrics={
+                    "net_profit": 0,
+                    "max_drawdown": 0,
+                    "winrate": 0,
+                    "trade_count": 0,
+                    "avg_trade_return": 0,
+                    "profit_factor": 0,
+                },
+                diagnostics={
+                    "equity_curve": pd.Series(),
+                    "final_value": self.initial_capital,
+                    "sharpe": 0,
+                    "total_cost": 0,
+                },
+                meta={
+                    "ticker": self.ticker,
+                    "bars": len(self.df),
+                    "params": params,
+                },
+            )
 
         # 1. Jelek generálása (A közös analizer.py-ból)
         signals, _ = compute_signals(self.df, self.ticker, params, return_series=True)

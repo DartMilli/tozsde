@@ -3,15 +3,13 @@ charts/
 logs/
 models/
 tensorboard/
-tests/
-tozsde/
+.venv/
 
-app/*/__pycache__/
-
-patch_P0_P4_full_bundle.zip
+__pycache__/
+*.py[cod]
+*$py.class
 
 .env
 
 PROJECT_SNAPSHOT.txt
 PROJECT_TREE.txt
-gtp_promt_sample.txt

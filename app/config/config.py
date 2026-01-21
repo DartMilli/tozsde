@@ -3,14 +3,14 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
-from app.data_access.data_loader import get_supported_ticker_list
-
 # 1. Abszolút gyökér meghatározása (P0)
 # Ez a fájl: app/core/config.py -> szülő: app/core -> szülő: app -> szülő: ROOT
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 # 2. Környezeti változók betöltése
 load_dotenv(BASE_DIR / ".env")
+
+EXCLUDED_TICKERS = ["OTP.BD", "MOL.BD", "RICHTER.BD"]
 
 
 class Config:
@@ -85,36 +85,55 @@ class Config:
     # tanulási adatok és optimalizációs paraméterek
     START_DATE = "2020-01-01"
     END_DATE = datetime.today().strftime("%Y-%m-%d")
-    TICKERS = [t for t in get_supported_ticker_list() if t not in Config.EXCLUDED_TICKERS]
+
+    EXCLUDED_TICKERS = EXCLUDED_TICKERS
     OPTIMIZER_GENERATIONS = 30
     OPTIMIZER_POPULATION = 50
     RL_TIMESTEPS = 100_000
 
-        BEAR_MARKET_LOOKBACK_DAYS = 400
+    BEAR_MARKET_LOOKBACK_DAYS = 400
 
-        BEAR_MARKET_SMA_PERIOD = 200
+    BEAR_MARKET_SMA_PERIOD = 200
 
-        RISK_FREE_FALLBACK = 0.045
+    RISK_FREE_FALLBACK = 0.045
 
-        WARMUP_DAYS = 100
+    WARMUP_DAYS = 100
 
-        DRAWDOWN_PENALTY_THRESHOLD = -20
+    DRAWDOWN_PENALTY_THRESHOLD = -20
 
-        DRAWDOWN_PENALTY_MULTIPLIER = 0.5
+    DRAWDOWN_PENALTY_MULTIPLIER = 0.5
 
-        GA_CXPB = 0.7
+    GA_CXPB = 0.7
 
-        GA_MUTPB = 0.2
+    GA_MUTPB = 0.2
 
-        CORRELATION_PENALTY_STRENGTH = 0.5
+    CORRELATION_PENALTY_STRENGTH = 0.5
 
-        VOLATILITY_SOFT_CAP = 0.03
+    VOLATILITY_SOFT_CAP = 0.03
 
-        VOLATILITY_BUCKET_THRESHOLDS = {"LOW": 0.015, "NORMAL": 0.03, "HIGH": 0.06}
+    VOLATILITY_BUCKET_THRESHOLDS = {"LOW": 0.015, "NORMAL": 0.03, "HIGH": 0.06}
 
-        ENSEMBLE_QUALITY_THRESHOLDS = {"STRONG": 0.6, "NORMAL": 0.3, "WEAK": 0.1}
+    ENSEMBLE_QUALITY_THRESHOLDS = {"STRONG": 0.6, "NORMAL": 0.3, "WEAK": 0.1}
 
-        EXCLUDED_TICKERS = ["OTP.BD", "MOL.BD", "RICHTER.BD"]
+    # Lazy-loaded TICKERS (avoid circular import)
+    _TICKERS = None
+    _SUPPORTED_TICKERS_LOADED = False
+
+    @classmethod
+    def get_supported_tickers(cls):
+        """Lazily load supported tickers to avoid circular import with data_loader"""
+        if cls._TICKERS is None:
+            from app.data_access.data_loader import get_supported_ticker_list
+
+            all_tickers = get_supported_ticker_list()
+            cls._TICKERS = [t for t in all_tickers if t not in EXCLUDED_TICKERS]
+            cls._SUPPORTED_TICKERS_LOADED = True
+        return cls._TICKERS
+
+    @property
+    def TICKERS(self):
+        """Property to access TICKERS (for backward compatibility)"""
+        return self.get_supported_tickers()
 
     @classmethod
     def ensure_dirs(cls):

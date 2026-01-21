@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 import json
 from datetime import datetime
+from typing import List, Dict
 from app.config.config import Config
 from contextlib import contextmanager
 
@@ -335,7 +336,7 @@ class DataManager:
             ).fetchall()
 
     # ---------- Decision history DAO (no raw SQL in HistoryStore) ----------
-    def fetch_history_records_by_ticker(self, ticker: str) -> list[dict]:
+    def fetch_history_records_by_ticker(self, ticker: str) -> List[Dict]:
         with self._get_conn() as conn:
             rows = conn.execute(
                 """
@@ -362,7 +363,7 @@ class DataManager:
 
     def fetch_history_range(
         self, ticker: str, start_iso: str, end_iso: str
-    ) -> list[dict]:
+    ) -> List[Dict]:
         with self._get_conn() as conn:
             rows = conn.execute(
                 """
@@ -375,7 +376,7 @@ class DataManager:
             ).fetchall()
         return rows
 
-    def fetch_recent_outcomes(self, ticker: str, n: int = 3) -> list[dict]:
+    def fetch_recent_outcomes(self, ticker: str, n: int = 3) -> List[Dict]:
         """
         Placeholder: project snapshot does not define a persistent 'outcomes' table.
         Return empty list to avoid blocking SafetyRuleEngine.

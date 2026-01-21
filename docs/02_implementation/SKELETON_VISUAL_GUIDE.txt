@@ -1,0 +1,268 @@
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    CODE SKELETON STRUCTURE OVERVIEW                           ║
+║                          8 Weeks Implementation                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+SPRINT 1: TEST SUITE (Weeks 1–2) — 22 hours
+═════════════════════════════════════════════════════════════════════════════
+
+tests/
+├── conftest.py
+│   ├── @pytest.fixture test_db()           ← Temporary SQLite database
+│   ├── @pytest.fixture sample_ohlcv()      ← OHLCV sample row
+│   ├── @pytest.fixture sample_df()         ← 30-day price DataFrame
+│   ├── @pytest.fixture sample_signals()    ← Trading signal series
+│   └── @pytest.fixture mock_config()       ← Test configuration
+│
+├── test_indicators.py (4 test classes)
+│   ├── TestSMA
+│   │   ├── test_sma_basic_calculation()
+│   │   ├── test_sma_window_larger_than_data()
+│   │   ├── test_sma_constant_series()
+│   │   └── test_sma_with_nan_values()
+│   └── TestIndicatorPerformance
+│       └── test_sma_large_dataset()
+│
+├── test_fitness.py (2 test classes)
+│   ├── TestFitnessFunction
+│   │   ├── test_fitness_zero_trades()
+│   │   ├── test_fitness_positive_return()
+│   │   └── test_fitness_negative_return()
+│   └── TestWalkForwardFitness
+│       ├── test_wf_fitness_basic()
+│       └── test_wf_fitness_degradation_penalty()
+│
+├── test_backtester.py (4 test classes)
+│   ├── TestBacktesterTradeExecution
+│   │   ├── test_backtester_no_trades()
+│   │   ├── test_backtester_single_buy_hold()
+│   │   └── test_backtester_transaction_costs()
+│   ├── TestBacktesterMetrics
+│   │   ├── test_backtester_sharpe_ratio()
+│   │   ├── test_backtester_max_drawdown()
+│   │   └── test_backtester_win_rate()
+│   └── TestBacktesterEdgeCases
+│       └── test_backtester_all_losses()
+│
+├── test_walk_forward.py (3 test classes)
+│   ├── TestWalkForwardWindows
+│   ├── TestWalkForwardValidation
+│   └── TestWalkForwardEdgeCases
+│
+├── test_data_manager.py (3 test classes)
+│   ├── TestDataManagerInitialization
+│   ├── TestDataManagerOHLCV
+│   └── TestDataManagerConsistency
+│
+├── test_allocation.py (3 test classes)
+│   ├── TestCapitalAllocation
+│   ├── TestCorrelationAdjustment
+│   └── TestAllocationEdgeCases
+│
+└── test_daily_pipeline.py (3 test classes)
+    ├── TestDailyPipeline
+    ├── TestPipelineDataIntegrity
+    └── TestPipelineErrorHandling
+
+Run: pytest tests/ -v
+     pytest tests/ --cov=app
+
+
+SPRINT 2: LEARNING SYSTEM (Weeks 3–4) — 13 hours
+═════════════════════════════════════════════════════════════════════════════
+
+app/decision/drift_detector.py
+├── class PerformanceDriftDetector
+│   ├── __init__(lookback_days=30, drift_threshold=0.15, ...)
+│   ├── check_drift(ticker, current_score) → {drifting, drift_pct, ...}
+│   ├── _load_historical_scores(ticker) → [scores]
+│   ├── _compute_drift_metrics(scores, current) → {avg, std, trend}
+│   └── generate_alert(ticker, drift_info) → alert_string
+│
+├── batch_check_drift(tickers) → {ticker: drift_info}
+└── get_drifting_tickers(tickers, alert_level) → [critical_tickers]
+
+Integration:
+  audit_builder.py::build_audit_summary()
+    └─→ Check drift for each ticker
+    └─→ Add alerts to audit trail
+
+Config updates:
+  .env: ENABLE_RL=true
+
+app/notifications/alerter.py (See Sprint 4)
+
+
+SPRINT 3: PORTFOLIO OPTIMIZATION (Weeks 5–6) — 20 hours
+═════════════════════════════════════════════════════════════════════════════
+
+app/decision/risk_parity.py
+├── class RiskParityAllocator(lookback_days=60)
+│   ├── allocate(decisions, price_history) → updated_decisions
+│   ├── _compute_volatilities(price_history) → {ticker: vol}
+│   ├── _compute_inverse_volatility_weights(vols, tickers) → weights[]
+│   └── _apply_allocation(decisions, weights, indices) → decisions
+│
+└── apply_risk_parity(decisions, price_history) → decisions
+
+Integration:
+  decision_builder.py::build_recommendation()
+    └─→ Apply risk parity instead of equal weight
+
+
+app/decision/rebalancer.py
+├── class PortfolioRebalancer(rebalance_threshold=0.20)
+│   ├── should_rebalance(current_weights, target_weights) 
+│   │   → {should_rebalance, drift_per_ticker, drift_avg, ...}
+│   ├── generate_rebalancing_trades(current, target, prices, value)
+│   │   → [{ticker, action, qty, reason}, ...]
+│   └── compute_rebalancing_cost(trades) → total_cost
+│
+└── check_and_rebalance(current, target, prices, value)
+    → {should_rebalance, trades, estimated_cost, ...}
+
+Integration:
+  main.py::run_daily()
+    └─→ Check if rebalancing needed
+    └─→ Execute rebalancing trades if drift > threshold
+
+
+SPRINT 4: ADMIN & MONITORING (Weeks 7–8) — 14 hours
+═════════════════════════════════════════════════════════════════════════════
+
+app/infrastructure/metrics.py
+├── class SystemMetrics
+│   ├── __init__()
+│   ├── log_pipeline_execution(ticker, status, duration, details)
+│   ├── log_backtest_execution(ticker, wf_score, trades, ...)
+│   ├── get_recent_metrics(hours=24) → {success_rate, avg_duration, ...}
+│   ├── get_daily_summary(date) → {executions, successes, failures, ...}
+│   └── get_system_health() → {status, uptime_pct, error_rate, ...}
+│
+└── Utility: get_system_health() → {status, uptime_pct, ...}
+
+Integration:
+  main.py::run_daily()
+    └─→ metrics.log_pipeline_execution(ticker, status, duration)
+  
+  ui/app.py::/admin/dashboard
+    └─→ metrics.get_recent_metrics(hours=24)
+
+
+app/notifications/alerter.py
+├── class ErrorAlerter
+│   ├── CRITICAL_ERRORS = {codes...}  (8 error types)
+│   ├── WARNING_ERRORS = {codes...}   (4 error types)
+│   │
+│   ├── alert(error_code, message, details, severity) → bool
+│   ├── _should_alert_on_warning(error_code) → bool
+│   ├── _send_alert_email(code, message, details, severity)
+│   └── _get_remediation_steps(error_code) → suggestions
+│
+└── @catch_and_alert decorator for automatic error handling
+
+Integration:
+  main.py::run_daily()
+    └─→ @catch_and_alert
+    └─→ try/except with ErrorAlerter.alert()
+
+
+UI Enhancement:
+  app/ui/app.py
+  ├── @app.route("/admin/dashboard")
+  │   └─→ SystemMetrics + ErrorAlerter status
+  └── @app.route("/admin/force-rebalance", methods=["POST"])
+      └─→ Manual rebalance trigger
+
+
+SPRINT 5: BONUS ANALYSIS (Week 8+) — 4 hours
+═════════════════════════════════════════════════════════════════════════════
+
+app/reporting/pyfolio_report.py
+├── class PyFolioReportGenerator
+│   ├── _check_pyfolio() → has_pyfolio: bool
+│   ├── generate_report(returns, positions, benchmark)
+│   │   → {sharpe_ratio, calmar_ratio, max_drawdown, rolling_sharpe, ...}
+│   └── generate_full_tearsheet(returns, live_start_date)
+│       → {total_return, annual_volatility, sortino, omega, ...}
+│
+├── generate_pyfolio_report(returns, positions) → metrics
+└── analyze_drawdown_periods(returns, min_drawdown=0.10)
+    → {drawdown_periods, total_periods, avg_depth}
+
+Integration:
+  ui/app.py::/report
+    └─→ pyfolio_report.generate_pyfolio_report()
+
+
+═════════════════════════════════════════════════════════════════════════════
+IMPLEMENTATION FLOW DIAGRAM
+═════════════════════════════════════════════════════════════════════════════
+
+Week 1: Tests
+  conftest.py ────────┐
+  test_*.py ──────────┼──→ pytest tests/ -v
+                      │    (100+ tests passing)
+                      
+Week 2: Complete Tests
+  (Continue test implementation)
+  
+Week 3: Learning System
+  drift_detector.py ──→ audit_builder.py ──→ run_daily()
+                                              
+Week 4: Enable RL
+  config.ENABLE_RL=true ──→ rl_inference.py ──→ recommender.py
+  
+Week 5: Portfolio Optimization
+  risk_parity.py ─────┐
+  rebalancer.py ──────┼──→ decision_builder.py ──→ main.py
+                      │
+                      
+Week 6: Complete Portfolio
+  (Testing and integration)
+  
+Week 7: Monitoring
+  metrics.py ─────────┐
+  alerter.py ──────────┼──→ main.py + ui/app.py
+                      │
+  
+Week 8: Complete + Bonus
+  pyfolio_report.py ──→ ui/app.py::/report
+
+
+═════════════════════════════════════════════════════════════════════════════
+FILE STATISTICS
+═════════════════════════════════════════════════════════════════════════════
+
+Sprint │ Files │ Classes │ Methods │ TODOs │ Est Hours
+────────────────────────────────────────────────────
+  1    │   9   │   25+   │   35+   │  25+  │   22h
+  2    │   2   │    2    │    8    │  10   │    7h
+  3    │   2   │    2    │    8    │  16   │   10h
+  4    │   2   │    2    │    9    │  27   │    8h
+  5    │   1   │    1    │    5    │  10   │    4h
+────────────────────────────────────────────────────
+Total  │  15   │   32    │   65    │  88   │  ~51h
+
+
+═════════════════════════════════════════════════════════════════════════════
+READY TO IMPLEMENT!
+═════════════════════════════════════════════════════════════════════════════
+
+Next Steps:
+  1. Open tests/conftest.py
+  2. Read the skeleton + docstrings
+  3. Implement first fixture
+  4. Run: pytest tests/conftest.py::test_db -v
+  5. Iterate through all test files
+  6. Move to Sprint 2 after week 1
+
+Documents to review:
+  ✅ IMPLEMENTATION_PLAN.md
+  ✅ PROJECT_ROADMAP_STATUS.md
+  ✅ CODE_SKELETON_SUMMARY.md
+  ✅ SKELETON_COMPLETE.md (this file)
+
+Current Status: 25% → 75% Complete (skeleton creation done, implementation remains)
+```
