@@ -1,0 +1,444 @@
+import sqlite3
+import pandas as pd
+import logging
+import json
+from datetime import datetime
+from app.config.config import Config
+from contextlib import contextmanager
+
+from app.indicators.technical import sma
+
+logger = logging.getLogger(__name__)
+
+
+class DataManager:
+    """
+    Data Access Layer (DAL) - Az egyetlen osztály, amely közvetlenül érintkezik az SQLite adatbázissal.
+    Felelős az adatok tárolásáért, lekérdezéséért és a séma integritásáért.
+    """
+
+    def __init__(self):
+        self.db_path = Config.DB_PATH
+
+    def _get_conn(self):
+        """Privát metódus az adatbázis kapcsolat létrehozásához."""
+        return sqlite3.connect(self.db_path)
+
+    # --- SÉMA ÉS INICIALIZÁLÁS (P9/Ops) ---
+
+    def initialize_tables(self):
+        """
+        Létrehozza a szükséges táblákat, ha azok még nem léteznek.
+        Ezt hívja az apply_schema.py is.
+        """
+        logger.info("Initializing database tables...")
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+
+            # 1. Piaci adatok (OHLCV)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ohlcv (
+                    ticker TEXT, date TEXT, open REAL, high REAL, 
+                    low REAL, close REAL, volume REAL,
+                    PRIMARY KEY (ticker, date)
+                )"""
+            )
+
+            # 2. Portfólió/Tranzakciók (Váltja a portfolio.py-t)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS trades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT, ticker TEXT, side TEXT, 
+                    qty REAL, price REAL, strategy TEXT
+                )"""
+            )
+
+            # 3. Napi Ajánlások (Váltja a recommendation_logger.py-t)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS recommendations (
+                    date TEXT, ticker TEXT, signal TEXT, 
+                    confidence REAL, wf_score REAL, params TEXT,
+                    PRIMARY KEY (date, ticker)
+                )"""
+            )
+
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS model_reliability (
+                    ticker TEXT,
+                    date TEXT,
+                    score_details TEXT,
+                    PRIMARY KEY (ticker, date)
+                )"""
+            )
+
+            # Decision History tábla az auditálhatósághoz (P4.5 Roadmap)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS decision_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT,
+                    ticker TEXT,
+                    action_code INTEGER,
+                    action_label TEXT,
+                    confidence REAL,
+                    wf_score REAL,
+                    decision_blob TEXT,    -- Teljes döntési JSON
+                    audit_blob TEXT        -- Magyarázatok és metaadatok
+                    explanation_blob TEXT  -- Magyarázatok és metaadatok
+                )
+            """
+            )
+            # Market metadata (e.g., VIX / IRX)
+            cur.execute(
+                """
+            CREATE TABLE IF NOT EXISTS market_metadata (
+                symbol TEXT,
+                date   TEXT,
+                value  REAL,
+                PRIMARY KEY(symbol, date)
+            )"""
+            )
+
+            # Indexek a teljesítmény javítására
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_ohlcv_ticker ON ohlcv(ticker)")
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_dh_ticker_ts ON decision_history(ticker, timestamp)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_rec_date ON recommendations(date)"
+            )
+
+            conn.commit()
+        logger.info("Schema verified and ready.")
+
+    # --- PIACI ADATOK KEZELÉSE (OHLCV) ---
+
+    def save_ohlcv(self, ticker, df):
+        """Elmenti a DataFrame-et az ohlcv táblába (Upsert logika)."""
+        if df is None or df.empty:
+            return
+
+        # Előkészítés a mentésre
+        df_to_save = df.copy()
+        if "Ticker" not in df_to_save.columns:
+            df_to_save["ticker"] = ticker
+
+        # Reset index, hogy a dátum is oszlop legyen a mentéshez
+        df_to_save = df_to_save.reset_index()
+        df_to_save.columns = [c.lower() for c in df_to_save.columns]
+
+        with self._get_conn() as conn:
+            # Ideiglenes tábla a gyors upserthez
+            df_to_save.to_sql("temp_ohlcv", conn, if_exists="replace", index=False)
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO ohlcv (ticker, date, open, high, low, close, volume)
+                SELECT
+                    ticker,
+                    date,
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume
+                FROM temp_ohlcv
+                """
+            )
+            conn.execute("DROP TABLE temp_ohlcv")
+            conn.commit()
+
+    def load_ohlcv(self, ticker, start_date=None):
+        """
+        Betölti a piaci adatokat a DB-ből.
+        Paraméterezett lekérdezést használ az SQL injection ellen.
+        """
+        params = [ticker]
+        query = "SELECT * FROM ohlcv WHERE ticker = ?"
+
+        if start_date:
+            query += " AND date >= ?"
+            params.append(
+                start_date.isoformat()
+                if hasattr(start_date, "isoformat")
+                else str(start_date)
+            )
+
+        query += " ORDER BY date ASC"
+
+        with self._get_conn() as conn:
+            df = pd.read_sql(query, conn, params=params, parse_dates=["date"])
+            if not df.empty:
+                df.set_index("date", inplace=True)
+                # Oszlopnevek visszaállítása a várt formátumra
+                df.columns = [c.capitalize() for c in df.columns]
+            return df
+
+    # --- DÖNTÉSI ELŐZMÉNYEK (History & Audit) ---
+
+    def save_history_record(
+        self, ticker, action_code, label, confidence, wf_score, d_blob, a_blob, e_blob
+    ):
+        """Enkapszulált mentés a history táblába."""
+        query = """
+            INSERT INTO decision_history 
+            (timestamp, ticker, action_code, action_label, confidence, wf_score, decision_blob, audit_blob, explanation_blob)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    datetime.utcnow().isoformat(),
+                    ticker,
+                    action_code,
+                    label,
+                    confidence,
+                    wf_score,
+                    d_blob,
+                    a_blob,
+                    e_blob,
+                ),
+            )
+            conn.commit()
+
+    def get_history_range(self, ticker, start_iso, end_iso):
+        """Lekérdezi a korábbi döntéseket egy adott időintervallumban."""
+        query = """
+            SELECT timestamp, action_label, decision_blob, audit_blob 
+            FROM decision_history 
+            WHERE ticker = ? AND timestamp >= ? AND timestamp <= ?
+            ORDER BY timestamp ASC
+        """
+        with self._get_conn() as conn:
+            return conn.execute(query, (ticker, start_iso, end_iso)).fetchall()
+
+    # --- ELEMZÉSI SEGÉDFÜGGVÉNYEK (DataManager szinten) ---
+
+    def get_market_regime_is_bear(self, benchmark="SPY", period=200, ref_date=None):
+        """
+        ref_date: string (YYYY-MM-DD) vagy date object. Ha None, a mai nap.
+        """
+        # Itt fontos: load_ohlcv-nél szűrni kell, vagy utólag vágni
+        # A load_ohlcv támogat start_date-et, de end_date-et jelenleg nem.
+        # Ezért betöltjük, és Pandas-ban vágjuk.
+
+        df = self.load_ohlcv(benchmark)
+
+        if df.empty:
+            return False
+
+        # Időbeli vágás (Look-ahead bias ellen)
+        if ref_date:
+            df = df[df.index <= pd.Timestamp(ref_date)]
+
+        if len(df) < period:
+            return False
+
+        closes = df["Close"].values
+        sma_values = sma(closes, period)
+
+        return closes[-1] < sma_values[-1]
+
+    def get_correlation_matrix(self, tickers, lookback_days=90, ref_date=None):
+        combined_data = {}
+
+        for t in tickers:
+            df = self.load_ohlcv(t)
+            if not df.empty:
+                # Időbeli vágás
+                if ref_date:
+                    df = df[df.index <= pd.Timestamp(ref_date)]
+
+                # Csak a vágás után vesszük a végét!
+                combined_data[t] = df["Close"].tail(lookback_days)
+
+        if not combined_data:
+            return pd.DataFrame()
+
+        prices_df = pd.DataFrame(combined_data)
+        return prices_df.pct_change().dropna().corr()
+
+    # --- AJÁNLÁSOK KEZELÉSE ---
+    def log_recommendation(self, ticker, signal, confidence, params=None):
+        today = datetime.now().strftime("%Y-%m-%d")
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO recommendations (date, ticker, signal, confidence, params)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                (today, ticker, signal, confidence, json.dumps(params)),
+            )
+
+    def get_today_recommendations(self):
+        today = datetime.now().strftime("%Y-%m-%d")
+        with self._get_conn() as conn:
+            return pd.read_sql(
+                f"SELECT * FROM recommendations WHERE date='{today}'", conn
+            ).to_dict("records")
+
+    def save_model_reliability(self, ticker, date, score_details):
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO model_reliability
+                (ticker, date, score_details)
+                VALUES (?, ?, ?)
+                """,
+                (ticker, date, score_details),
+            )
+
+    @contextmanager
+    def connection(self):
+        conn = self._get_conn()
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    def save_market_data(self, symbol: str, df: pd.DataFrame):
+        if df.empty:
+            return
+        data = (
+            df[["Close"]]
+            .rename(columns={"Close": "value"})
+            .assign(symbol=symbol)
+            .reset_index()
+        )
+        data["date"] = pd.to_datetime(data["Date"]).dt.strftime("%Y-%m-%d")
+        with self._get_conn() as conn:
+            data[["symbol", "date", "value"]].to_sql(
+                "temp_market_metadata", conn, if_exists="replace", index=False
+            )
+            conn.execute(
+                """INSERT OR REPLACE INTO market_metadata(symbol,date,value)
+                            SELECT symbol,date,value FROM temp_market_metadata"""
+            )
+            conn.execute("DROP TABLE temp_market_metadata")
+            conn.commit()
+
+    def get_market_data(self, symbol: str, days: int = 1):
+        with self._get_conn() as conn:
+            return conn.execute(
+                """
+                SELECT date, value
+                FROM market_metadata
+                WHERE symbol=?
+                ORDER BY date DESC
+                LIMIT ?
+            """,
+                (symbol, days),
+            ).fetchall()
+
+    # ---------- Decision history DAO (no raw SQL in HistoryStore) ----------
+    def fetch_history_records_by_ticker(self, ticker: str) -> list[dict]:
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT timestamp, ticker, action_code, action_label,
+                       confidence, wf_score, decision_blob, audit_blob, explanation_blob
+                FROM decision_history
+                WHERE ticker = ?
+                ORDER BY timestamp ASC
+                """,
+                (ticker,),
+            ).fetchall()
+        out = []
+        for ts, tkr, ac, al, conf, wf, d_blob, a_blob, e_blob in rows:
+            out.append(
+                {
+                    "timestamp": ts,
+                    "ticker": tkr,
+                    "decision": json.loads(d_blob) if d_blob else {},
+                    "audit": json.loads(a_blob) if a_blob else {},
+                    "explanation": json.loads(e_blob) if e_blob else {},
+                }
+            )
+        return out
+
+    def fetch_history_range(
+        self, ticker: str, start_iso: str, end_iso: str
+    ) -> list[dict]:
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT timestamp, action_label, decision_blob, audit_blob
+                FROM decision_history
+                WHERE ticker = ? AND timestamp >= ? AND timestamp <= ?
+                ORDER BY timestamp ASC
+                """,
+                (ticker, start_iso, end_iso),
+            ).fetchall()
+        return rows
+
+    def fetch_recent_outcomes(self, ticker: str, n: int = 3) -> list[dict]:
+        """
+        Placeholder: project snapshot does not define a persistent 'outcomes' table.
+        Return empty list to avoid blocking SafetyRuleEngine.
+        """
+        return []
+
+    # ---------- Convenience connection() ----------
+    from contextlib import contextmanager
+
+    @contextmanager
+    def connection(self):
+        conn = self._get_conn()
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    # --- RÉGI KOMPATIBILITÁSI METÓDUSOK ---
+
+    def get_ticker_historical_recommendations(self, ticker, start, end):
+        """Régi API kompatibilitás a recommendation táblához (ha még használatban van valahol)."""
+        with self._get_conn() as conn:
+            query = (
+                "SELECT * FROM recommendations WHERE ticker=? AND date>=? AND date<=?"
+            )
+            return pd.read_sql(query, conn, params=[ticker, start, end]).to_dict(
+                "records"
+            )
+
+    def get_strategy_accuracy(self, ticker, lookback_decisions=20):
+        """
+        Visszaadja az utolsó X döntés sikerességét.
+        Ez egy egyszerűsített implementáció: megnézi, hogy vételi jel után emelkedett-e az ár.
+        """
+        # FIGYELEM: Ez komplex SQL-t igényelne a jövőbeli árakkal való joinoláshoz.
+        # A snapshot egyszerűsége miatt most csak a 'decision_blob'-okat adjuk vissza,
+        # és Pythonban dolgozzuk fel.
+        query = """
+            SELECT decision_blob, timestamp FROM decision_history 
+            WHERE ticker = ? AND action_code = 1 
+            ORDER BY timestamp DESC LIMIT ?
+        """
+        with self._get_conn() as conn:
+            rows = conn.execute(query, (ticker, lookback_decisions)).fetchall()
+        return rows
+
+    def get_unevaluated_buy_decisions(self, limit=100):
+        """P8: Visszaadja azokat a vételi döntéseket, amiknél még nincs outcome beírva."""
+        # Mivel JSON-ben van az outcome, LIKE-kal keresünk (nem szép, de sémaváltás nélkül ez van)
+        query = """
+            SELECT id, timestamp, ticker, audit_blob 
+            FROM decision_history 
+            WHERE action_code = 1 
+              AND audit_blob NOT LIKE '%"outcome"%'
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """
+        with self._get_conn() as conn:
+            return conn.execute(query, (limit,)).fetchall()
+
+    def update_history_audit(self, row_id, new_audit_blob):
+        """P8: Frissíti egy korábbi döntés audit logját (pl. eredménnyel)."""
+        query = "UPDATE decision_history SET audit_blob = ? WHERE id = ?"
+        with self._get_conn() as conn:
+            conn.execute(query, (new_audit_blob, row_id))
+            conn.commit()

@@ -1,0 +1,145 @@
+import os
+from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
+
+from app.data_access.data_loader import get_supported_ticker_list
+
+# 1. Abszolút gyökér meghatározása (P0)
+# Ez a fájl: app/core/config.py -> szülő: app/core -> szülő: app -> szülő: ROOT
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+# 2. Környezeti változók betöltése
+load_dotenv(BASE_DIR / ".env")
+
+
+class Config:
+    ENABLE_FLASK = False
+    ENABLE_RL = False
+    ENABLE_RELIABILITY = False
+
+    LOGGING_LEVEL = os.getenv("LOGGING_LEVEL")
+
+    # Útvonalak
+    DATA_DIR = BASE_DIR / "app" / "data"
+    LOG_DIR = BASE_DIR / "logs"
+    MODEL_DIR = BASE_DIR / "models"
+
+    CHART_DIR = BASE_DIR / "charts"
+    TENSORBOARD_DIR = BASE_DIR / "tensorboard"
+    MODEL_RELIABILITY_DIR = LOG_DIR / "model_reliability"
+
+    DECISION_LOG_DIR = BASE_DIR / "decision_logs"
+    DECISION_OUTCOME_DIR = BASE_DIR / "decision_outcomes"
+
+    HISTORY_DIR = BASE_DIR / "decision_history"
+
+    # Adatbázis (P1 - Egységes DB)
+    DB_PATH = DATA_DIR / "market_data.db"
+
+    # Common file paths (Path objects)
+    PARAMS_FILE_PATH = DATA_DIR / "optimized_params.json"
+    FAILED_DAYS_FILE_PATH = DATA_DIR / "failed_to_download.json"
+    MODEL_TEST_RESULT_FILE_PATH = DATA_DIR / "model_test_result.json"
+
+    # Biztonság
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev_key_do_not_use_in_prod")
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # App password!
+
+    # -------------------- RECOMMENDER --------------------
+    CONFIDENCE_NO_TRADE_THRESHOLD = 0.25
+    NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL")
+    STRONG_CONFIDENCE_THRESHOLD = 0.75
+    WEAK_CONFIDENCE_THRESHOLD = 0.4
+    STRONG_WF_THRESHOLD = 0.7
+
+    ACTION_LABELS = {
+        "hu": {0: "TARTÁS", 1: "VÉTEL", 2: "ELADÁS"},
+        "en": {0: "HOLD", 1: "BUY", 2: "SELL"},
+    }
+
+    LANG = "en"
+
+    # Kereskedési beállítások (P2 - Tranzakciós költségek)
+    INITIAL_CAPITAL = 10000
+    RISK = 0.02  # A portfólió 2%-át kockáztatjuk egy trade-en
+    TRANSACTION_FEE_PCT = 0.001  # 0.1% jutalék
+    MIN_SLIPPAGE_PCT = 0.0005  # 0.05% csúszás
+    SPREAD_PCT = 0.0005  # 0.05%
+
+    RELIABILITY_PERIOD_DAYS = 30
+
+    # P4.5 SAFETY
+    COOLDOWN_DAYS = 5
+    COOLDOWN_MAX_TRADES = 2
+    DRAWDOWN_LOOKBACK = 3
+
+    MAX_VIX_THRESHOLD = 30.0  # Efelett pánik van a piacon
+
+    # Walk-Forward paraméterek (P5)
+    TRAIN_WINDOW_MONTHS = 24  # 2 év tanulás
+    TEST_WINDOW_MONTHS = 6  # 6 hónap tesztelés
+    WINDOW_STEP_MONTHS = 3  # 3 havonta lépünk előre
+
+    # tanulási adatok és optimalizációs paraméterek
+    START_DATE = "2020-01-01"
+    END_DATE = datetime.today().strftime("%Y-%m-%d")
+    TICKERS = [t for t in get_supported_ticker_list() if t not in Config.EXCLUDED_TICKERS]
+    OPTIMIZER_GENERATIONS = 30
+    OPTIMIZER_POPULATION = 50
+    RL_TIMESTEPS = 100_000
+
+        BEAR_MARKET_LOOKBACK_DAYS = 400
+
+        BEAR_MARKET_SMA_PERIOD = 200
+
+        RISK_FREE_FALLBACK = 0.045
+
+        WARMUP_DAYS = 100
+
+        DRAWDOWN_PENALTY_THRESHOLD = -20
+
+        DRAWDOWN_PENALTY_MULTIPLIER = 0.5
+
+        GA_CXPB = 0.7
+
+        GA_MUTPB = 0.2
+
+        CORRELATION_PENALTY_STRENGTH = 0.5
+
+        VOLATILITY_SOFT_CAP = 0.03
+
+        VOLATILITY_BUCKET_THRESHOLDS = {"LOW": 0.015, "NORMAL": 0.03, "HIGH": 0.06}
+
+        ENSEMBLE_QUALITY_THRESHOLDS = {"STRONG": 0.6, "NORMAL": 0.3, "WEAK": 0.1}
+
+        EXCLUDED_TICKERS = ["OTP.BD", "MOL.BD", "RICHTER.BD"]
+
+    @classmethod
+    def ensure_dirs(cls):
+        mandatory = [
+            cls.DATA_DIR,
+            cls.LOG_DIR,
+            cls.MODEL_DIR,
+            cls.HISTORY_DIR,
+        ]
+
+        optional = []
+        if cls.ENABLE_FLASK:
+            optional.append(cls.CHART_DIR)
+
+        if cls.ENABLE_RL:
+            optional.append(cls.TENSORBOARD_DIR)
+
+        if cls.ENABLE_RELIABILITY:
+            optional.append(cls.MODEL_RELIABILITY_DIR)
+            optional.append(cls.DECISION_LOG_DIR)
+            optional.append(cls.DECISION_OUTCOME_DIR)
+
+        for d in mandatory + optional:
+            d.mkdir(parents=True, exist_ok=True)
+
+
+# Inicializáláskor futtatjuk
+Config.ensure_dirs()

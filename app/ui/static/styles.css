@@ -277,3 +277,26 @@ p {
     border: none;
     cursor: pointer;
 }
+
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    font-weight: bold;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.status-ok {
+    background-color: #e0f2ff;
+    color: #005f99;
+}
+
+.status-erős {
+    background-color: #e6f4ea;
+    color: #1e7e34;
+}
+
+.status-gyenge {
+    background-color: #fdecea;
+    color: #a71d2a;
+}

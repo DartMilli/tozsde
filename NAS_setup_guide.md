@@ -32,7 +32,7 @@ A következő könyvtárszerkezet legyen a NAS-on (például: `/volume1/docker/t
 ├── venv/                 # Python virtuális környezet
 ├── .env                  # Beállítások (EMAIL, jelszó, stb.)
 ├── requirements.txt      # Python csomagok
-├── scheduler/cron_job.py # Napi ajánlásküldő script
+├── main.py               # Belépési pont
 ├── ui/app.py             # FastAPI app (ha szükséges)
 └── app/...               # A teljes projekt többi része
 ```
@@ -87,10 +87,32 @@ A cron job lefuttatja a napi ajánló rendszert (emailen):
 crontab -e
 ```
 
-Add hozzá (például minden nap 8:00-kor):
+Add hozzá (például minden nap 8:00-kor, vagy minden negyedévben 1.-én 0:00-kor):
 
 ```
-0 8 * * * /volume1/docker/trading_ai/venv/bin/python /volume1/docker/trading_ai/scheduler/cron_job.py
+0 6 * * * /volume1/docker/trading_ai/venv/bin/python /volume1/docker/trading_ai/scheduler/cron_job.py --mode daily
+0 0 1 */3 * /volume1/docker/trading_ai/venv/bin/python /volume1/docker/trading_ai/scheduler/cron_job.py --mode optimize
+0 4 * * MON /volume1/docker/trading_ai/venv/bin/python /volume1/docker/trading_ai/scheduler/cron_job.py --mode reliability
+```
+
+---
+
+⚠️ Fontos: adatbázis séma életciklus
+
+A rendszer szándékosan szétválasztja:
+
+adatbázis séma kezelését (DDL, migrációk)
+
+üzemi futtatást (napi ajánlások, optimalizáció, reliability)
+
+🧱 Sémakezelés (INFRA lépés)
+
+Az adatbázis sémát NEM a main vagy a cron jobok hozzák létre.
+
+A sémát külön, manuálisan vagy deploy során kell alkalmazni:
+
+```
+python scripts/apply_schema.py
 ```
 
 ---
