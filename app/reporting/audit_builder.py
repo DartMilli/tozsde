@@ -1,5 +1,6 @@
 from collections import Counter
 import datetime
+from typing import Optional, Tuple
 
 from app.config.config import Config
 from app.decision.ensemble_quality import bucket_ensemble_quality
@@ -7,8 +8,9 @@ from app.decision.volatility_bucket import bucket_volatility
 
 
 def decision_reliability_level(
-    confidence: float | None, wf_score: float | None
-) -> tuple[str, bool]:
+    confidence,  # type: Optional[float]
+    wf_score,  # type: Optional[float]
+):  # type: (...) -> Tuple[str, bool]
     """
     P7.1.1 – Descriptive decision reliability
     Returns: (decision_level, trade_allowed)

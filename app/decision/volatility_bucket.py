@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 
 class VolatilityBucket(str, Enum):
@@ -8,7 +9,8 @@ class VolatilityBucket(str, Enum):
     EXTREME = "EXTREME"
 
 
-def bucket_volatility(volatility: float | None) -> VolatilityBucket:
+def bucket_volatility(volatility):
+    # type: (Optional[float]) -> VolatilityBucket
     """
     P7.4.1 – Volatility interpretation for audit / explain
     volatility is normalized ATR / close

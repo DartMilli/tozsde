@@ -31,6 +31,7 @@ import time
 import datetime
 from typing import Dict, List
 import json
+from typing import Optional
 
 from app.backtesting.backtester import Backtester
 from app.optimization.fitness import fitness_single
@@ -127,10 +128,10 @@ def evaluate_individual_without_log(indivdual, dataframes, keys):
 
 
 def parsimony_penalty(
-    params: dict,
-    weight: float = 0.05,
-    param_limits: dict | None = None,
-) -> float:
+    params,  # type: dict
+    weight=0.05,  # type: float
+    param_limits=None,  # type: Optional[dict]
+):  # type: (...) -> float
     """
     Bünteti a túl komplex paraméterhalmazokat.
 

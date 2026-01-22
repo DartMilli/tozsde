@@ -1,6 +1,7 @@
 # app/decision/decision_reliability.py
 
 from dataclasses import dataclass
+from typing import Optional
 from app.config.config import Config
 
 
@@ -12,7 +13,8 @@ class DecisionReliabilityResult:
     wf_score: float
 
 
-def assess_decision_reliability(final_confidence: float, wf_score: float | None):
+def assess_decision_reliability(final_confidence, wf_score):
+    # type: (float, Optional[float]) -> DecisionReliabilityResult
     if final_confidence < Config.CONFIDENCE_NO_TRADE_THRESHOLD:
         return DecisionReliabilityResult(
             trade_allowed=False,

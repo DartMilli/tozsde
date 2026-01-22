@@ -1,13 +1,13 @@
 import datetime
-from typing import Dict
+from typing import Dict, List, Optional, Tuple
 
 
 def aggregate_weighted_ensemble(
-    votes: list[int],
-    confidences: list[float],
-    wf_scores: list[float | None],
-    model_votes: list[Dict],
-) -> tuple[int, float, float]:
+    votes,  # type: list
+    confidences,  # type: list
+    wf_scores,  # type: List[Optional[float]]
+    model_votes,  # type: List[Dict]
+):  # type: (...) -> Tuple[int, float, float]
     """
     P7.2 – Confidence + WF weighted ensemble aggregation
 
@@ -61,10 +61,10 @@ def compute_rank_weight(rank: int, alpha: float = 0.7) -> float:
 
 
 def compute_recency_weight(
-    trained_at: datetime.date | None,
-    today: datetime.date,
-    half_life_days: int = 90,
-) -> float:
+    trained_at,  # type: Optional[datetime.date]
+    today,  # type: datetime.date
+    half_life_days=90,  # type: int
+):  # type: (...) -> float
     if trained_at is None:
         return 1.0
     age_days = (today - trained_at).days

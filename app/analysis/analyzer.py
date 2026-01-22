@@ -227,14 +227,29 @@ def compute_signals(df, ticker, params, return_series=False):
     }
 
     if return_series:
-        # 1:1 signals-per-bar tömb építése
-        signals_per_bar = [[] for _ in range(len(df))]
+        # 1:1 signals-per-bar tömb építése - egyszerűsített verzió
+        # Indikátorok alapján per-bar jeleket generál
+        signals_per_bar = []
 
-        for ev in signals:  # signals az eredeti eseménylista!
-            ts = pd.to_datetime(ev["date"])
-            if ts in df.index:
-                i = df.index.get_loc(ts)
-                signals_per_bar[i].append(ev["signal"])
+        for i in range(len(df)):
+            signal = "HOLD"  # Default
+
+            # EMA/SMA crossover check
+            if (
+                i >= 1
+                and sma is not None
+                and len(sma) > i
+                and not np.isnan(sma[i - 1 : i + 1]).any()
+                and ema is not None
+                and len(ema) > i
+                and not np.isnan(ema[i - 1 : i + 1]).any()
+            ):
+                if ema[i - 1] < sma[i - 1] and ema[i] > sma[i]:
+                    signal = "BUY"
+                elif ema[i - 1] > sma[i - 1] and ema[i] < sma[i]:
+                    signal = "SELL"
+
+            signals_per_bar.append(signal)
 
         return signals_per_bar, indicators
 

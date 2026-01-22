@@ -19,7 +19,7 @@ class DataManager:
     """
 
     def __init__(self):
-        self.db_path = Config.DB_PATH
+        self.db_path = str(Config.DB_PATH)  # Convert Path to string for sqlite3
 
     def _get_conn(self):
         """Privát metódus az adatbázis kapcsolat létrehozásához."""
@@ -87,9 +87,8 @@ class DataManager:
                     action_label TEXT,
                     confidence REAL,
                     wf_score REAL,
-                    decision_blob TEXT,    -- Teljes döntési JSON
-                    audit_blob TEXT        -- Magyarázatok és metaadatok
-                    explanation_blob TEXT  -- Magyarázatok és metaadatok
+                    decision_blob TEXT,
+                    audit_blob TEXT
                 )
             """
             )
@@ -181,12 +180,12 @@ class DataManager:
     # --- DÖNTÉSI ELŐZMÉNYEK (History & Audit) ---
 
     def save_history_record(
-        self, ticker, action_code, label, confidence, wf_score, d_blob, a_blob, e_blob
+        self, ticker, action_code, label, confidence, wf_score, d_blob, a_blob
     ):
         """Enkapszulált mentés a history táblába."""
         query = """
             INSERT INTO decision_history 
-            (timestamp, ticker, action_code, action_label, confidence, wf_score, decision_blob, audit_blob, explanation_blob)
+            (timestamp, ticker, action_code, action_label, confidence, wf_score, decision_blob, audit_blob)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
         with self._get_conn() as conn:
@@ -201,7 +200,6 @@ class DataManager:
                     wf_score,
                     d_blob,
                     a_blob,
-                    e_blob,
                 ),
             )
             conn.commit()
@@ -341,7 +339,7 @@ class DataManager:
             rows = conn.execute(
                 """
                 SELECT timestamp, ticker, action_code, action_label,
-                       confidence, wf_score, decision_blob, audit_blob, explanation_blob
+                       confidence, wf_score, decision_blob, audit_blob
                 FROM decision_history
                 WHERE ticker = ?
                 ORDER BY timestamp ASC
@@ -349,14 +347,13 @@ class DataManager:
                 (ticker,),
             ).fetchall()
         out = []
-        for ts, tkr, ac, al, conf, wf, d_blob, a_blob, e_blob in rows:
+        for ts, tkr, ac, al, conf, wf, d_blob, a_blob in rows:
             out.append(
                 {
                     "timestamp": ts,
                     "ticker": tkr,
                     "decision": json.loads(d_blob) if d_blob else {},
                     "audit": json.loads(a_blob) if a_blob else {},
-                    "explanation": json.loads(e_blob) if e_blob else {},
                 }
             )
         return out

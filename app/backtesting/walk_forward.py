@@ -23,6 +23,7 @@ OUTPUT:
 """
 
 import numpy as np
+from typing import Optional
 
 from app.optimization.genetic_optimizer import optimize_params
 from app.optimization.fitness import fitness_walk_forward, fitness_single, NEG_INF
@@ -40,14 +41,14 @@ class WalkForwardOptimizer:
 
     def __init__(
         self,
-        ticker: str,
+        ticker,  # type: str
         df,
-        bounds: dict,  # 🔥 analyzerből kapjuk
-        train_window: int,
-        test_window: int,
-        step_size: int,
-        verbose=True,
-        ga_config: dict | None = None,
+        bounds,  # type: dict
+        train_window,  # type: int
+        test_window,  # type: int
+        step_size,  # type: int
+        verbose=True,  # type: bool
+        ga_config=None,  # type: Optional[dict]
     ):
         self.ticker = ticker
         self.df = df

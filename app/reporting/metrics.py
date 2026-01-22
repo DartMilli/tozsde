@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import pandas as pd
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 @dataclass
@@ -26,24 +26,22 @@ class BacktestReport:
         return out
 
 
-# old implementation
-"""
-@dataclass
-class BacktestMetrics:
-    net_profit: float
-    max_drawdown: float  # %
-    winrate: float  # 0–1
-    trade_count: int
-    sharpe: float | None
-
-
-@dataclass
-class BacktestDiagnostics:
-    sharpe_ratio: float
-    equity_curve: list
-    final_value: float
-    total_cost: float
-"""
+# old implementation (commented out, not used)
+# @dataclass
+# class BacktestMetrics:
+#     net_profit: float
+#     max_drawdown: float  # %
+#     winrate: float  # 0–1
+#     trade_count: int
+#     sharpe: Optional[float]
+#
+#
+# @dataclass
+# class BacktestDiagnostics:
+#     sharpe_ratio: float
+#     equity_curve: list
+#     final_value: float
+#     total_cost: float
 
 
 @dataclass
