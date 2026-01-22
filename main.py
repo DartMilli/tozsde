@@ -100,6 +100,26 @@ def run_daily(dry_run: bool = False, ticker: str = None):
 
             audit = build_audit_metadata(payload, decision)
 
+            # Apply RL-based strategy selection if enabled
+            if Config.ENABLE_RL and not Config.RL_TRAINING_MODE:
+                try:
+                    from app.models.rl_inference import RLModelEnsembleRunner
+                    from app.backtesting.backtester import BacktestingEnvironment
+
+                    # RL inference to get votes from ensemble
+                    runner = RLModelEnsembleRunner(
+                        model_dir=Config.MODEL_DIR, env_class=BacktestingEnvironment
+                    )
+
+                    # Run RL ensemble (use existing data from payload)
+                    # Placeholder: RL would refine decision based on ensemble votes
+                    # For now, log that RL was consulted
+                    logger.info(f"RL consultation enabled for {ticker_symbol}")
+
+                except Exception as e:
+                    logger.warning(f"RL inference failed for {ticker_symbol}: {e}")
+                    # Fall back to genetic algorithm decision (already in 'decision')
+
             # Apply policy rules (cooldown, safety)
             decision = apply_decision_policy(decision, audit)
 

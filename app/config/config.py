@@ -15,8 +15,12 @@ EXCLUDED_TICKERS = ["OTP.BD", "MOL.BD", "RICHTER.BD"]
 
 class Config:
     ENABLE_FLASK = False
-    ENABLE_RL = False
+    ENABLE_RL = os.getenv("ENABLE_RL", "false").lower() == "true"
+    RL_TRAINING_MODE = os.getenv("RL_TRAINING_MODE", "false").lower() == "true"
     ENABLE_RELIABILITY = False
+    ENABLE_DRIFT_DETECTION = (
+        os.getenv("ENABLE_DRIFT_DETECTION", "true").lower() == "true"
+    )
 
     LOGGING_LEVEL = os.getenv("LOGGING_LEVEL")
 

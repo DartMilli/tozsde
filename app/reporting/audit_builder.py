@@ -5,6 +5,9 @@ from typing import Optional, Tuple
 from app.config.config import Config
 from app.decision.ensemble_quality import bucket_ensemble_quality
 from app.decision.volatility_bucket import bucket_volatility
+from app.infrastructure.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 def decision_reliability_level(
@@ -97,6 +100,25 @@ def build_audit_metadata(payload: dict, decision: dict) -> dict:
     raw_ensemble_quality = decision.get("ensemble_quality", 0.0)
     raw_volatility = payload.get("volatility")
 
+    # --- Drift detection integration (optional) ---
+    drift_status = None
+    if Config.ENABLE_DRIFT_DETECTION:
+        try:
+            from app.decision.drift_detector import PerformanceDriftDetector
+
+            detector = PerformanceDriftDetector()
+            ticker = payload.get("ticker")
+            current_score = decision.get("quality_score")
+            if ticker and current_score is not None:
+                alert_level = detector.check_drift(ticker, current_score)
+                drift_status = alert_level
+                if alert_level in ["WARNING", "CRITICAL"]:
+                    logger.warning(
+                        f"Performance drift detected for {ticker}: {alert_level}"
+                    )
+        except Exception as e:
+            logger.error(f"Drift detection error: {e}")
+
     return {
         "consistency": flags,
         "confidence_bucket": confidence_bucket(decision.get("confidence")),
@@ -105,6 +127,7 @@ def build_audit_metadata(payload: dict, decision: dict) -> dict:
         "volatility_bucket": bucket_volatility(raw_volatility).value,
         "decision_level": decision_level,  # P7.1.1
         "trade_allowed": trade_allowed,  # P7.1.1
+        "drift_status": drift_status,  # NEW: Performance drift alert level
         "timestamp_utc": datetime.utcnow().isoformat(),
     }
 
