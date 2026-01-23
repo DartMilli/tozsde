@@ -7,73 +7,58 @@ Responsibility:
     - Enable operational monitoring and SLA tracking
 
 Features:
-    - Pipeline execution logging (JSONL format)
+    - Pipeline execution logging (via DataManager)
     - Metrics aggregation (success rate, avg duration)
     - Recent metrics retrieval for admin dashboard
     - Performance trending
 
 Usage:
-    metrics = SystemMetrics()
+    metrics = get_metrics()
     metrics.log_pipeline_execution("VOO", "success", 45.2)
     recent = metrics.get_recent_metrics(hours=24)
 """
 
-import json
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional
-import os
+from typing import Dict, Optional
 
 from app.config.config import Config
+from app.data_access.data_manager import DataManager
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
 class SystemMetrics:
-    """
-    Tracks and reports system health metrics.
-
-    Stores metrics as JSONL (one JSON object per line) for easy parsing.
-    """
+    """Tracks and reports system health metrics via DataManager."""
 
     def __init__(self):
         """Initialize metrics tracking."""
-        self.metrics_dir = Config.LOG_DIR / "metrics"
-        self.metrics_dir.mkdir(parents=True, exist_ok=True)
+        self.dm = DataManager()
+        # Ensure table exists during initialization
+        self.dm.initialize_tables()
 
     def log_pipeline_execution(
-        self, ticker: str, status: str, duration_sec: float, details: Dict = None
-    ):
+        self,
+        ticker: str,
+        status: str,
+        duration_sec: float,
+        error_message: Optional[str] = None,
+    ) -> bool:
         """
-        Log daily pipeline execution metrics.
+        Log daily pipeline execution to database.
 
         Args:
             ticker: Asset ticker
             status: "success", "error", "timeout", "skipped"
             duration_sec: Execution time in seconds
-            details: Additional context (error message, trades count, etc.)
+            error_message: Error details if status is "error"
+
+        Returns:
+            True if logged successfully, False otherwise
         """
-        # TODO: Implement
-        metric = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "ticker": ticker,
-            "status": status,
-            "duration_sec": duration_sec,
-            "details": details or {},
-        }
-
-        # Append to monthly JSONL file
-        path = (
-            self.metrics_dir / f"pipeline_{datetime.utcnow().strftime('%Y_%m')}.jsonl"
+        return self.dm.log_pipeline_execution(
+            ticker, status, duration_sec, error_message
         )
-
-        try:
-            with open(path, "a") as f:
-                f.write(json.dumps(metric) + "\n")
-            logger.debug(f"Logged metric: {ticker} {status}")
-        except Exception as e:
-            logger.error(f"Failed to log metric: {e}")
 
     def log_backtest_execution(
         self,
@@ -81,8 +66,8 @@ class SystemMetrics:
         wf_score: float,
         trades_count: int,
         profit_factor: float,
-        details: Dict = None,
-    ):
+        error_message: Optional[str] = None,
+    ) -> bool:
         """
         Log backtest/walk-forward execution.
 
@@ -91,28 +76,14 @@ class SystemMetrics:
             wf_score: Walk-forward fitness score (0-1)
             trades_count: Number of trades in backtest
             profit_factor: Gross profit / Gross loss
-            details: Additional metrics
+            error_message: Error if occurred
+
+        Returns:
+            True if logged successfully
         """
-        # TODO: Implement
-        metric = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "event_type": "backtest",
-            "ticker": ticker,
-            "wf_score": wf_score,
-            "trades_count": trades_count,
-            "profit_factor": profit_factor,
-            "details": details or {},
-        }
-
-        path = (
-            self.metrics_dir / f"backtest_{datetime.utcnow().strftime('%Y_%m')}.jsonl"
+        return self.dm.log_backtest_execution(
+            ticker, wf_score, trades_count, profit_factor, error_message
         )
-
-        try:
-            with open(path, "a") as f:
-                f.write(json.dumps(metric) + "\n")
-        except Exception as e:
-            logger.error(f"Failed to log backtest metric: {e}")
 
     def get_recent_metrics(self, hours: int = 24) -> Dict:
         """
@@ -123,68 +94,15 @@ class SystemMetrics:
 
         Returns:
             {
-                "success_rate": float,        # 0-1
+                "success_rate": float (0-1),
                 "avg_duration_sec": float,
                 "errors_count": int,
                 "total_executions": int,
                 "last_success": datetime or None,
-                "last_error": datetime or None,
-                "error_message": str or None
+                "last_error": datetime or None
             }
         """
-        # TODO: Implement
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-
-        executions = []
-
-        # Read metrics files
-        for metrics_file in self.metrics_dir.glob("pipeline_*.jsonl"):
-            try:
-                with open(metrics_file, "r") as f:
-                    for line in f:
-                        try:
-                            metric = json.loads(line)
-                            ts = datetime.fromisoformat(metric["timestamp"])
-                            if ts > cutoff_time:
-                                executions.append(metric)
-                        except json.JSONDecodeError:
-                            continue
-            except Exception as e:
-                logger.warning(f"Error reading metrics file {metrics_file}: {e}")
-
-        if not executions:
-            return {
-                "success_rate": 0.0,
-                "avg_duration_sec": 0.0,
-                "errors_count": 0,
-                "total_executions": 0,
-                "last_success": None,
-                "last_error": None,
-                "error_message": "No metrics available",
-            }
-
-        # Compute aggregates
-        successes = [e for e in executions if e["status"] == "success"]
-        errors = [e for e in executions if e["status"] == "error"]
-
-        success_rate = len(successes) / len(executions) if executions else 0.0
-        avg_duration = (
-            np.mean([e["duration_sec"] for e in executions]) if executions else 0.0
-        )
-
-        last_success = max([e["timestamp"] for e in successes]) if successes else None
-        last_error = max([e["timestamp"] for e in errors]) if errors else None
-        last_error_msg = errors[-1].get("details", {}).get("error") if errors else None
-
-        return {
-            "success_rate": success_rate,
-            "avg_duration_sec": round(avg_duration, 2),
-            "errors_count": len(errors),
-            "total_executions": len(executions),
-            "last_success": last_success,
-            "last_error": last_error,
-            "error_message": last_error_msg,
-        }
+        return self.dm.get_recent_metrics(hours)
 
     def get_daily_summary(self, date: str) -> Dict:
         """
@@ -200,53 +118,47 @@ class SystemMetrics:
                 "tickers_processed": list
             }
         """
-        # TODO: Implement
+        return self.dm.get_daily_summary(date)
+
+    def get_health_status(self) -> Dict:
+        """
+        Get overall system health snapshot.
+
+        Returns:
+            {
+                "status": "healthy" | "degraded" | "critical",
+                "uptime_pct": float,
+                "error_rate": float,
+                "avg_response_time_sec": float,
+                "last_check": datetime
+            }
+        """
+        recent = self.get_recent_metrics(hours=24)
+        error_rate = 1.0 - recent["success_rate"]
+
+        if error_rate > 0.1:  # >10% errors = critical
+            status = "critical"
+        elif error_rate > 0.05:  # >5% errors = degraded
+            status = "degraded"
+        else:
+            status = "healthy"
+
         return {
-            "date": date,
-            "executions": 0,
-            "successes": 0,
-            "failures": 0,
-            "avg_duration_sec": 0.0,
-            "tickers_processed": [],
+            "status": status,
+            "uptime_pct": recent["success_rate"],
+            "error_rate": round(error_rate, 3),
+            "avg_response_time_sec": recent["avg_duration_sec"],
+            "last_check": datetime.utcnow().isoformat(),
         }
 
 
-# Utility functions
+# Singleton instance
+_metrics_instance = None
 
 
-def get_system_health() -> Dict[str, any]:
-    """
-    Get overall system health snapshot.
-
-    Returns:
-        {
-            "status": "healthy" | "degraded" | "critical",
-            "uptime_pct": float,
-            "error_rate": float,
-            "avg_response_time_sec": float,
-            "last_check": datetime
-        }
-    """
-    # TODO: Implement
-    metrics = SystemMetrics()
-    recent = metrics.get_recent_metrics(hours=24)
-
-    error_rate = 1.0 - recent["success_rate"]
-
-    if error_rate > 0.1:  # >10% errors = critical
-        status = "critical"
-    elif error_rate > 0.05:  # >5% errors = degraded
-        status = "degraded"
-    else:
-        status = "healthy"
-
-    return {
-        "status": status,
-        "uptime_pct": recent["success_rate"],
-        "error_rate": error_rate,
-        "avg_response_time_sec": recent["avg_duration_sec"],
-        "last_check": datetime.utcnow().isoformat(),
-    }
-
-
-import numpy as np
+def get_metrics() -> SystemMetrics:
+    """Get or create SystemMetrics singleton."""
+    global _metrics_instance
+    if _metrics_instance is None:
+        _metrics_instance = SystemMetrics()
+    return _metrics_instance

@@ -50,6 +50,7 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev_key_do_not_use_in_prod")
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # App password!
+    ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "admin_key_12345")  # Default for testing
 
     # -------------------- RECOMMENDER --------------------
     CONFIDENCE_NO_TRADE_THRESHOLD = 0.25

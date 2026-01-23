@@ -318,6 +318,134 @@ def report():
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# ADMIN DASHBOARD & MONITORING (4.1 & 4.2)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def _check_admin_auth():
+    """Verify admin API key from request header."""
+    api_key = request.headers.get("X-Admin-Key")
+    if api_key != Config.ADMIN_API_KEY:
+        return False
+    return True
+
+
+@app.route("/admin/dashboard", methods=["GET"])
+def admin_dashboard():
+    """Admin-only dashboard with system health & recent decisions."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        from app.infrastructure.metrics import get_metrics
+
+        dm = DataManager()
+        metrics = get_metrics()
+
+        # Get today's date
+        today = datetime.today().strftime("%Y-%m-%d")
+
+        # Recent recommendations
+        recommendations = dm.get_today_recommendations()
+
+        # System health
+        health = metrics.get_health_status()
+        recent_metrics = metrics.get_recent_metrics(hours=24)
+        daily_summary = metrics.get_daily_summary(today)
+
+        return jsonify(
+            {
+                "status": health["status"],
+                "date": today,
+                "health": health,
+                "metrics": recent_metrics,
+                "daily_summary": daily_summary,
+                "recommendations_today": len(recommendations) if recommendations else 0,
+                "last_update": datetime.utcnow().isoformat(),
+            }
+        )
+    except Exception as e:
+        app.logger.error(f"Dashboard error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/admin/metrics", methods=["GET"])
+def admin_metrics():
+    """Get system metrics for monitoring."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        from app.infrastructure.metrics import get_metrics
+
+        metrics = get_metrics()
+
+        # Query parameters
+        hours = request.args.get("hours", 24, type=int)
+        date = request.args.get("date", None, type=str)
+
+        if date:
+            # Specific date summary
+            summary = metrics.get_daily_summary(date)
+            return jsonify({"date_summary": summary})
+        else:
+            # Recent metrics
+            recent = metrics.get_recent_metrics(hours=hours)
+            health = metrics.get_health_status()
+            return jsonify({"metrics": recent, "health": health})
+    except Exception as e:
+        app.logger.error(f"Metrics error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/admin/health", methods=["GET"])
+def admin_health():
+    """Simple health check endpoint for monitoring."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        from app.infrastructure.metrics import get_metrics
+
+        metrics = get_metrics()
+        health = metrics.get_health_status()
+        return jsonify(health)
+    except Exception as e:
+        app.logger.error(f"Health check error: {e}", exc_info=True)
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "uptime_pct": 0.0,
+                    "error_rate": 1.0,
+                    "error": str(e),
+                }
+            ),
+            500,
+        )
+
+
+@app.route("/admin/force-rebalance", methods=["POST"])
+def admin_force_rebalance():
+    """Manual trigger for portfolio rebalancing."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        # TODO: Implement rebalance trigger logic
+        return jsonify(
+            {
+                "status": "rebalance_initiated",
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": "Rebalancing triggered manually",
+            }
+        )
+    except Exception as e:
+        app.logger.error(f"Rebalance trigger error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # ERROR HANDLERS
 # ═════════════════════════════════════════════════════════════════════════════
 

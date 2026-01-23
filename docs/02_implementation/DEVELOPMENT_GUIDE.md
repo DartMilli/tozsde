@@ -1,4 +1,6 @@
-# Development Guide — Enhanced Dev Runners
+# ✅ AKTÍV - Development Guide — Enhanced Dev Runners
+
+> **Fejlesztőknek:** Ez a fájl az **aktív fejlesztési útmutató** a fejlesztői infrastruktúra használatához.
 
 This guide covers the improved development infrastructure for local development and testing.
 

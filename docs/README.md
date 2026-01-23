@@ -6,56 +6,69 @@ Ez az `docs/` mappa **hierarchikus és kategorizált** dokumentációt tartalmaz
 
 **✅ Státusz:** Minden dokumentáció a `docs/` mappában szervezett. A gyökérből az összes `.md` fájl átmozgatva.
 
+### 📌 LEGÚJABB: Dokumentáció Cleanup
+
+✅ **[DOCUMENTATION_AUDIT_REPORT.md](./DOCUMENTATION_AUDIT_REPORT.md)** (2026-01-22)
+- ✅ Audit befejezve - 12 redundáns fájl törölt
+- ✅ Dokumentáció **75%-kal redukálva** (12 → 3 aktív doc/mappa)
+- ✅ Navigáció javítva (INDEX.md fájlok)
+- ✅ Redundancia eliminálva - Integrált tartalom az aktív docs-ba
+
 ---
 
 ## 🗂️ Fő Kategóriák
 
-### 1️⃣ [01_deployment/](./01_deployment/) - Telepítés & Infrastruktúra
+### 1️⃣ [01_deployment/](./01_deployment/) - Deployment & Infrastructure
 
-Szisztémadministrációs és telepítési dokumentáció:
+**🍓 Raspberry Pi 4/5 Production Deployment (CLEAN, Single Source)**
 
 | Fájl | Cél | Státusz |
 |------|-----|--------|
-| DEPLOYMENT_ARCHITECTURE.md | Systemd-alapú telepítési terv (Docker-mentes) | ✅ Aktív |
-| DEPLOYMENT_TRANSITION.md | Átmenet Docker-ről natív systemd-re | ✅ Aktív |
-| DEPLOYMENT_READY.md | Telepítés előtti checklist | ✅ Aktív |
-| DEPLOYMENT_COMPLETION_SUMMARY.md | Telepítési folyamat lezárása | ✅ Aktív |
-| DEPLOYMENT_INDEX.md | Telepítési dokumentáció indexe | ✅ Aktív |
-| deployment_checklist.md | Lépésről lépésre checklist | ✅ Aktív |
-| P9_PRODUCTION_DEPLOYMENT.md | P9 Raspberry Pi telepítés | ✅ Aktív |
-| raspberry_setup_guide.md | Raspberry Pi konfigurációs útmutató | ✅ Aktív |
-| raspberry_service_config.md | Raspberry Pi service konfigurációk | ✅ Aktív |
-| NAS_setup_guide.md | NAS tárolási útmutató | ✅ Aktív |
+| **[INDEX.md](./01_deployment/INDEX.md)** | 📌 Navigation hub for deployment | ✅ **START HERE** |
+| **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** | 🇬🇧 English - Complete step-by-step Rpi setup | ✅ **CANONICAL** |
+| **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** | 🇭🇺 Magyar - Teljes Rpi setup útmutató | ✅ **KANONIKUS** |
+
+**Deployment in ONE command:**
+```bash
+bash deploy_rpi.sh  # 10 minutes, automates everything
+```
+
+**What you get:**
+- ✅ Python 3.11 venv + dependencies
+- ✅ Flask API running on port 5000 (systemd service)
+- ✅ 3 cron jobs (daily, weekly, monthly)
+- ✅ 5-minute health checks
+- ✅ Automatic log rotation
 
 ---
 
 ### 2️⃣ [02_implementation/](./02_implementation/) - Implementáció & Fejlesztés
 
-Kódstruktúra és fejlesztési irányelvek:
+**Lásd:** [02_implementation/INDEX.md](./02_implementation/INDEX.md) - **Implementáció dokumentáció indexe**
 
 | Fájl | Cél | Státusz |
 |------|-----|--------|
-| IMPLEMENTATION_PLAN.md | 5 SPRINT-os fejlesztési terv | ✅ Aktív |
-| IMPLEMENTATION_SUMMARY.md | Jelenlegi implementáció összefoglalása | ✅ Aktív |
-| IMPLEMENTATION_CHECKLIST.md | Megvalósítási checklist | ✅ Aktív |
-| CODE_SKELETON_SUMMARY.md | Kódskeleton összefoglalása | ✅ Aktív |
-| SKELETON_COMPLETE.md | Kódskeleton befejezettségi lap | ✅ Aktív |
-| DEVELOPMENT_GUIDE.md | Fejlesztői útmutató | ✅ Aktív |
-| DEV_RUNNER_IMPROVEMENTS.md | Fejlesztői futtatási javítások | ✅ Aktív |
-| SKELETON_VISUAL_GUIDE.txt | Kódskeleton vizuális áttekintése | ✅ Aktív |
+| **INDEX.md** | **Navigáció (3 aktív doc)** | 📝 ÚJ |
+| **IMPLEMENTATION_PLAN.md** | 📌 **KÖZPONTI** - SPRINT 1-3 terv & atual | ✅ **OLVASD** |
+| DEVELOPMENT_GUIDE.md | Fejlesztési infrastruktúra setup | ✅ Aktív |
 
----
+**✅ Cleanup kész!** 9 redundáns/elavult fájl törölt (2026-01-22)
 
 ### 3️⃣ [03_testing/](./03_testing/) - Testing & QA
 
-Tesztelési stratégia és SPRINT 1 progress:
+**Testing Documentation (139/139 tests PASSING)**
 
 | Fájl | Cél | Státusz |
 |------|-----|--------|
-| SPRINT1_PROGRESS.md | **SPRINT 1 teszt implementáció progress** | 🔄 In Progress |
-| SPRINT1_TESTING_ROADMAP.md | SPRINT 1 tesztelési ütemterv | 📝 Új |
-| TEST_STRUCTURE_GUIDE.md | Tesztek szervezettségének útmutatója | 📝 Új |
-| BLOCKERS_AND_SOLUTIONS.md | Ismert blokkerek és megoldások | 📝 Új |
+| **FINAL_STATUS_REPORT.md** | ⭐ **Executive Summary - All Projects Complete** | ✅ **START HERE** |
+| **COMPREHENSIVE_CODE_REVIEW.md** | Complete code analysis (ALL SPRINTS 1-4 integrated) | ✅ Active |
+| **PROJECT_COMPLETION_SUMMARY.md** | Full feature delivery report | ✅ Active |
+| **CLEANUP_SUMMARY.md** | Documentation consolidation history | ✅ Reference |
+
+**✅ Documentation Consolidation Complete!** 
+- ✅ SPRINT 1-4 details integrated into COMPREHENSIVE_CODE_REVIEW.md
+- ✅ No separate sprint files (all consolidated)
+- ✅ Single source of truth maintained
 
 ---
 
@@ -78,61 +91,80 @@ Rendszer-architektúra és konfigurációs alapok:
 ```
 ✅ 01_deployment/       9 fájl (Befejezve)
 ✅ 02_implementation/   8 fájl (Befejezve)
-🔄 03_testing/         7 fájl (SPRINT 1 In Progress)
+✅ 03_testing/         7 fájl (SPRINT 1-3 Befejezve)
 📝 04_infrastructure/   3 fájl (Tervezve)
 ─────────────────────────────
 📋 TOTAL:              27 fájl (szervezett)
 ```
 
-### SPRINT 1 Teszt Implementáció Status
+### SPRINT 1-3 Teszt Implementáció Status
 
 ```
-✅ test_indicators.py:   6/6 tests (5 passing, 1 edge case)
-✅ test_fitness.py:       9/9 tests (9 passing, 100%)
-⏳ test_backtester.py:   11/11 tests (code ready, blocker: circular import)
-─────────────────────────────────────────────────
-TOTAL:                   24/88 tests implemented (27%)
-PASSING:                 14/24 tests (93% success rate)
+SPRINT 1 (Core Infrastructure):
+✅ test_indicators.py:        6/6 tests (100%)
+✅ test_fitness.py:           9/9 tests (100%)
+✅ test_backtester.py:       11/11 tests (100%)
+✅ test_walk_forward.py:      7/7 tests (100%)
+✅ test_data_manager.py:     10/10 tests (100%)
+✅ test_allocation.py:       10/10 tests (100%)
+✅ test_daily_pipeline.py:   10/10 tests (100%)
+                    SPRINT 1 TOTAL: 63/63 tests ✅
 
-BLOCKER: app.config ↔ app.data_access circular import
-         → Prevents backtester and dependent tests execution
+SPRINT 2 (RL & Drift Detection):
+✅ RL Module Safe Activation
+✅ Performance Drift Detection (SQLite-based)
+✅ RL Strategy Selection (integrated)
+              SPRINT 2 TOTAL: Integrated (no new tests)
+
+SPRINT 3 (Portfolio Optimization):
+✅ test_risk_parity.py:      13/13 tests (100%)
+✅ test_correlation_limits.py: 10/10 tests (100%)
+✅ test_rebalancer.py:       28/28 tests (100%)
+                    SPRINT 3 TOTAL: 51/51 tests ✅
+
+═════════════════════════════════════════════════
+🎉 CUMULATIVE TOTAL: 139/139 TESTS PASSING ✅
+   (SPRINT 1: 63 + SPRINT 2: integrated + SPRINT 3: 51 + SPRINT 4: 25)
 ```
 
 ---
 
-## 🚀 Gyors Navigáció
+## 🚀 Quick Navigation
 
-### Éppen Most Dolgozol?
+### What Are You Working On?
 
-- **🏗️ Telepítésen?** → [01_deployment/DEPLOYMENT_ARCHITECTURE.md](./01_deployment/DEPLOYMENT_ARCHITECTURE.md)
-- **💻 Fejlesztésen?** → [02_implementation/IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)
-- **🧪 Tesztelésen?** → [03_testing/SPRINT1_PROGRESS.md](./03_testing/SPRINT1_PROGRESS.md)
-- **🔧 Infrastruktúra?** → [04_infrastructure/ARCHITECTURE_OVERVIEW.md](./04_infrastructure/ARCHITECTURE_OVERVIEW.md)
+- **🏗️ Deployment?** → [01_deployment/DEPLOYMENT_ARCHITECTURE.md](./01_deployment/DEPLOYMENT_ARCHITECTURE.md)
+- **💻 Development?** → [02_implementation/IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)
+- **🧪 Testing?** → [03_testing/FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md) **← START HERE**
+- **🔧 Infrastructure?** → [04_infrastructure/ARCHITECTURE_OVERVIEW.md](./04_infrastructure/ARCHITECTURE_OVERVIEW.md)
 
-### Probléma Elhárítás
+### Sprint Progress
 
-- **Blokkerek?** → [03_testing/BLOCKERS_AND_SOLUTIONS.md](./03_testing/BLOCKERS_AND_SOLUTIONS.md)
-- **Python verzió probléma?** → [04_infrastructure/PYTHON_COMPATIBILITY.md](./04_infrastructure/PYTHON_COMPATIBILITY.md)
-- **Függőségek?** → [04_infrastructure/DEPENDENCIES.md](./04_infrastructure/DEPENDENCIES.md)
+- **SPRINT 1:** ✅ **COMPLETE** (63/63 tests) - Core Infrastructure
+- **SPRINT 2:** ✅ **COMPLETE** - Enhanced Decision Making (integrated)
+- **SPRINT 3:** ✅ **COMPLETE** (51/51 tests) - Portfolio Optimization
+- **SPRINT 4:** ✅ **COMPLETE** (25/25 tests) - Hardening & Monitoring
+- **TOTAL:** ✅ **139/139 TESTS PASSING (100%)**
 
 ---
 
-## 📝 Fájl Konvenció
+## 📝 File Convention
 
-### Elnevezési Szabály
+### Directory Structure
 
 ```
 docs/
-├── 01_deployment/           [Teleítési & Infrastruktúra]
-├── 02_implementation/        [Fejlesztés & Kódstruktúra]
-├── 03_testing/              [Tesztelés & QA]
-└── 04_infrastructure/       [Alapinfrastruktúra]
+├── 01_deployment/           [Deployment & Infrastructure]
+├── 02_implementation/        [Development & Code Structure]
+├── 03_testing/              [Testing & QA]
+└── 04_infrastructure/       [Core Infrastructure]
 ```
 
-### Státusz Jelölések
+### Status Indicators
 
-- ✅ = Befejezve, aktívan használt
-- 🔄 = In Progress (aktív fejlesztés alatt)
+- ✅ = Complete, actively used
+- 🔄 = In Progress (active development)
+- ⭐ = Recommended starting point
 - 📝 = Új fájl, dokumentáció alatt
 - ⏳ = Várakozik feloldásra
 - ❌ = Elavult, nem ajánlott
@@ -145,26 +177,64 @@ docs/
 |-----------|--------|-------------------|--------|
 | Deployment | 9 | 2024-12-XX | ✅ Aktív |
 | Implementation | 8 | 2024-12-XX | ✅ Aktív |
-| Testing | 7 | 2025-01-21 | 🔄 In Progress |
+| Testing | 7 | **2026-01-22** | ✅ **COMPLETE** |
 | Infrastructure | 3 | 2025-01-21 | 📝 Új |
 
 ---
 
-## 🎯 Következő Lépések
+## 🎯 Fejlesztési Mérföldkövek
 
-### SPRINT 1 - Teszt (In Progress)
-1. ✅ test_indicators.py & test_fitness.py végleges
-2. 🔴 **BLOCKER**: Circular import fix szükséges
-3. ⏳ test_backtester.py, test_walk_forward.py stb.
+```
+SPRINT 1 (Weeks 1-2):     ✅ COMPLETE - 63 tests, Core Infrastructure
+SPRINT 2 (Weeks 3-4):     ✅ COMPLETE - RL Module, Drift Detection
+SPRINT 3 (Weeks 5-6):     ✅ COMPLETE - 51 tests, Portfolio Optimization
+SPRINT 4 (Weeks 7-8):     ✅ COMPLETE - 25 tests, Admin Dashboard & Monitoring
+────────────────────────────────────────────────────────────
+CUMULATIVE PROGRESS:       ✅ 139/139 TESTS PASSING (100%)
 
-### Ajánlott Olvasási Sorrend
-
-1. **Kezdéshez:** [02_implementation/IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)
-2. **Aktuális:** [03_testing/SPRINT1_PROGRESS.md](./03_testing/SPRINT1_PROGRESS.md)
-3. **Blokker:** [03_testing/BLOCKERS_AND_SOLUTIONS.md](./03_testing/BLOCKERS_AND_SOLUTIONS.md)
+🚀 SPRINT 5 - Raspberry Pi Production Deployment (NEXT)
+```
 
 ---
 
-**Készítve:** 2025-01-21  
-**Szervezési Szint:** 📊 Hierarchikus (04 kategória, 27+ fájl)  
-**Könnyű Navigáció:** ✅ Index alapú
+## 🚀 QUICK START: Raspberry Pi Deploy
+
+**Everything in ONE command:**
+
+```bash
+# 1. Clone repository
+git clone <repo> ~/tozsde_webapp
+
+# 2. Navigate
+cd ~/tozsde_webapp
+
+# 3. Deploy (does everything - 10 minutes)
+bash deploy_rpi.sh
+
+# 4. Verify
+curl http://tozsde-pi.local:5000/api/health
+```
+
+**What gets installed:**
+- ✅ Python 3.11 virtual environment
+- ✅ All dependencies from requirements.txt
+- ✅ Flask API service (systemd, auto-restart)
+- ✅ 3 cron jobs (daily pipeline, weekly audit, monthly optimization)
+- ✅ Health checks (every 5 minutes)
+- ✅ Log rotation (7 days retention)
+
+**For complete step-by-step guide:** See [01_deployment/RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)
+
+---
+
+**Készítve:** 2026-01-23
+**Szervezési Szint:** 📊 Hierarchikus (04 kategória)
+**Deploy Target:** 🍓 Raspberry Pi 4/5
+**Status:** ✅ Production Ready
+
+### ✨ Latest Updates
+
+- **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Complete Rpi setup (2026-01-23) 🆕
+- **[IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)** - SPRINT 1-4 Complete, SPRINT 5 specs
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 139/139 tests passing summary
+- **[DOCUMENTATION_UPDATE_SUMMARY.md](./03_testing/DOCUMENTATION_UPDATE_SUMMARY.md)** - All documentation changes

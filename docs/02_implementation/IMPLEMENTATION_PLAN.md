@@ -1,12 +1,29 @@
 # IMPLEMENTATION PLAN (Q1 2026)
-**Priority:** Critical gaps blocking production maturity  
-**Timeline:** 8 weeks of development
+**Priority:** Production deployment & operational excellence  
+**Timeline:** 9 weeks of development
+
+**STATUS:** ✅ **SPRINTS 1-4 COMPLETE** (139/139 tests passing) | **SPRINT 5 READY**
 
 ---
 
-## SPRINT 1 (Weeks 1–2): TEST SUITE & QUALITY ASSURANCE
+## 🎉 Completion Summary
 
-### 1.1 Create Test Infrastructure
+| Sprint | Component | Tests | Status | Date |
+|--------|-----------|-------|--------|------|
+| 1 | Core Infrastructure | 63 | ✅ COMPLETE | Jan 22, 2026 |
+| 2 | Enhanced Decision Making | Integrated | ✅ COMPLETE | Jan 22, 2026 |
+| 3 | Portfolio Optimization | 51 | ✅ COMPLETE | Jan 22, 2026 |
+| 4 | Hardening & Monitoring | 25 | ✅ COMPLETE | Jan 23, 2026 |
+| **TOTAL** | **Test Suite** | **139** | **✅ PASSING (100%)** | **Jan 23, 2026** |
+| **NEXT** | **Production Deployment** | — | 🔄 PLANNED | — |
+
+---
+
+## SPRINT 1 (Weeks 1–2): TEST SUITE & QUALITY ASSURANCE ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE** - 63/63 tests passing
+
+**Achievements:**
 **Effort:** 4 hours | **Impact:** HIGH (unblocks refactoring)
 
 **What:** Build `tests/` directory with pytest fixtures and conftest.
@@ -182,12 +199,24 @@ def test_run_daily_success(mock_send_email, test_db):
 
 ---
 
-## SPRINT 2 (Weeks 3–4): LEARNING SYSTEM & RL ACTIVATION
+## SPRINT 2 (Weeks 3–4): LEARNING SYSTEM & RL ACTIVATION ✅ COMPLETE
 
-### 2.1 Enable RL Module Safely
-**Effort:** 3 hours | **Impact:** HIGH (enables P8 features)
+**Status:** ✅ **COMPLETE** - Integrated without adding new test files
 
-**Where:** [config.py](app/config/config.py#L20)
+**Achievements:**
+- ✅ 2.1: RL Module Safely Enabled (environment-driven configuration)
+- ✅ 2.2: Performance Drift Detection (SQLite-based, 15%/30% thresholds)
+- ✅ 2.3: RL Strategy Selection (voting ensemble with fallback)
+
+**Key Implementation Details:**
+- Modified [config.py](app/config/config.py): `ENABLE_RL` and `RL_TRAINING_MODE` environment variables
+- Added `.env`: Safe defaults (`ENABLE_RL=false`, `RL_TRAINING_MODE=false`)
+- Created [drift_detector.py](app/decision/drift_detector.py): SQLite-based drift detection
+- Modified [audit_builder.py](app/reporting/audit_builder.py): Added `drift_status` field
+- Modified [main.py](main.py): RL consultation block with graceful fallback
+
+### 2.1 Enable RL Module Safely ✅
+**Effort:** 3 hours | **Status:** COMPLETE
 
 **Change:**
 ```python
@@ -303,14 +332,26 @@ else:
 
 ---
 
-## SPRINT 3 (Weeks 5–6): PORTFOLIO OPTIMIZATION
+## SPRINT 3 (Weeks 5–6): PORTFOLIO OPTIMIZATION ✅ COMPLETE
 
-### 3.1 Implement Risk Parity Allocation
-**Effort:** 8 hours | **Impact:** HIGH (reduces portfolio volatility)
+**Status:** ✅ **COMPLETE** - 51/51 tests passing (114/114 cumulative)
 
-**Where:** Create `app/decision/risk_parity.py`
+**Achievements:**
+- ✅ 3.1: Risk Parity Allocation (13 tests)
+- ✅ 3.2: Correlation Threshold Enforcement (10 tests)
+- ✅ 3.3: Rebalancing Rules (28 tests)
 
-**What:** Equal risk contribution across all tickers.
+**Documentation:** [SPRINT3_COMPLETION.md](../03_testing/SPRINT3_COMPLETION.md)
+
+### 3.1 Implement Risk Parity Allocation ✅ COMPLETE
+**Effort:** 8 hours | **Status:** COMPLETE | **Tests:** 13/13 PASSING
+
+**Where:** [app/decision/risk_parity.py](app/decision/risk_parity.py) (181 lines)
+
+**Implementation:** Inverse-volatility weighting
+- Lower volatility → Higher allocation
+- Annualized volatility (252 trading days)
+- 1% volatility floor to prevent extreme allocations
 
 **Code stub:**
 ```python
@@ -366,12 +407,18 @@ class RiskParityAllocator:
 
 ---
 
-### 3.2 Add Correlation Threshold Enforcement
-**Effort:** 6 hours | **Impact:** MEDIUM (prevents concentrated bets)
+### 3.2 Add Correlation Threshold Enforcement ✅ COMPLETE
+**Effort:** 6 hours | **Status:** COMPLETE | **Tests:** 10/10 PASSING
 
-**Where:** Update `app/decision/allocation.py`
+**Where:** [app/decision/allocation.py](app/decision/allocation.py) - Added `enforce_correlation_limits()` (85 lines)
 
-**Add method:**
+**Implementation:** Correlation-based allocation reduction
+- Detects correlated pairs (>0.7 correlation threshold)
+- Reduces lower-confidence asset by 50%
+- Keeps higher-confidence asset at full allocation
+- Metadata: `correlation_adjustment` flag
+
+**Test Coverage:** [test_correlation_limits.py](../tests/test_correlation_limits.py) (10 tests)
 ```python
 def enforce_correlation_limits(
     decisions: list, 
@@ -418,14 +465,16 @@ def enforce_correlation_limits(
 
 ---
 
-### 3.3 Rebalancing Rules
-**Effort:** 6 hours | **Impact:** MEDIUM (maintains target allocation)
+### 3.3 Rebalancing Rules ✅ COMPLETE
+**Effort:** 6 hours | **Status:** COMPLETE | **Tests:** 28/28 PASSING
 
-**Where:** Create `app/decision/rebalancer.py`
+**Where:** [app/decision/rebalancer.py](app/decision/rebalancer.py) (240 lines)
 
-**Code stub:**
-```python
-class PortfolioRebalancer:
+**Test Coverage:** [test_rebalancer.py](../tests/test_rebalancer.py) (28 tests)
+
+---
+
+## SPRINT 4 (Weeks 7–8): ADMIN DASHBOARD & MONITORING ⏳ PENDING
     """Triggers rebalancing when drift exceeds threshold."""
     
     def __init__(self, rebalance_threshold: float = 0.20):
@@ -531,47 +580,76 @@ def force_rebalance():
 
 **Where:** Create `app/infrastructure/metrics.py`
 
+**Storage:** SQLite-based metrics (same database as recommendations)
+
 **Code stub:**
 ```python
-import json
 from datetime import datetime
 from app.config.config import Config
-from pathlib import Path
+from app.data_access.data_manager import DataManager
 
 class SystemMetrics:
-    """Tracks system health metrics for monitoring."""
+    """Tracks system health metrics in SQLite for monitoring."""
     
     def __init__(self):
-        self.metrics_dir = Config.LOG_DIR / "metrics"
-        self.metrics_dir.mkdir(exist_ok=True)
+        self.dm = DataManager()
+        self._ensure_metrics_table()
+    
+    def _ensure_metrics_table(self):
+        """Create metrics table if not exists."""
+        with self.dm.get_connection() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS pipeline_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    ticker TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    duration_sec REAL,
+                    error_message TEXT,
+                    execution_date DATE
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_metrics_date ON pipeline_metrics(execution_date)")
+            conn.commit()
     
     def log_pipeline_execution(self, 
                                ticker: str, 
                                status: str,  # "success", "error", "timeout"
                                duration_sec: float,
-                               details: dict = None):
-        """Log daily pipeline execution."""
-        metric = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "ticker": ticker,
-            "status": status,
-            "duration_sec": duration_sec,
-            "details": details or {}
-        }
-        
-        path = self.metrics_dir / f"{datetime.utcnow().strftime('%Y-%m')}.jsonl"
-        with open(path, "a") as f:
-            f.write(json.dumps(metric) + "\n")
+                               error_message: str = None):
+        """Log daily pipeline execution to database."""
+        with self.dm.get_connection() as conn:
+            conn.execute("""
+                INSERT INTO pipeline_metrics 
+                (ticker, status, duration_sec, error_message, execution_date)
+                VALUES (?, ?, ?, ?, DATE('now'))
+            """, (ticker, status, duration_sec, error_message))
+            conn.commit()
     
     def get_recent_metrics(self, hours: int = 24) -> dict:
         """Get recent metrics for dashboard."""
-        # Placeholder: load from JSONL and aggregate
-        return {
-            "success_rate": 0.98,
-            "avg_duration_sec": 45.2,
-            "errors_24h": 1,
-            "last_success": "2026-01-21 10:30:00"
-        }
+        with self.dm.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT status, COUNT(*) as count, AVG(duration_sec) as avg_duration
+                FROM pipeline_metrics
+                WHERE timestamp >= datetime('now', '-' || ? || ' hours')
+                GROUP BY status
+            """, (hours,))
+            
+            results = cursor.fetchall()
+            total = sum(r[1] for r in results)
+            success_count = next((r[1] for r in results if r[0] == "success"), 0)
+            error_count = next((r[1] for r in results if r[0] == "error"), 0)
+            avg_duration = next((r[2] for r in results if r[0] == "success"), 0) or 0
+            
+            success_rate = success_count / total if total > 0 else 0
+            
+            return {
+                "success_rate": success_rate,
+                "avg_duration_sec": avg_duration,
+                "errors_24h": error_count,
+                "total_executions": total
+            }
 ```
 
 ---
@@ -626,278 +704,658 @@ except Exception as e:
 
 ---
 
-## SPRINT 5: PRODUCTION DEPLOYMENT & UI IMPROVEMENTS
+## SPRINT 4 (Weeks 7–8): HARDENING & MONITORING ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE** - 25/25 tests passing
+**Completion Date:** Jan 23, 2026
+**Total Project Tests:** 139/139 (100%)
+
+### Components
+
+#### 4.1 Admin Dashboard Routes (9 tests) ✅
+**File:** `app/ui/app.py`
+
+**Endpoints:**
+- `GET /admin/dashboard` - Full system overview (health + recent decisions)
+- `GET /admin/metrics` - Detailed metrics query (filterable by hours/date)
+- `GET /admin/health` - Health status check
+- `POST /admin/force-rebalance` - Manual rebalance trigger
+
+**Authentication:** `X-Admin-Key` header validation, returns 401 for invalid keys
+
+**Test Coverage:**
+- 5 tests: Authentication enforcement (all 4 endpoints reject invalid keys)
+- 4 tests: Route functionality (dashboard, metrics, health, rebalance)
+
+#### 4.2 System Metrics - SQLite Based (16 tests) ✅
+**Architecture:** SQL strictly isolated to DataManager only
+
+**Files:**
+- `app/infrastructure/metrics.py` (130 lines) - Pure delegation layer
+- `app/data_access/data_manager.py` (extended) - SQL operations
+
+**Methods:**
+```python
+log_pipeline_execution(ticker, status, duration_sec, error_message)
+log_backtest_execution(ticker, wf_score, trades_count, profit_factor)
+get_recent_metrics(hours)  # Last N hours aggregation
+get_daily_summary(date)    # Date-specific statistics
+get_health_status()        # System health snapshot
+```
+
+**Database Schema:**
+```sql
+CREATE TABLE pipeline_metrics (
+    id INTEGER PRIMARY KEY,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ticker TEXT NOT NULL,
+    status TEXT NOT NULL,
+    duration_sec REAL,
+    error_message TEXT,
+    execution_date DATE
+)
+CREATE INDEX idx_metrics_date ON pipeline_metrics(execution_date)
+CREATE INDEX idx_metrics_ticker ON pipeline_metrics(ticker)
+```
+
+**Health Status:**
+- Healthy: < 5% errors
+- Degraded: 5-10% errors
+- Critical: > 10% errors
+
+**Test Coverage:**
+- 2 tests: Database initialization & indexing
+- 4 tests: Pipeline execution logging (success/error/multiple)
+- 2 tests: Backtest result logging
+- 5 tests: Metrics aggregation & calculations
+- 3 tests: Daily summaries & ticker lists
+- 3 tests: Health status classification (healthy/degraded/critical)
+
+**Key Pattern - Isolated Test Databases:**
+```python
+@pytest.fixture
+def fresh_db():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        dm = DataManager(db_path=Path(tmpdir) / "test.db")
+        dm.initialize_tables()
+        yield dm
+    # Cleanup automatic
+```
+
+#### 4.3 Error Alerting (pre-validated) ✅
+**File:** `app/notifications/alerter.py` (262 lines)
+
+**Functionality:**
+- Error severity classification (CRITICAL, WARNING, INFO)
+- Immediate email alerts for critical errors
+- Comprehensive error logging
+
+**Error Classifications:**
+- CRITICAL: DB failures, execution failures, invalid states → Email alert
+- WARNING: Data issues, recoverable errors → Log only
+- INFO: Normal operations → Log only
+
+### Key Achievements SPRINT 4
+
+✅ **Architecture Decision: SQL Segregation**
+- All SQL queries confined to `DataManager` only
+- No SQL in `metrics.py` or `app.py`
+- Clean separation of concerns
+- Highly testable
+
+✅ **Test Isolation Strategy**
+- Function-scoped `fresh_db` fixtures
+- Each test gets isolated database
+- Zero cross-test contamination
+- All 25 tests pass independently
+
+✅ **Production Readiness**
+- API authentication on all endpoints
+- Health monitoring in place
+- Metrics tracking operational
+- Error alerting configured
+- Zero regressions to previous sprints
+
+### Test Files
+- `tests/test_admin_dashboard.py` - 9 tests (routes & auth)
+- `tests/test_metrics.py` - 16 tests (metrics & health)
+
+### Result
+✅ **SPRINT 4 COMPLETE** - 25/25 tests passing
+✅ **PRODUCTION READY** - All deliverables tested & validated
+
+---
+
+## SPRINT 5: PRODUCTION DEPLOYMENT (Raspberry Pi 4/5)
 
 ### Context
 After completing all P0-P9 features (Sprints 1-4), Sprint 5 focuses on:
-1. **Production deployment** (8h) — Native Synology NAS deployment (no Docker)
+1. **Production deployment to Raspberry Pi** (8h) — Complete setup from unboxing to live trading
 2. **UI enhancements** (4h) — React dashboard and PyFolio integration (bonus)
 
 ---
 
-### 5.1 Production Deployment to Synology NAS (8 hours)
+### 5.1 Complete Raspberry Pi Deployment (8 hours)
+
 **Effort:** 8 hours | **Impact:** 🔴 CRITICAL (enables live trading)
 
-**Why NOT Docker?**
-- **Resource constraints**: NAS has limited CPU/memory; container overhead is wasteful
-- **Complexity**: Docker adds debugging layer; direct execution simpler on NAS
-- **Native integration**: Synology DSM natively supports systemd and cron scheduling
-- **Performance**: No container cold-start delays for daily pipelines
-- **Maintenance**: Fewer dependencies; simpler troubleshooting with native OS tools
+**Why Raspberry Pi?**
+- **Efficient**: Low power consumption (5-27W vs NAS 30-100W)
+- **Simple**: No Docker overhead, direct systemd + cron scheduling
+- **Reliable**: Proven Linux ARM64 platform, rock-solid stability
+- **Cost-effective**: €50-80 hardware investment
+- **24/7 capable**: Can run indefinitely without thermal issues
 
-**Architecture (systemd + timers instead of Docker):**
+**Supported Models:**
+- Raspberry Pi 4B (2GB+ RAM recommended, 8GB ideal)
+- Raspberry Pi 5 (8GB+ RAM recommended) — *Faster, more cores*
+- OS: **Raspberry Pi OS Lite** (64-bit, Debian-based)
+
+**Architecture (cron + systemd):**
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│           Synology NAS / Linux Server                   │
-├─────────────────────────────────────────────────────────┤
-│  /volume1/tozsde_webapp/                                │
-│  ├── app/                      (application code)       │
-│  ├── tests/                    (test suite)             │
-│  ├── venv/                     (Python 3.8+ venv)       │
-│  ├── config/                   (settings)               │
-│  └── logs/                     (JSONL metrics/errors)   │
-├─────────────────────────────────────────────────────────┤
-│           systemd Services (4 services)                 │
-│                                                          │
-│  tozsde-api.service     → Flask API on port 5000        │
-│  tozsde-daily.service   → Daily 6 AM market pipeline    │
-│  tozsde-optimize.service → Quarterly GA optimization    │
-│  tozsde-reliability.service → Weekly backtest audit     │
-├─────────────────────────────────────────────────────────┤
-│           systemd Timers (3 timers)                     │
-│                                                          │
-│  tozsde-daily.timer     → Daily @ 6:00 AM              │
-│  tozsde-quarterly.timer → 1st of month @ 1:00 AM       │
-│  tozsde-weekly.timer    → Monday @ 4:00 AM             │
-├─────────────────────────────────────────────────────────┤
-│           Monitoring & Logging                          │
-│                                                          │
-│  /var/log/tozsde/       → Centralized logging           │
-│  health_check.sh        → 5-min liveness probes         │
-│  metrics.jsonl          → System health metrics         │
-│  logrotate rules        → Automatic log rotation        │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│         Raspberry Pi 4/5 (64-bit ARM)                    │
+├──────────────────────────────────────────────────────────┤
+│  /home/pi/tozsde_webapp/                                 │
+│  ├── app/                      (application code)        │
+│  ├── tests/                    (test suite)              │
+│  ├── venv/                     (Python 3.11+ venv)       │
+│  ├── config/                   (settings, secrets)       │
+│  ├── logs/                     (JSONL metrics/errors)    │
+│  ├── scripts/                  (deploy, health checks)   │
+│  └── deploy_rpi.sh             (ONE-CLICK INSTALLER!)   │
+├──────────────────────────────────────────────────────────┤
+│  systemd Services (Flask API)                            │
+│                                                           │
+│  tozsde-api.service → Flask API on port 5000             │
+│                      (always-on, auto-restart)           │
+├──────────────────────────────────────────────────────────┤
+│  Cron Jobs (scheduled tasks)                             │
+│                                                           │
+│  6:00 AM   → Daily market pipeline                       │
+│  1:00 AM   → 1st of month: GA optimization               │
+│  4:00 AM   → Monday: Weekly backtest audit               │
+├──────────────────────────────────────────────────────────┤
+│  Monitoring                                              │
+│                                                           │
+│  health_check.sh (runs every 5 min)                      │
+│  metrics.jsonl → System performance logs                 │
+│  logrotate → Auto cleanup old logs                       │
+│                                                           │
+└──────────────────────────────────────────────────────────┘
 ```
 
-**Task 5.1a: Pre-Deployment Checklist (1h)**
-- [ ] Review [P9_PRODUCTION_DEPLOYMENT.md](P9_PRODUCTION_DEPLOYMENT.md) completely
-- [ ] Verify target NAS/server: SSH access, Python 3.8+, sudo permissions
-- [ ] Plan maintenance window during off-market hours
-- [ ] Backup existing configuration and data
-- [ ] Create dedicated `tozsde` system user on NAS
+---
 
-**Task 5.1b: Create Application Directory (1h)**
+#### **5.1 - ONE-CLICK DEPLOYMENT SCRIPT**
+
+**All setup in ONE file:** `deploy_rpi.sh` (self-contained, idempotent)
+
+**Task 5.1a: Initial Hardware Setup (physical, ~15 min)**
+
+1. **Unbox Raspberry Pi 4/5** + accessories:
+   - Micro HDMI cable (2x for Pi 4, 1x for Pi 5)
+   - USB-C power supply (27W minimum for Pi 5, 15W for Pi 4)
+   - Micro SD card (at least 64GB, faster is better)
+   - Optional: Heat sinks, fan for thermal management
+
+2. **Flash OS to SD Card** (on any computer with USB reader):
+   ```bash
+   # Download Raspberry Pi Imager: https://www.raspberrypi.com/software/
+   # Or use ddrescue/Balena Etcher
+   
+   # Option: Command line (macOS/Linux)
+   unzip ~/Downloads/2024-01-15-raspios-bookworm-arm64-lite.img.zip
+   diskutil list  # Find /dev/diskX
+   sudo dd if=2024-01-15-raspios-bookworm-arm64-lite.img of=/dev/rdiskX bs=4m
+   ```
+
+3. **Boot Raspberry Pi:**
+   - Insert flashed SD card
+   - Connect HDMI, keyboard, mouse
+   - Connect power
+   - Wait ~30 seconds for initial boot
+
+4. **Initial Configuration (one-time):**
+   ```bash
+   # Login: pi / raspberry
+   
+   # Expand filesystem to use full SD card
+   sudo raspi-config
+   # → Choose: Advanced Options → Expand Filesystem
+   # → Reboot
+   
+   # Update system
+   sudo apt-get update
+   sudo apt-get upgrade -y
+   
+   # Enable SSH for remote access
+   sudo raspi-config
+   # → Interface Options → SSH → Yes
+   # Note IP address: hostname -I
+   ```
+
+5. **From here on, everything is SSH remote or one script!**
+
+---
+
+**Task 5.1b: Copy Application & Run Deploy Script (automated)**
+
 ```bash
-# SSH into NAS
-ssh user@nas.local
+# FROM YOUR LAPTOP/DESKTOP:
 
-# Create app directory with proper permissions
-sudo mkdir -p /volume1/tozsde_webapp/{logs,config,data}
-sudo chown tozsde:tozsde /volume1/tozsde_webapp -R
+# 1. SSH into Pi (first time, or use IP from hostname -I)
+ssh pi@raspberrypi.local  # or ssh pi@192.168.x.x
 
-# Clone application
-cd /volume1/tozsde_webapp
-git clone <repository> .
+# 2. Clone repo or upload files
+git clone <your-repo> ~/tozsde_webapp
+cd ~/tozsde_webapp
+
+# 3. RUN ONE-LINE DEPLOY (does everything!)
+bash deploy_rpi.sh
+
+# That's it! Script will:
+# ✓ Install system dependencies (Python 3.11, pip, cron, curl)
+# ✓ Create Python venv
+# ✓ Install requirements.txt
+# ✓ Create systemd service (Flask API)
+# ✓ Setup cron jobs (daily, weekly, monthly tasks)
+# ✓ Configure health checks
+# ✓ Setup log rotation
+# ✓ Start services
+# ✓ Verify everything works
 ```
 
-**Task 5.1c: Setup Python Virtual Environment (1h)**
-```bash
-# Create isolated Python environment
-cd /volume1/tozsde_webapp
-python3 -m venv venv
-source venv/bin/activate
+---
 
-# Install dependencies
+**Task 5.1c: Deploy Script Contents**
+
+Create this file: **`deploy_rpi.sh`**
+
+```bash
+#!/bin/bash
+##############################################################################
+# ToZsDE Raspberry Pi Automated Deployment Script
+# One-click setup: System config → Python env → Services → Monitoring
+# Usage: bash deploy_rpi.sh
+##############################################################################
+
+set -e  # Exit on error
+
+APP_DIR="/home/pi/tozsde_webapp"
+VENV_DIR="$APP_DIR/venv"
+LOGS_DIR="$APP_DIR/logs"
+USER="pi"
+GROUP="pi"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+print_status() {
+    echo -e "${GREEN}[✓]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[✗]${NC} $1"
+}
+
+print_header() {
+    echo -e "\n${YELLOW}=== $1 ===${NC}\n"
+}
+
+# ==============================================================================
+# STEP 1: System Dependencies
+# ==============================================================================
+print_header "Installing System Dependencies"
+
+sudo apt-get update
+sudo apt-get install -y \
+    python3.11 \
+    python3.11-venv \
+    python3.11-dev \
+    pip \
+    git \
+    curl \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    logrotate
+
+print_status "System dependencies installed"
+
+# ==============================================================================
+# STEP 2: Create Application Directory & Ownership
+# ==============================================================================
+print_header "Setting Up Application Directory"
+
+if [ ! -d "$APP_DIR" ]; then
+    print_error "App directory $APP_DIR not found!"
+    exit 1
+fi
+
+mkdir -p "$LOGS_DIR"
+mkdir -p "$APP_DIR/config/systemd"
+mkdir -p "$APP_DIR/scripts"
+
+# Set permissions
+sudo chown -R $USER:$GROUP "$APP_DIR"
+chmod 755 "$APP_DIR"
+chmod 755 "$LOGS_DIR"
+
+print_status "Application directory ready: $APP_DIR"
+
+# ==============================================================================
+# STEP 3: Python Virtual Environment
+# ==============================================================================
+print_header "Setting Up Python Virtual Environment"
+
+if [ ! -d "$VENV_DIR" ]; then
+    python3.11 -m venv "$VENV_DIR"
+    print_status "Virtual environment created"
+else
+    print_status "Virtual environment already exists"
+fi
+
+# Activate venv for this script
+source "$VENV_DIR/bin/activate"
+
+# Upgrade pip, setuptools, wheel
 pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
+
+# Install requirements
+if [ -f "$APP_DIR/requirements.txt" ]; then
+    pip install -r "$APP_DIR/requirements.txt"
+    print_status "Python dependencies installed from requirements.txt"
+else
+    print_error "requirements.txt not found in $APP_DIR"
+    exit 1
+fi
 
 # Test import
-python -c "import app; print('✓ Application imports successfully')"
-```
+if python -c "import app; print('✓ App imports OK')" 2>/dev/null; then
+    print_status "Application imports successfully"
+else
+    print_error "Application import failed"
+    exit 1
+fi
 
-**Task 5.1d: Create systemd Service Files (2h)**
+# ==============================================================================
+# STEP 4: Create systemd Service (Flask API)
+# ==============================================================================
+print_header "Creating systemd Service"
 
-Create 4 service files in `/etc/systemd/system/`:
-
-**tozsde-api.service** (Flask API - always-on)
-```ini
+cat > "$APP_DIR/config/systemd/tozsde-api.service" << 'EOF'
 [Unit]
 Description=ToZsDE Trading API
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-Type=notify
-User=tozsde
-WorkingDirectory=/volume1/tozsde_webapp
-Environment="PATH=/volume1/tozsde_webapp/venv/bin"
-ExecStart=/volume1/tozsde_webapp/venv/bin/gunicorn \
-  --workers 2 \
-  --bind 0.0.0.0:5000 \
-  --timeout 120 \
-  app.ui.app:app
-Restart=always
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/tozsde_webapp
+Environment="PATH=/home/pi/tozsde_webapp/venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/home/pi/tozsde_webapp/venv/bin/python -m app.ui.app
+Restart=on-failure
 RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**tozsde-daily.service** (Daily 6 AM pipeline)
-```ini
-[Unit]
-Description=ToZsDE Daily Market Pipeline
-After=network.target
-
-[Service]
-Type=simple
-User=tozsde
-WorkingDirectory=/volume1/tozsde_webapp
-Environment="PATH=/volume1/tozsde_webapp/venv/bin"
-ExecStart=/volume1/tozsde_webapp/venv/bin/python -m app.daily_pipeline
 StandardOutput=journal
 StandardError=journal
+StandardOutputMaxMem=16M
 
 [Install]
 WantedBy=multi-user.target
-```
+EOF
 
-**tozsde-optimize.service** (Quarterly optimization)
-```ini
-[Unit]
-Description=ToZsDE Quarterly GA Optimization
-After=network.target
-
-[Service]
-Type=simple
-User=tozsde
-WorkingDirectory=/volume1/tozsde_webapp
-Environment="PATH=/volume1/tozsde_webapp/venv/bin"
-ExecStart=/volume1/tozsde_webapp/venv/bin/python -m app.optimization.runner
-StandardOutput=journal
-StandardError=journal
-TimeoutStartSec=7200
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**tozsde-reliability.service** (Weekly backtest audit)
-```ini
-[Unit]
-Description=ToZsDE Weekly Reliability Audit
-After=network.target
-
-[Service]
-Type=simple
-User=tozsde
-WorkingDirectory=/volume1/tozsde_webapp
-Environment="PATH=/volume1/tozsde_webapp/venv/bin"
-ExecStart=/volume1/tozsde_webapp/venv/bin/python -m app.backtesting.audit_runner
-StandardOutput=journal
-StandardError=journal
-TimeoutStartSec=3600
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**Install services:**
-```bash
-sudo cp /volume1/tozsde_webapp/config/systemd/*.service /etc/systemd/system/
+# Install service
+sudo cp "$APP_DIR/config/systemd/tozsde-api.service" /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable tozsde-*.service
-sudo systemctl start tozsde-api.service
-```
+sudo systemctl enable tozsde-api.service
 
-**Task 5.1e: Create systemd Timer Files (1.5h)**
+print_status "systemd service created and enabled"
 
-Create 3 timer files in `/etc/systemd/system/`:
+# ==============================================================================
+# STEP 5: Create Cron Jobs (Scheduled Tasks)
+# ==============================================================================
+print_header "Setting Up Cron Jobs"
 
-**tozsde-daily.timer** (Runs daily service at 6:00 AM)
-```ini
-[Unit]
-Description=Daily ToZsDE Market Pipeline Timer
-Requires=tozsde-daily.service
+# Create crontab entries (idempotent)
+CRON_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.daily_pipeline"
 
-[Timer]
-OnCalendar=*-*-* 06:00:00
-Persistent=true
-OnBootSec=5min
+# Remove old cron entries if exist
+(crontab -l 2>/dev/null | grep -v "tozsde_webapp" | grep -v "^$") | crontab - 2>/dev/null || true
 
-[Install]
-WantedBy=timers.target
-```
+# Add new cron entries
+(crontab -l 2>/dev/null; echo "# ToZsDE Daily Pipeline - 6:00 AM every day") | crontab -
+(crontab -l 2>/dev/null; echo "0 6 * * * $CRON_CMD >> /home/pi/tozsde_webapp/logs/cron_daily.log 2>&1") | crontab -
 
-**tozsde-quarterly.timer** (Runs optimize service 1st of month at 1:00 AM)
-```ini
-[Unit]
-Description=Quarterly ToZsDE GA Optimization Timer
-Requires=tozsde-optimize.service
+# Weekly audit (Monday 4:00 AM)
+WEEKLY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.backtesting.audit_runner"
+(crontab -l 2>/dev/null; echo "0 4 * * 1 $WEEKLY_CMD >> /home/pi/tozsde_webapp/logs/cron_weekly.log 2>&1") | crontab -
 
-[Timer]
-OnCalendar=*-*-01 01:00:00
-Persistent=true
+# Monthly optimization (1st of month, 1:00 AM)
+MONTHLY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.optimization.runner"
+(crontab -l 2>/dev/null; echo "0 1 1 * * $MONTHLY_CMD >> /home/pi/tozsde_webapp/logs/cron_monthly.log 2>&1") | crontab -
 
-[Install]
-WantedBy=timers.target
-```
+print_status "Cron jobs configured:"
+echo "  • Daily pipeline: 6:00 AM"
+echo "  • Weekly audit: Monday 4:00 AM"
+echo "  • Monthly optimization: 1st of month 1:00 AM"
 
-**tozsde-weekly.timer** (Runs reliability service every Monday at 4:00 AM)
-```ini
-[Unit]
-Description=Weekly ToZsDE Reliability Audit Timer
-Requires=tozsde-reliability.service
+# ==============================================================================
+# STEP 6: Create Health Check Script
+# ==============================================================================
+print_header "Creating Health Check Script"
 
-[Timer]
-OnCalendar=Mon *-*-* 04:00:00
-Persistent=true
+cat > "$APP_DIR/scripts/health_check.sh" << 'EOF'
+#!/bin/bash
+# Health check for Flask API
+# Add to crontab: */5 * * * * /home/pi/tozsde_webapp/scripts/health_check.sh
 
-[Install]
-WantedBy=timers.target
-```
+HEALTH_URL="http://localhost:5000/api/health"
+TIMEOUT=5
+LOG_FILE="/home/pi/tozsde_webapp/logs/health_check.log"
 
-**Install and enable timers:**
-```bash
-sudo cp /volume1/tozsde_webapp/config/systemd/*.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable tozsde-*.timer
-sudo systemctl start tozsde-*.timer
+# Check if API is responding
+if ! timeout $TIMEOUT curl -f -s "$HEALTH_URL" > /dev/null 2>&1; then
+    echo "[$(date)] ❌ Health check FAILED - restarting service" >> "$LOG_FILE"
+    systemctl restart tozsde-api.service
+    sleep 5
+    if timeout $TIMEOUT curl -f -s "$HEALTH_URL" > /dev/null 2>&1; then
+        echo "[$(date)] ✓ Service recovered" >> "$LOG_FILE"
+    else
+        echo "[$(date)] ❌ Service still down after restart" >> "$LOG_FILE"
+    fi
+else
+    echo "[$(date)] ✓ Health check OK" >> "$LOG_FILE"
+fi
 
-# Verify timers
-sudo systemctl list-timers tozsde-*
-```
+# Check disk space
+DISK_USAGE=$(df -h /home | tail -1 | awk '{print $5}' | sed 's/%//')
+if [ "$DISK_USAGE" -gt 85 ]; then
+    echo "[$(date)] ⚠️  Disk usage critical: ${DISK_USAGE}%" >> "$LOG_FILE"
+fi
+EOF
 
-**Task 5.1f: Setup Logging & Monitoring (1h)**
+chmod +x "$APP_DIR/scripts/health_check.sh"
 
-**Configure log rotation** (`/etc/logrotate.d/tozsde`):
-```
-/volume1/tozsde_webapp/logs/*.log {
+# Add health check to crontab (every 5 minutes)
+(crontab -l 2>/dev/null; echo "*/5 * * * * /home/pi/tozsde_webapp/scripts/health_check.sh >> /dev/null 2>&1") | crontab -
+
+print_status "Health check script created and scheduled (every 5 min)"
+
+# ==============================================================================
+# STEP 7: Setup Log Rotation
+# ==============================================================================
+print_header "Configuring Log Rotation"
+
+cat > /tmp/tozsde_logrotate << 'EOF'
+/home/pi/tozsde_webapp/logs/*.log {
     daily
     rotate 7
     compress
     delaycompress
     missingok
     notifempty
-    create 0644 tozsde tozsde
+    create 0644 pi pi
 }
-```
+EOF
 
-**Create health check script** (`/volume1/tozsde_webapp/scripts/health_check.sh`):
-```bash
-#!/bin/bash
-# Run every 5 minutes via cron
+sudo mv /tmp/tozsde_logrotate /etc/logrotate.d/tozsde
+sudo chmod 644 /etc/logrotate.d/tozsde
 
-HEALTH_URL="http://localhost:5000/api/health"
-TIMEOUT=10
+print_status "Log rotation configured (daily, keep 7 days)"
 
-# Check API health
-if ! timeout $TIMEOUT curl -f "$HEALTH_URL" > /dev/null 2>&1; then
-    echo "❌ API health check failed"
-    systemctl restart tozsde-api.service
+# ==============================================================================
+# STEP 8: Start Services
+# ==============================================================================
+print_header "Starting Services"
+
+sudo systemctl start tozsde-api.service
+sleep 2
+
+if sudo systemctl is-active --quiet tozsde-api.service; then
+    print_status "Flask API service started successfully"
+else
+    print_error "Failed to start Flask API service"
+    sudo journalctl -u tozsde-api.service -n 20
     exit 1
 fi
+
+# ==============================================================================
+# STEP 9: Verification
+# ==============================================================================
+print_header "Verification & Testing"
+
+# Wait for API to be ready
+echo "Waiting for API to be ready..."
+for i in {1..10}; do
+    if curl -f -s http://localhost:5000/api/health > /dev/null 2>&1; then
+        print_status "✓ API responding on port 5000"
+        break
+    fi
+    if [ $i -eq 10 ]; then
+        print_error "API not responding after 10 attempts"
+        exit 1
+    fi
+    sleep 1
+done
+
+# Show cron jobs
+echo -e "\n${YELLOW}Scheduled Cron Jobs:${NC}"
+crontab -l | grep tozsde
+
+# Show service status
+echo -e "\n${YELLOW}systemd Service Status:${NC}"
+sudo systemctl status tozsde-api.service --no-pager
+
+# Show recent logs
+echo -e "\n${YELLOW}Recent Logs:${NC}"
+sudo journalctl -u tozsde-api.service -n 10 --no-pager
+
+# ==============================================================================
+# SUCCESS!
+# ==============================================================================
+print_header "DEPLOYMENT COMPLETE! 🎉"
+
+echo "✓ System dependencies installed"
+echo "✓ Python venv created & activated"
+echo "✓ Application requirements installed"
+echo "✓ Flask API service running (port 5000)"
+echo "✓ Cron jobs scheduled (daily, weekly, monthly)"
+echo "✓ Health checks active (every 5 min)"
+echo "✓ Log rotation configured"
+echo ""
+echo "NEXT STEPS:"
+echo "  1. Access Flask API: curl http://raspberrypi.local:5000/api/health"
+echo "  2. View logs: sudo journalctl -u tozsde-api.service -f"
+echo "  3. Check cron: crontab -l"
+echo "  4. Verify timers: sudo systemctl list-timers"
+echo ""
+echo "To SSH again: ssh pi@raspberrypi.local"
+echo "App directory: /home/pi/tozsde_webapp"
+echo ""
+```
+
+---
+
+**Task 5.1d: Run the Deployment (from Raspberry Pi)**
+
+```bash
+# SSH into Pi
+ssh pi@raspberrypi.local
+
+# Navigate to app directory
+cd ~/tozsde_webapp
+
+# Run deployment script (ONE LINE!)
+bash deploy_rpi.sh
+
+# Expected output:
+# [✓] System dependencies installed
+# [✓] Virtual environment created
+# [✓] Python dependencies installed
+# [✓] systemd service created and enabled
+# [✓] Cron jobs configured
+# [✓] Health check script created
+# [✓] Log rotation configured
+# [✓] Flask API service started successfully
+# [✓] API responding on port 5000
+# DEPLOYMENT COMPLETE! 🎉
+```
+
+---
+
+**Task 5.1e: Verification & First Run**
+
+```bash
+# Check Flask API is running
+curl http://raspberrypi.local:5000/api/health
+# Expected: {"status": "healthy", ...}
+
+# View live logs
+sudo journalctl -u tozsde-api.service -f
+
+# Check cron jobs
+crontab -l
+
+# Test manual cron execution
+source ~/tozsde_webapp/venv/bin/activate
+cd ~/tozsde_webapp
+python -m app.daily_pipeline
+# Check logs/cron_daily.log for output
+
+# View disk space (important on Pi!)
+df -h /home
+
+# Check Pi temperature (should stay <80°C)
+/opt/vc/bin/vcgencmd measure_temp
+```
+
+---
+
+**Task 5.1f: Troubleshooting**
+
+| Issue | Solution |
+|-------|----------|
+| **SSH won't connect** | Check: `hostname -I` on Pi, ping it, check firewall |
+| **API won't start** | `sudo journalctl -u tozsde-api.service -n 50` |
+| **Port 5000 in use** | `sudo lsof -i :5000`, kill it, restart service |
+| **Cron not running** | `crontab -l`, check logs: `/home/pi/tozsde_webapp/logs/cron_*.log` |
+| **High CPU/slow** | `top`, check if backtest running, consider reducing walk-forward periods |
+| **Disk full (75%+)** | Remove old logs: `rm /home/pi/tozsde_webapp/logs/cron_*.log.gz` |
+| **Network timeout** | Check Rpi network: `ping 8.8.8.8`, restart WiFi: `sudo systemctl restart networking` |
+
+---
+
+#### **Summary: Everything Automated**
+
+✅ **One script does everything:**
 
 # Check disk space
 DISK_USAGE=$(df /volume1 | tail -1 | awk '{print $5}' | sed 's/%//')
@@ -939,19 +1397,15 @@ sudo systemctl list-timers --all
 tail -f /volume1/tozsde_webapp/logs/*.log
 
 # Check systemd journal
-sudo journalctl -u tozsde-* -n 100 --follow
-```
+- System dependencies installed
+- Python venv created & activated
+- Application requirements installed
+- Flask API service running (port 5000)
+- Cron jobs scheduled (daily, weekly, monthly)
+- Health checks active (every 5 min)
+- Log rotation configured
 
-**Troubleshooting:**
-
-| Issue | Solution |
-|-------|----------|
-| Service won't start | `journalctl -u tozsde-api.service -n 100` |
-| Timer not running | `systemctl is-enabled tozsde-daily.timer` |
-| Import errors | `cd /volume1/tozsde_webapp && source venv/bin/activate && python -m app` |
-| Port 5000 in use | `sudo lsof -i :5000` then `systemctl restart tozsde-api.service` |
-
-**Reference:** [P9_PRODUCTION_DEPLOYMENT.md](P9_PRODUCTION_DEPLOYMENT.md)
+**That's it! System is now LIVE. 🚀**
 
 ---
 

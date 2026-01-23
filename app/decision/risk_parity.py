@@ -63,16 +63,31 @@ class RiskParityAllocator:
         Returns:
             decisions with updated allocation_amount and allocation_pct
         """
-        # TODO: Implement
-        # 1. Filter tradeable positions (signal != HOLD)
-        # 2. Compute volatility for each ticker
-        # 3. Compute inverse-volatility weights
-        # 4. Normalize weights to sum to 1.0
-        # 5. Allocate capital: amount = total_capital * weight
-        # 6. Update decision dictionaries
-        # 7. Log allocation details
-
         logger.info(f"Risk parity allocation for {len(decisions)} positions")
+
+        # 1. Filter tradeable positions (signal != HOLD)
+        tradeable_indices = [
+            i
+            for i, d in enumerate(decisions)
+            if d.get("action_code", 0) != 0  # 0 = HOLD/no_trade
+        ]
+
+        if not tradeable_indices:
+            logger.warning("No tradeable positions for risk parity allocation")
+            return decisions
+
+        tradeable_tickers = [decisions[i]["ticker"] for i in tradeable_indices]
+
+        # 2. Compute volatility for each ticker
+        volatilities = self._compute_volatilities(price_history)
+
+        # 3 & 4. Compute inverse-volatility weights (normalized)
+        weights = self._compute_inverse_volatility_weights(
+            volatilities, tradeable_tickers
+        )
+
+        # 5-7. Apply allocation and log details
+        decisions = self._apply_allocation(decisions, weights, tradeable_indices)
 
         return decisions
 
@@ -121,7 +136,6 @@ class RiskParityAllocator:
         Returns:
             Array of normalized weights, one per tradeable ticker
         """
-        # TODO: Implement
         # 1. Weight = 1 / volatility for each ticker
         # 2. Normalize: weight / sum(all weights)
         # 3. Handle zero/very small volatilities gracefully
@@ -130,6 +144,14 @@ class RiskParityAllocator:
             [1.0 / max(volatilities.get(t, 0.1), 0.01) for t in tradeable_tickers]
         )
         weights = inv_vols / inv_vols.sum()
+
+        # Log weight distribution
+        for ticker, weight in zip(tradeable_tickers, weights):
+            vol = volatilities.get(ticker, 0.1)
+            logger.debug(
+                f"Risk parity weight: {ticker} = {weight:.2%} "
+                f"(volatility = {vol:.2%})"
+            )
 
         return weights
 
@@ -147,18 +169,22 @@ class RiskParityAllocator:
         Returns:
             decisions with allocation_amount and allocation_pct updated
         """
-        # TODO: Implement
         capital = Config.INITIAL_CAPITAL * 0.95  # Reserve 5% cash buffer
+
+        total_allocated = 0.0
 
         for idx, weight in zip(tradeable_indices, weights):
             allocation_amt = capital * weight
             decisions[idx]["allocation_amount"] = round(allocation_amt, 2)
             decisions[idx]["allocation_pct"] = round(weight, 4)
+            total_allocated += allocation_amt
 
             logger.info(
                 f"{decisions[idx]['ticker']}: {weight:.1%} allocation "
-                f"(${allocation_amt:.2f})"
+                f"(${allocation_amt:,.2f})"
             )
+
+        logger.info(f"Total allocated: ${total_allocated:,.2f} / ${capital:,.2f}")
 
         return decisions
 

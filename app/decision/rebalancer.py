@@ -212,7 +212,6 @@ def check_and_rebalance(
             "estimated_cost": float
         }
     """
-    # TODO: Implement
     rebalancer = PortfolioRebalancer()
 
     drift_info = rebalancer.should_rebalance(current_positions, target_allocation)

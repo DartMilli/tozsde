@@ -85,3 +85,81 @@ def _get_correlation_matrix(tickers, ref_date=None):
     """
     dm = DataManager()
     return dm.get_correlation_matrix(tickers, ref_date=ref_date)
+
+
+def enforce_correlation_limits(decisions: list, max_correlation: float = 0.7) -> list:
+    """
+    Remove or reduce allocation for highly correlated asset pairs.
+
+    Strategy:
+      - For each pair of tickers with correlation > max_correlation,
+        keep only the higher-confidence one at full allocation
+      - Reduce the lower-confidence one to 50% allocation
+
+    Args:
+        decisions: List of decision dictionaries with allocations
+        max_correlation: Threshold for high correlation (default 0.7)
+
+    Returns:
+        decisions with allocations adjusted for correlation limits
+    """
+    import pandas as pd
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Get tickers and current date
+    tickers = [d["ticker"] for d in decisions if d.get("allocation_amount", 0) > 0]
+    current_date = decisions[0].get("date") if decisions else None
+
+    if len(tickers) < 2:
+        return decisions  # No pairs to check
+
+    try:
+        # Get correlation matrix
+        correlation_matrix = _get_correlation_matrix(tickers, current_date)
+
+        # Find highly correlated pairs
+        high_corr_pairs = []
+        for i, ticker1 in enumerate(correlation_matrix.columns):
+            for j, ticker2 in enumerate(correlation_matrix.columns):
+                if i < j and correlation_matrix.iloc[i, j] > max_correlation:
+                    high_corr_pairs.append(
+                        (ticker1, ticker2, correlation_matrix.iloc[i, j])
+                    )
+
+        if not high_corr_pairs:
+            return decisions  # No correlated pairs found
+
+        # For each correlated pair, reduce the lower-confidence one
+        for ticker1, ticker2, corr in high_corr_pairs:
+            d1 = next((d for d in decisions if d["ticker"] == ticker1), None)
+            d2 = next((d for d in decisions if d["ticker"] == ticker2), None)
+
+            if d1 and d2:
+                conf1 = d1.get("decision", {}).get("confidence", 0)
+                conf2 = d2.get("decision", {}).get("confidence", 0)
+
+                # Identify weaker position (lower confidence)
+                weaker = d2 if conf1 > conf2 else d1
+                stronger_ticker = ticker1 if conf1 > conf2 else ticker2
+
+                # Reduce weaker position by 50%
+                if weaker.get("allocation_amount", 0) > 0:
+                    weaker["allocation_amount"] *= 0.5
+                    weaker["allocation_pct"] *= 0.5
+
+                    logger.warning(
+                        f"High correlation {ticker1}–{ticker2}: {corr:.2%}. "
+                        f"Reduced {weaker['ticker']} allocation by 50% "
+                        f"(kept {stronger_ticker} at full allocation due to higher confidence)"
+                    )
+
+                    if "decision" in weaker:
+                        weaker["decision"]["correlation_adjustment"] = True
+
+        return decisions
+
+    except Exception as e:
+        logger.error(f"Error in enforce_correlation_limits: {e}")
+        return decisions

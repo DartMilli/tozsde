@@ -1,0 +1,191 @@
+📦 ToZsDE Kereskedési Rendszer - SPRINT 1-4 KÉSZ
+═════════════════════════════════════════════════════════════════════════════
+
+✅ STÁTUSZ: Produkció Kész - 139/139 Teszt Sikeres (100%)
+🚀 KÖVETKEZŐ FÁZIS: SPRINT 5 - Raspberry Pi Telepítés
+
+════════════════════════════════════════════════════════════════════════════════
+📚 KEZDJ ITT - Dokumentáció Navigáció
+════════════════════════════════════════════════════════════════════════════════
+
+1️⃣  TELEPÍTÉS (Raspberry Pi)
+    └─ docs/01_deployment/
+       ├─ INDEX.md ◄──── Gyors navigáció
+       └─ RASPBERRY_PI_SETUP_GUIDE_HU.md ◄──── TELJES ÚTMUTATÓ (dobozból élő)
+
+    🚀 EGYKATTINTÁSOS TELEPÍTÉS:
+       bash deploy_rpi.sh  # Mindent automatizál (10 perc)
+
+
+2️⃣  IMPLEMENTÁCIÓ & SPRINTEK
+    └─ docs/02_implementation/
+       ├─ INDEX.md ◄──── Navigáció
+       └─ IMPLEMENTATION_PLAN.md ◄──── SPRINT 1-5 specifikációk
+          • SPRINT 1: Alapinfrastruktúra (63 teszt) ✅
+          • SPRINT 2: Fejlett funkciók (integrálva) ✅
+          • SPRINT 3: Portfólió Optimalizáció (51 teszt) ✅
+          • SPRINT 4: Hardening & Monitoring (25 teszt) ✅
+          • SPRINT 5: Raspberry Pi Telepítés (8h) ➡️
+
+
+3️⃣  TESZTELÉS & KÓD REVIEW
+    └─ docs/03_testing/
+       ├─ INDEX.md ◄──── Navigáció
+       ├─ FINAL_STATUS_REPORT.md ◄──── Teljes teszt eredmények (139/139)
+       ├─ COMPREHENSIVE_CODE_REVIEW.md ◄──── Kód architektúra
+       └─ PROJECT_COMPLETION_SUMMARY.md ◄──── Összefoglalás
+
+
+════════════════════════════════════════════════════════════════════════════════
+🚀 GYORS KEZDÉS: Telepítés Raspberry Pi-re
+════════════════════════════════════════════════════════════════════════════════
+
+FÁZIS 1: Fizikai Setup (15 perc)
+  1. Raspberry Pi OS Lite 64-bit formázása SD-kártyára
+  2. Boot, SSH engedélyezése, rendszer frissítése
+  3. Pi IP-cím feljegyzése
+
+FÁZIS 2: Alkalmazás Telepítés (45 perc)
+  1. SSH-zd be: ssh pi@raspberrypi.local
+  2. Klónozd a repot: git clone <repo> ~/tozsde_webapp
+  3. Futtasd a telepítést: bash deploy_rpi.sh
+     ✓ Python 3.11 telepítése
+     ✓ Venv létrehozása & függőségek telepítése
+     ✓ Flask API setup (systemd service)
+     ✓ Cron feladatok konfigurálása (napi, heti, havi)
+     ✓ Health check-ek engedélyezése & monitoring
+     ✓ Összes service indítása
+
+FÁZIS 3: Ellenőrzés (5 perc)
+  curl http://raspberrypi.local:5000/api/health
+  # Várható: {"status": "healthy", ...}
+
+
+════════════════════════════════════════════════════════════════════════════════
+📁 PROJEKT SZERKEZETE
+════════════════════════════════════════════════════════════════════════════════
+
+tozsde_webapp/
+├── app/                           [Alkalmazás Kód]
+├── tests/                         [139 Teszt - Mindegyik Sikeres]
+├── docs/                          [Dokumentáció]
+│   ├── 01_deployment/            [Telepítési útmutatók]
+│   ├── 02_implementation/        [Fejlesztési specifikációk]
+│   └── 03_testing/               [Teszt eredmények]
+├── deploy_rpi.sh                 [EGYKATTINTÁSOS Telepítő Script]
+├── requirements.txt              [Python Függőségek]
+└── pytest.ini                    [Teszt Konfiguráció]
+
+
+════════════════════════════════════════════════════════════════════════════════
+📞 KULCSFONTOSSÁGÚ FÁJLOK PILLANTÁSRA
+════════════════════════════════════════════════════════════════════════════════
+
+Dokumentáció (Kezdj itt)
+├─ docs/README_HU.md                              # Dokumentáció index
+├─ docs/01_deployment/INDEX.md                    # Telepítési hub
+├─ docs/01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md  # Teljes útmutató
+├─ docs/02_implementation/IMPLEMENTATION_PLAN.md  # SPRINT specifikációk
+└─ docs/03_testing/FINAL_STATUS_REPORT.md         # Teszt eredmények
+
+Telepítés
+├─ deploy_rpi.sh                                  # EGYKATTINTÁSOS telepítő
+└─ requirements.txt                               # Python függőségek
+
+
+════════════════════════════════════════════════════════════════════════════════
+🎯 KÖVETKEZŐ LÉPÉSEK
+════════════════════════════════════════════════════════════════════════════════
+
+1. Olvasd: docs/01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md
+2. Készítsd: Raspberry Pi 4/5 + SD-kártya + USB tápegység
+3. Telepítsd: bash deploy_rpi.sh
+4. Ellenőrizd: curl http://raspberrypi.local:5000/api/health
+5. Monitorozz: Naplók ellenőrzése holnap 6:00 AM után
+
+A rendszer ÉLÉVEN lesz és kereskedni fog! 🚀
+
+
+════════════════════════════════════════════════════════════════════════════════
+🏗️ ARCHITEKTURÁLIS JELLEMZŐK
+════════════════════════════════════════════════════════════════════════════════
+
+✅ SQL Elkülönítés: Összes adatbázis-művelet a DataManager-ben elkülönítve
+✅ Tiszta Rétegzés: UI → Üzleti Logika → Adathozzáférés → Adatbázis
+✅ Teszt Izolálás: Funkcióra hatókör-fixtúrák, nulla kereszt-teszt szennyeződés
+✅ Hibakezelés: Átfogó naplózás, e-mail riasztás kritikus hibák esetén
+✅ Monitoring: 5 perces health check-ek, rendszermetrikák követése
+✅ Ütemezés: Cron feladatok napi, heti, havi futtatáshoz
+
+
+════════════════════════════════════════════════════════════════════════════════
+🔧 PARANCSOK
+════════════════════════════════════════════════════════════════════════════════
+
+HELYI FEJLESZTÉS:
+  python -m pytest                 # Összes teszt futtatása
+  python -m pytest tests/test_name.py -v  # Specifikus teszt futtatása
+  python run_dev.py                # Dev szerver indítása
+  bash initialize.sh               # Környezet beállítása
+
+RASPBERRY PI UTÁN TELEPÍTÉS:
+  sudo systemctl status tozsde-api.service     # Flask API státusza
+  sudo journalctl -u tozsde-api.service -f     # Naplók megtekintése
+  crontab -l                                    # Ütemezett feladatok
+  df -h /home                                   # Lemez használat
+  free -h                                       # Memória használat
+  /opt/vc/bin/vcgencmd measure_temp            # Hőmérséklet
+
+
+════════════════════════════════════════════════════════════════════════════════
+❓ HIBAELHÁRÍTÁS
+════════════════════════════════════════════════════════════════════════════════
+
+K: Hol a teljes Raspberry Pi setup útmutató?
+V: docs/01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md
+
+K: Hogyan telepítsek a Raspberry Pi-re?
+V: Futtasd: bash deploy_rpi.sh (10 perc, teljes automatizálás)
+
+K: A tesztek nem működnek?
+V: Ellenőrizd: pytest.ini és tests/conftest.py a fixtúrákhoz
+
+K: Az API nem válaszol?
+V: SSH-zd be a Pi-be, ellenőrizd: sudo journalctl -u tozsde-api.service -n 50
+
+K: Cron feladat nem futott?
+V: Ellenőrizd a naplókat: cat ~/tozsde_webapp/logs/cron_daily.log
+
+K: Lemez megtelt figyelmeztetés?
+V: Töröld a régi naplókat: rm ~/tozsde_webapp/logs/*.gz
+
+K: SSH-val nem tudsz csatlakozni?
+V: Ellenőrizd az IP-t: hostname -I (Pi-n), ping a Pi-t, SSH engedélyezve legyen
+
+
+════════════════════════════════════════════════════════════════════════════════
+🎓 TANULÁSI ERŐFORRÁSOK
+════════════════════════════════════════════════════════════════════════════════
+
+Szükséges ismeretek:
+  ✓ Python 3.8+ alapok
+  ✓ pytest keretrendszer
+  ✓ SQL/SQLite
+  ✓ pandas DataFrame-ek
+  ✓ numpy tömbök
+  ✓ Git verziókezelés
+
+Hasznos (opcionális):
+  ○ PyFolio (bonus sprint)
+  ○ stable-baselines3 (RL háttér)
+  ○ systemd/cron (Linux/Pi telepítés)
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+✨ Telepítésre kész? Kezdj a következővel: docs/01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md
+🚀 Egykattintásos telepítés: bash deploy_rpi.sh
+
+Kérdések? Ellenőrizd az átfogó dokumentációt a docs/ mappában.
+
+Sikeres kereskedést! 🎉
