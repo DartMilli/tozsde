@@ -2,14 +2,14 @@
 
 ## 📋 Egyszerűsített Dokumentációs Struktúra (2026-02-01)
 
-**✅ Státusz:** Sprint 1-7 szoftver kész (277/277 teszt), hardveres telepítés pending
+**✅ Státusz:** Sprint 1-8 szoftver kész (342/342 teszt), hardveres telepítés pending
 
 ---
 
 ## 🗂️ Fő Dokumentációs Fájlok
 
 ### 🌟 [SPRINTS.md](./SPRINTS.md) - Teljes Fejlesztési Történet
-**Sprint 1-7 átfogó részletezés** - Funkciók, tesztek, architektúra döntések (Angol nyelven)
+**Sprint 1-8 átfogó részletezés** - Funkciók, tesztek, architektúra döntések (Angol nyelven)
 
 ### 📊 [03_testing/FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)
 **Teszt suite összefoglaló** - 277/277 teszt sikeres (100%)
@@ -32,7 +32,7 @@ bash deploy_rpi.sh  # 10 perc, mindent automatizál
 docs/
 ├── README.md                    ◄──── English
 ├── README_HU.md (ez a fájl)     ◄──── KEZDJ ITT
-├── SPRINTS.md                   ◄──── Teljes Sprint 1-7 történet (ÚJ)
+├── SPRINTS.md                   ◄──── Teljes Sprint 1-8 történet (ÚJ)
 │
 ├── 01_deployment/               ◄──── Raspberry Pi Setup
 │   ├── RASPBERRY_PI_SETUP_GUIDE_HU.md
@@ -90,23 +90,21 @@ System LIVE lesz és kereskedni fog! 🚀
 | Mappa | Fájlok | Leírás |
 |-------|--------|--------|
 | **01_deployment/** | 4 | Raspberry Pi telepítési útmutatók + ellenőrzőlista |
-| **02_implementation/** | 3 | SPRINT specifikációk & fejlesztői guide |
-| **03_testing/** | 4 | Teszt eredmények & kód review |
+| **02_implementation/** | - | (üres - Sprint specifikációk SPRINTS.md-be összevonva) |
+| **03_testing/** | 1 | Végső teszt eredmények & kód review |
 
 ---
 
 ## ✨ Legutóbbi Frissítések
 
-- **[START_HERE_HU.txt](../START_HERE_HU.txt)** - Magyar Gyors Kezdési Útmutató 🆕
+- **[SPRINTS.md](./SPRINTS.md)** - Sprint 1-8 teljes történet 🆕
 - **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** - Magyar Teljes Telepítési Útmutató
-- **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Telepítés utáni ellenőrzőlista 🆕
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 277/277 teszt összefoglaló
-- **[IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)** - SPRINT 1-5 Specifikációk
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 256/256 Teszt Eredmények
+- **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Telepítés utáni ellenőrzőlista
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 277/277 Teszt Eredmények
 
 ---
 
-**Státusz:** ✅ SPRINT 1-5 Szoftver Kész | ⏳ Hardver telepítés pending
+**Státusz:** ✅ SPRINT 1-8 Szoftver Kész | ⏳ Hardver telepítés pending
 **Cél Platform:** 🍓 Raspberry Pi 4/5 (64-bit ARM)
 **Teszt Lefedettség:** ✅ 203/203 (100%)
 

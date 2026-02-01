@@ -1,6 +1,6 @@
 # DEVELOPMENT SPRINTS SUMMARY
 **Project:** ToZsDE Trading System  
-**Status:** Sprint 1-7 Complete (277/277 tests passing)  
+**Status:** Sprint 1-8 Complete (342/342 tests passing)  
 **Updated:** 2026-02-01
 
 ---
@@ -16,7 +16,8 @@
 | **5** | Production Deployment (SW) | 64 | ✅ COMPLETE | 2026-02-01 |
 | **6** | Learning System (P8) | 40 | ✅ COMPLETE | 2026-02-01 |
 | **7** | Portfolio Optimization (P7) | 21 | ✅ COMPLETE | 2026-02-01 |
-| **TOTAL** | | **277** | **100% PASSING** | **2026-02-01** |
+| **8** | Capital Efficiency (P6) | 78 | ✅ COMPLETE | 2026-02-01 |
+| **TOTAL** | | **342** | **100% PASSING** | **2026-02-01** |
 
 ---
 
@@ -330,23 +331,106 @@ Sprint 2: Integrated (no separate tests)
 Sprint 3: +51 tests (114 total)
 Sprint 4: +25 tests (139 total)
 Sprint 5: +64 tests (203 total)
-Sprint 6: +40 tests (243 total, corrected from 256)
-Sprint 7: +21 tests (264 total, corrected from 277)
+Sprint 6: +40 tests (243 total)
+Sprint 7: +21 tests (264 total)
+Sprint 8: +78 tests (342 total)
 
-ACTUAL TOTAL: 264/264 tests passing (100%)
+ACTUAL TOTAL: 342/342 tests passing (100%)
 ```
+
+---
+
+## SPRINT 8: Capital Efficiency (P6) ✅
+
+**Priority:** HIGH - Capital Optimization  
+**Timeline:** 8 hours | **Tests:** 78/78 passing  
+**Completed:** 2026-02-01
+
+### Delivered Components
+
+1. **Confidence Bucket Allocator** (`app/decision/confidence_allocator.py`)
+   - **Purpose:** Allocate capital based on decision confidence levels
+   - **Features:**
+     - Three confidence buckets with capital multipliers:
+       - **STRONG** (confidence ≥ 0.75): **1.5x** multiplier
+       - **NORMAL** (0.5 ≤ confidence < 0.75): **1.0x** multiplier
+       - **WEAK** (confidence < 0.5): **0.5x** multiplier
+     - Automatic classification by confidence score
+     - Single and multi-strategy allocation
+     - Rebalancing suggestions
+     - Bucket statistics and history tracking
+     - SQLite persistence for allocation tracking
+   - **Data Structures:**
+     - `ConfidenceBucket` enum (STRONG, NORMAL, WEAK)
+     - `ConfidenceAllocation` dataclass
+     - `BucketStatistics` dataclass
+   - **Tests:** 24/24 passing
+   - **Size:** 360+ lines
+
+2. **Capital Utilization Optimizer** (`app/decision/capital_optimizer.py`)
+   - **Purpose:** Optimize capital usage across trades
+   - **Features:**
+     - Kelly criterion position sizing
+       - Kelly % = (W × Avg_W - L × Avg_L) / Avg_W
+       - Clamped to [0.01, 0.50] for safety
+     - Risk-adjusted position sizing
+       - Accounts for volatility in calculation
+       - Respects max position limits (default 5%)
+       - Enforces minimum position sizes
+     - Multi-position capital allocation optimization
+     - Diversification scoring (Herfindahl-Hirschman Index)
+       - 0.0 = perfectly diversified
+       - 1.0 = fully concentrated
+     - Maximum drawdown estimation (3σ volatility rule)
+     - Capital utilization tracking
+   - **Data Structures:**
+     - `PositionSize` dataclass
+     - `CapitalAllocation` dataclass
+   - **Tests:** 25/25 passing
+   - **Size:** 380+ lines
+
+3. **No-Trade Decision Logger** (`app/infrastructure/decision_logger.py`)
+   - **Purpose:** Audit trail for all no-trade decisions
+   - **Features:**
+     - Comprehensive no-trade reason enumeration
+       - LOW_CONFIDENCE, HIGH_CORRELATION, INSUFFICIENT_CAPITAL
+       - POSITION_LIMIT_REACHED, MARKET_REGIME, DIVERSIFICATION_CONSTRAINT
+       - RISK_THRESHOLD_EXCEEDED, DECISION_DISABLED, OTHER
+     - Structured decision logging with full context
+       - Timestamp, ticker, strategy, reason
+       - Confidence score, market regime, correlation, risk metrics
+     - Efficient date-based indexing for queries
+     - Analytics and aggregation:
+       - Decision counts by reason, ticker, strategy
+       - Average confidence when skipped
+       - Risk metrics per reason
+     - JSON export for reporting
+     - Automated cleanup for old decisions
+   - **Data Structures:**
+     - `NoTradeReason` enum
+     - `NoTradeDecision` dataclass
+   - **Tests:** 29/29 passing
+   - **Size:** 380+ lines
+
+### Integration
+
+- **Confidence-Based Capital:** Decision engine allocates capital based on confidence scores
+- **Position Sizing:** Optimizer uses Kelly criterion for optimal trade sizing
+- **Audit Trail:** All no-trade decisions logged for compliance and analysis
+- **Performance Analysis:** Decision logger enables post-hoc performance attribution
 
 ---
 
 ## 🎯 Next Steps
 
-### Sprint 8: Capital Efficiency (P6) - PLANNED
-- **Focus:** Confidence-based allocation
+### Sprint 9: Product Hardening (P9) - PLANNED
+- **Focus:** Admin dashboard enhancements, PyFolio integration
 - **Components:**
-  - Confidence Bucket Allocator (STRONG: 1.5x, NORMAL: 1.0x, WEAK: 0.5x)
-  - Capital Utilization Optimizer
-  - NO-TRADE Decision Logger
-- **Timeline:** 6 hours
+  - Admin Dashboard UI expansion (strategy performance, drift monitoring)
+  - PyFolio integration (tearsheets, analytics)
+  - Error visibility enhancement
+- **Timeline:** 10 hours
+- **Estimated Tests:** 18
 - **Tests:** ~15 tests
 
 ### Sprint 9: Product Hardening (P9) - PLANNED
@@ -396,7 +480,9 @@ app/
 │   ├── adaptive_strategy_selector.py (Sprint 6)
 │   ├── market_regime_detector.py (Sprint 6)
 │   ├── etf_allocator.py (Sprint 7)
-│   └── portfolio_correlation_manager.py (Sprint 7)
+│   ├── portfolio_correlation_manager.py (Sprint 7)
+│   ├── confidence_allocator.py (Sprint 8)
+│   └── capital_optimizer.py (Sprint 8)
 ├── indicators/
 │   └── indicators.py (Sprint 1)
 ├── infrastructure/
@@ -405,7 +491,8 @@ app/
 │   ├── log_manager.py (Sprint 5)
 │   ├── backup_manager.py (Sprint 5)
 │   ├── cron_tasks.py (Sprint 5)
-│   └── metrics.py (Sprint 4)
+│   ├── metrics.py (Sprint 4)
+│   └── decision_logger.py (Sprint 8)
 ├── notifications/
 │   └── error_alerter.py (Sprint 4)
 ├── optimization/
@@ -439,7 +526,10 @@ tests/
 ├── test_decision_history_analyzer.py (Sprint 6 - 10 tests)
 ├── test_adaptive_strategy_selector.py (Sprint 6 - 14 tests)
 ├── test_market_regime_detector.py (Sprint 6 - 16 tests)
-└── test_rebalancer_enhanced.py (Sprint 7 - 6 tests)
+├── test_rebalancer_enhanced.py (Sprint 7 - 6 tests)
+├── test_confidence_allocator.py (Sprint 8 - 24 tests)
+├── test_capital_optimizer.py (Sprint 8 - 25 tests)
+└── test_decision_logger.py (Sprint 8 - 29 tests)
 ```
 
 ---
@@ -473,13 +563,13 @@ tests/
 
 ---
 
-## 📊 Performance Metrics (As of Sprint 7)
+## 📊 Performance Metrics (As of Sprint 8)
 
-- **Test Coverage:** 264/264 (100%)
+- **Test Coverage:** 342/342 (100%)
 - **Code Quality:** All modules have docstrings, type hints
-- **LOC:** ~15,000 lines (application code)
-- **Test LOC:** ~8,000 lines (test code)
-- **Modules:** 40+ Python modules
+- **LOC:** ~18,000 lines (application code)
+- **Test LOC:** ~10,000 lines (test code)
+- **Modules:** 43+ Python modules
 - **Deployment:** Ready for Raspberry Pi (hardware pending)
 
 ---

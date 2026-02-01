@@ -75,8 +75,8 @@ SPRINT 3 (Portfolio Optimization):
                     SPRINT 3 TOTAL: 51/51 tests ✅
 
 ═════════════════════════════════════════════════
-🎉 CUMULATIVE TOTAL: 256/256 TESTS PASSING ✅
-   (SPRINT 1: 63 + SPRINT 2: integrated + SPRINT 3: 51 + SPRINT 4: 25 + SPRINT 5: 82)
+🎉 CUMULATIVE TOTAL: 342/342 TESTS PASSING ✅
+   (SPRINT 1: 63 + SPRINT 2: integrated + SPRINT 3: 51 + SPRINT 4: 25 + SPRINT 5: 64 + SPRINT 6: 40 + SPRINT 7: 21 + SPRINT 8: 78)
 ```
 
 ---
@@ -85,19 +85,21 @@ SPRINT 3 (Portfolio Optimization):
 
 ### What Are You Working On?
 
-- **🏗️ Deployment?** → [01_deployment/INDEX.md](./01_deployment/INDEX.md)
-- **💻 Development?** → [02_implementation/IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)
+- **🏗️ Deployment?** → [01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)
+- **💻 Development?** → [SPRINTS.md](./SPRINTS.md)
 - **🧪 Testing?** → [03_testing/FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md) **← START HERE**
-- **🔧 Infrastructure?** → [04_infrastructure/ARCHITECTURE_OVERVIEW.md](./04_infrastructure/ARCHITECTURE_OVERVIEW.md)
 
 ### Sprint Progress
 
 - **SPRINT 1:** ✅ **COMPLETE** (63/63 tests) - Core Infrastructure
-- **SPRINT 2:** ✅ **COMPLETE** - Enhanced Decision Making (integrated)
+- **SPRINT 2:** ✅ **COMPLETE** (integrated) - Enhanced Decision Making
 - **SPRINT 3:** ✅ **COMPLETE** (51/51 tests) - Portfolio Optimization
 - **SPRINT 4:** ✅ **COMPLETE** (25/25 tests) - Hardening & Monitoring
-- **SPRINT 5:** ✅ **COMPLETE (Software)** (82 tests) - Raspberry Pi Deployment
-- **TOTAL:** ✅ **256/256 TESTS PASSING (100%)**
+- **SPRINT 5:** ✅ **COMPLETE** (64/64 tests) - Raspberry Pi Deployment
+- **SPRINT 6:** ✅ **COMPLETE** (40/40 tests) - Learning System with Thompson Sampling
+- **SPRINT 7:** ✅ **COMPLETE** (21/21 tests) - Portfolio Optimization with ETF Support
+- **SPRINT 8:** ✅ **COMPLETE** (78/78 tests) - Capital Efficiency Optimization
+- **TOTAL:** ✅ **342/342 TESTS PASSING (100%)**
 
 ---
 
@@ -107,10 +109,19 @@ SPRINT 3 (Portfolio Optimization):
 
 ```
 docs/
-├── 01_deployment/           [Deployment & Infrastructure]
-├── 02_implementation/        [Development & Code Structure]
-├── 03_testing/              [Testing & QA]
-└── 04_infrastructure/       [Core Infrastructure]
+├── SPRINTS.md                          [Sprint 1-7 Development History] ⭐
+├── README.md                           [English Documentation]
+├── README_HU.md                        [Hungarian Documentation]
+├── 01_deployment/                      [Deployment & Infrastructure]
+│   ├── RASPBERRY_PI_SETUP_GUIDE.md
+│   ├── RASPBERRY_PI_SETUP_GUIDE_HU.md
+│   ├── DEPLOYMENT_VERIFICATION_CHECKLIST.md
+│   └── ...other deployment files
+├── 02_implementation/                  [Empty - Sprint specs consolidated to SPRINTS.md]
+├── 03_testing/                         [Testing & QA]
+│   ├── FINAL_STATUS_REPORT.md
+│   └── ...other test reports
+└── 04_infrastructure/                  [Empty - docs consolidated]
 ```
 
 ### Status Indicators
@@ -118,20 +129,19 @@ docs/
 - ✅ = Complete, actively used
 - 🔄 = In Progress (active development)
 - ⭐ = Recommended starting point
-- 📝 = Új fájl, dokumentáció alatt
-- ⏳ = Várakozik feloldásra
-- ❌ = Elavult, nem ajánlott
+- 📝 = New file, under documentation
+- ⏳ = Waiting for resolution
+- ❌ = Outdated, not recommended
 
 ---
 
-## 📈 Utolsó Frissítés
+## 📈 Latest Updates
 
-| Kategória | Fájlok | Legutóbb Módosítva | Státusz |
-|-----------|--------|-------------------|--------|
-| Deployment | 9 | **2026-02-01** | ✅ Aktív |
-| Implementation | 8 | **2026-02-01** | ✅ Aktív |
-| Testing | 7 | **2026-02-01** | ✅ **COMPLETE** |
-| Infrastructure | 3 | 2025-01-21 | 📝 Új |
+| Category | Files | Last Modified | Status |
+|----------|-------|---------------|--------|
+| Deployment | 4 | **2026-02-01** | ✅ Active |
+| Documentation | 3 | **2026-02-01** | ✅ Active |
+| Testing | 1 | **2026-02-01** | ✅ **COMPLETE** |
 
 ---
 
@@ -188,8 +198,7 @@ curl http://tozsde-pi.local:5000/api/health
 
 ### ✨ Latest Updates
 
-- **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Complete Rpi setup (2026-01-23) 🆕
-- **[IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)** - SPRINT 1-5 Complete (software)
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 256/256 tests passing summary
-- **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Post-deploy checklist (hardware pending)
-- **[DOCUMENTATION_UPDATE_SUMMARY.md](./03_testing/DOCUMENTATION_UPDATE_SUMMARY.md)** - All documentation changes
+- **[SPRINTS.md](./SPRINTS.md)** - Complete Sprint 1-7 history 🆕
+- **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Complete Rpi setup guide
+- **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Post-deploy checklist
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 277/277 tests passing summary
