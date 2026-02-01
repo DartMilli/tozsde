@@ -1,123 +1,53 @@
-# Dokumentáció Index - Szervezett Dokumentációs Struktúra
+# Dokumentáció Index
 
-## 📋 Dokumentáció Szerkezete
+## 📋 Egyszerűsített Dokumentációs Struktúra (2026-02-01)
 
-Az `docs/` mappa **hierarchikus és kategorizált** dokumentációt tartalmaz a ToZsDE projekt minden aspektusához.
-
-**✅ Státusz:** Teljes dokumentáció a `docs/` mappában van szervezve. SPRINT 1-5 szoftveresen kész, hardveres Pi-telepítés pending.
+**✅ Státusz:** Sprint 1-7 szoftver kész (277/277 teszt), hardveres telepítés pending
 
 ---
 
-## 🗂️ Fő Kategóriák
+## 🗂️ Fő Dokumentációs Fájlok
 
-### 1️⃣ [01_deployment/](./01_deployment/) - Telepítés & Infrastruktúra
+### 🌟 [SPRINTS.md](./SPRINTS.md) - Teljes Fejlesztési Történet
+**Sprint 1-7 átfogó részletezés** - Funkciók, tesztek, architektúra döntések (Angol nyelven)
 
-**🍓 Raspberry Pi 4/5 Production Telepítés (TISZTA, Egyetlen Forrás)**
+### 📊 [03_testing/FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)
+**Teszt suite összefoglaló** - 277/277 teszt sikeres (100%)
 
-| Fájl | Cél | Státusz |
-|------|-----|--------|
-| **[INDEX.md](./01_deployment/INDEX.md)** | 📌 Telepítési navigáció | ✅ **KEZDJ ITT** |
-| **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** | 🇭🇺 **MAGYAR** - Teljes lépésről-lépésre Rpi setup | ✅ **KANONIKUS** |
-| **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** | 🇬🇧 English - Complete setup guide | ✅ CANONICAL |
-| **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** | ✅ Telepítés utáni ellenőrzőlista | ✅ **ÚJ** |
+### 🍓 [01_deployment/](./01_deployment/) - Raspberry Pi Telepítés
+- **RASPBERRY_PI_SETUP_GUIDE_HU.md** (Magyar)
+- **RASPBERRY_PI_SETUP_GUIDE.md** (English)
+- **DEPLOYMENT_VERIFICATION_CHECKLIST.md**
 
-**Telepítés EGYETLEN paranccsal:**
+**Egyparancs telepítés:**
 ```bash
 bash deploy_rpi.sh  # 10 perc, mindent automatizál
 ```
 
-**Mit kapsz:**
-- ✅ Python 3.11 venv + függőségek
-- ✅ Flask API fut a 5000-es porton (systemd service)
-- ✅ 3 cron job (napi, heti, havi)
-- ✅ 5 perces health check-ek
-- ✅ Automatikus log rotation
-
 ---
 
-### 2️⃣ [02_implementation/](./02_implementation/) - Implementáció & Fejlesztés
+## 📂 Könyvtárstruktúra
 
-| Fájl | Cél | Státusz |
-|------|-----|--------|
-| **[INDEX.md](./02_implementation/INDEX.md)** | **Navigáció** | 📝 |
-| **[IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)** | 📌 **KÖZPONTI** - SPRINT 1-5 terv | ✅ **OLVASD** |
-| **[DEVELOPMENT_GUIDE.md](./02_implementation/DEVELOPMENT_GUIDE.md)** | Fejlesztői útmutató | ✅ Aktív |
-
-**SPRINT státusz:**
 ```
-✅ SPRINT 1: Alapinfrastruktúra (63 teszt)
-✅ SPRINT 2: Fejlett funkciók (integrálva)
-✅ SPRINT 3: Portfólió optimalizáció (51 teszt)
-✅ SPRINT 4: Hardening & Monitoring (25 teszt)
-✅ SPRINT 5: Raspberry Pi Telepítés (szoftver kész, hardver pending)
-```
-
----
-
-### 3️⃣ [03_testing/](./03_testing/) - Tesztelés & Kód Review
-
-| Fájl | Cél | Státusz |
-|------|-----|--------|
-| **[COMPREHENSIVE_CODE_REVIEW.md](./03_testing/COMPREHENSIVE_CODE_REVIEW.md)** | Kód architektúra SPRINT 1-4 | ✅ Archív |
-| **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** | 📊 **203/203 teszt - 100% KÉSZ** | ✅ **OLVASD** |
-| **[PROJECT_COMPLETION_SUMMARY.md](./03_testing/PROJECT_COMPLETION_SUMMARY.md)** | Projekt összefoglalása | ✅ Archív |
-
----
-
-## 🚀 GYORS KEZDÉS: Raspberry Pi-re Telepítés
-
-### FÁZIS 1: Fizikai Setup (15 perc)
-```bash
-1. Raspberry Pi OS Lite 64-bit letöltés
-2. SD-kártya formázás (Raspberry Pi Imager)
-3. Boot, SSH engedélyezése
-4. Rendszerfrissítés
+docs/
+├── README.md                    ◄──── English
+├── README_HU.md (ez a fájl)     ◄──── KEZDJ ITT
+├── SPRINTS.md                   ◄──── Teljes Sprint 1-7 történet (ÚJ)
+│
+├── 01_deployment/               ◄──── Raspberry Pi Setup
+│   ├── RASPBERRY_PI_SETUP_GUIDE_HU.md
+│   ├── RASPBERRY_PI_SETUP_GUIDE.md
+│   └── DEPLOYMENT_VERIFICATION_CHECKLIST.md
+│
+└── 03_testing/                  ◄──── Teszt Eredmények
+    └── FINAL_STATUS_REPORT.md (277/277 teszt)
 ```
 
-### FÁZIS 2: Alkalmazás Telepítés (45 perc)
-```bash
-# SSH-zd be a Pi-be
-ssh pi@raspberrypi.local
-
-# Klónozd a repo-t
-git clone <repo-url> ~/tozsde_webapp
-cd ~/tozsde_webapp
-
-# EGYKATTINTÁSOS TELEPÍTÉS
-bash deploy_rpi.sh
-
-# ✅ KÉSZ! Flask API fut, cron jobs aktívak
-```
-
-### FÁZIS 3: Ellenőrzés (5 perc)
-```bash
-# API működik?
-curl http://raspberrypi.local:5000/api/health
-
-# Naplók?
-sudo journalctl -u tozsde-api.service -f
-
-# Cron feladatok?
-crontab -l
-```
-
----
-
-## 📊 Projekt Státusz
-
-### Befejezett
-✅ **SPRINT 1-5 (szoftver):** 203/203 teszt (100%)
-- Data Manager, Indikátorok, Config, Training
-- RL Module, Drift Detection, Ensemble
-- Risk Parity, Correlation Limits, Rebalancing
-- Admin Dashboard, Metrics, Error Alerting
-
-### Folyamatban
-✅ **SPRINT 5 (szoftver):** Raspberry Pi Deployment kész
-⏳ **Következő:** Hardveres telepítés amikor a Pi megérkezik
-- Teljes automatizált telepítés (deploy_rpi.sh)
-- systemd service (Flask API)
-- Cron scheduling (3 feladat)
+**Cleanup elvégezve (2026-02-01):**
+- ✅ Eltávolítva: START_HERE.txt, CLEANUP_SUMMARY.md, 04_infrastructure/ (üres)
+- ✅ Összevonva: Összes sprint terv → SPRINTS.md
+- ✅ Eltávolítva: 02_implementation/*.md (6 fájl összevonva)
+- ✅ Eredmény: **4 alapvető dokumentációs fájl** (15+-ről lecsökkentve)
 - Health monitoring
 
 ---
@@ -170,9 +100,9 @@ System LIVE lesz és kereskedni fog! 🚀
 - **[START_HERE_HU.txt](../START_HERE_HU.txt)** - Magyar Gyors Kezdési Útmutató 🆕
 - **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** - Magyar Teljes Telepítési Útmutató
 - **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Telepítés utáni ellenőrzőlista 🆕
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 203/203 teszt összefoglaló
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 277/277 teszt összefoglaló
 - **[IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)** - SPRINT 1-5 Specifikációk
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 203/203 Teszt Eredmények
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 256/256 Teszt Eredmények
 
 ---
 

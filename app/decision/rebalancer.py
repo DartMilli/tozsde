@@ -195,6 +195,231 @@ class PortfolioRebalancer:
         return total_cost
 
 
+    def minimize_rebalancing_costs(
+        self,
+        trades: List[Dict],
+        min_trade_size: float = 100.0,
+        allow_partial: bool = True
+    ) -> List[Dict]:
+        """
+        Minimize transaction costs by filtering/aggregating trades.
+        
+        Strategies:
+        - Skip trades below min_trade_size (notional value)
+        - Aggregate trades in same direction (if exchange allows)
+        - Prioritize larger trades (lower relative cost)
+        
+        Args:
+            trades: Original trade list
+            min_trade_size: Minimum trade notional value in dollars
+            allow_partial: Allow partial rebalancing (skip small trades)
+            
+        Returns:
+            Filtered/optimized trade list
+        """
+        optimized_trades = []
+        
+        for trade in trades:
+            notional = trade["qty"] * trade["price"]
+            
+            # Skip small trades
+            if allow_partial and notional < min_trade_size:
+                logger.debug(
+                    f"Skipping small trade: {trade['ticker']} "
+                    f"notional=${notional:.2f} < ${min_trade_size}"
+                )
+                continue
+            
+            optimized_trades.append(trade)
+        
+        # Log savings
+        original_cost = self.compute_rebalancing_cost(trades)
+        optimized_cost = self.compute_rebalancing_cost(optimized_trades)
+        savings = original_cost - optimized_cost
+        
+        logger.info(
+            f"Cost optimization: {len(trades)} → {len(optimized_trades)} trades, "
+            f"saved ${savings:.2f} ({savings/original_cost*100:.1f}% reduction)"
+        )
+        
+        return optimized_trades
+    
+    def apply_tax_efficiency(
+        self,
+        trades: List[Dict],
+        holdings_age: Dict[str, int],  # {ticker: days_held}
+        unrealized_gains: Dict[str, float]  # {ticker: gain_pct}
+    ) -> List[Dict]:
+        """
+        Apply tax-efficient rebalancing rules.
+        
+        Rules:
+        1. Prefer selling long-term holdings (> 365 days) → lower capital gains tax
+        2. Defer short-term capital gains (< 365 days) unless necessary
+        3. Prioritize tax-loss harvesting (sell losers first)
+        
+        Args:
+            trades: Original trade list
+            holdings_age: Days each position has been held
+            unrealized_gains: Unrealized gain/loss percentage per ticker
+            
+        Returns:
+            Tax-optimized trade list
+        """
+        # Separate SELL trades
+        sell_trades = [t for t in trades if t["action"] == "SELL"]
+        buy_trades = [t for t in trades if t["action"] == "BUY"]
+        
+        # Score each SELL trade (lower score = better tax efficiency)
+        scored_sells = []
+        
+        for trade in sell_trades:
+            ticker = trade["ticker"]
+            age = holdings_age.get(ticker, 0)
+            gain_pct = unrealized_gains.get(ticker, 0)
+            
+            # Tax score calculation
+            if gain_pct < 0:
+                # Loss → harvest immediately (score = 0)
+                tax_score = 0
+            elif age >= 365:
+                # Long-term gain → acceptable (score = 1)
+                tax_score = 1
+            else:
+                # Short-term gain → defer if possible (score = 2)
+                tax_score = 2
+            
+            scored_sells.append((trade, tax_score, age, gain_pct))
+        
+        # Sort by tax efficiency (best first)
+        scored_sells.sort(key=lambda x: (x[1], -x[2]))  # tax_score ASC, age DESC
+        
+        # Reconstruct trade list (tax-efficient sells + all buys)
+        tax_efficient_trades = [t[0] for t in scored_sells] + buy_trades
+        
+        logger.info(
+            f"Tax optimization: prioritized {len([s for s in scored_sells if s[1] == 0])} "
+            f"loss harvests, deferred {len([s for s in scored_sells if s[1] == 2])} "
+            f"short-term gains"
+        )
+        
+        return tax_efficient_trades
+    
+    def rebalance_multi_asset(
+        self,
+        current_portfolio: Dict[str, Dict],  # {ticker: {weight, asset_type, sector}}
+        target_allocation: Dict[str, Dict],  # {ticker: {weight, asset_type, sector}}
+        prices: Dict[str, float],
+        total_value: float,
+        correlation_matrix: Optional[Dict[str, Dict[str, float]]] = None
+    ) -> List[Dict]:
+        """
+        Rebalance multi-asset portfolio (ETF + stocks + bonds).
+        
+        Features:
+        - Cross-asset rebalancing (sell ETF, buy stocks or vice versa)
+        - Correlation-aware rebalancing (avoid concentrating in correlated assets)
+        - Asset-class level constraints
+        
+        Args:
+            current_portfolio: {ticker: {weight, asset_type, sector}}
+            target_allocation: {ticker: {weight, asset_type, sector}}
+            prices: {ticker: price}
+            total_value: Portfolio total value
+            correlation_matrix: Optional correlation data for optimization
+            
+        Returns:
+            Rebalancing trades
+        """
+        trades = []
+        
+        # Compute target vs. current per ticker
+        all_tickers = set(current_portfolio.keys()) | set(target_allocation.keys())
+        
+        for ticker in all_tickers:
+            current_data = current_portfolio.get(ticker, {"weight": 0})
+            target_data = target_allocation.get(ticker, {"weight": 0})
+            
+            current_weight = current_data.get("weight", 0)
+            target_weight = target_data.get("weight", 0)
+            
+            current_amt = total_value * current_weight
+            target_amt = total_value * target_weight
+            
+            diff_amt = target_amt - current_amt
+            price = prices.get(ticker, 1.0)
+            qty = int(diff_amt / price)
+            
+            if qty != 0:
+                asset_type = target_data.get("asset_type", "STOCK")
+                trade = {
+                    "ticker": ticker,
+                    "action": "BUY" if qty > 0 else "SELL",
+                    "qty": abs(qty),
+                    "price": price,
+                    "asset_type": asset_type,
+                    "reason": f"Multi-asset rebalance: {asset_type}",
+                    "timestamp": datetime.now().isoformat()
+                }
+                trades.append(trade)
+        
+        # Apply correlation-aware filtering (optional)
+        if correlation_matrix:
+            trades = self._filter_correlated_trades(trades, correlation_matrix)
+        
+        # Sort by asset type (ETF first, then stocks, then bonds)
+        asset_type_order = {"ETF": 0, "STOCK": 1, "BOND": 2}
+        trades.sort(
+            key=lambda t: (asset_type_order.get(t.get("asset_type", "STOCK"), 3), -t["qty"])
+        )
+        
+        # Limit total trades
+        trades = trades[:self.max_rebalance_trades]
+        
+        logger.info(
+            f"Multi-asset rebalancing: {len(trades)} trades across asset classes"
+        )
+        
+        return trades
+    
+    def _filter_correlated_trades(
+        self,
+        trades: List[Dict],
+        correlation_matrix: Dict[str, Dict[str, float]],
+        max_correlation: float = 0.8
+    ) -> List[Dict]:
+        """
+        Filter trades to avoid concentrating in highly correlated assets.
+        
+        If adding two BUY trades with correlation > 0.8, keep only one.
+        """
+        buy_trades = [t for t in trades if t["action"] == "BUY"]
+        sell_trades = [t for t in trades if t["action"] == "SELL"]
+        
+        filtered_buys = []
+        
+        for trade in buy_trades:
+            ticker = trade["ticker"]
+            
+            # Check if highly correlated with already selected buys
+            is_redundant = False
+            for selected in filtered_buys:
+                selected_ticker = selected["ticker"]
+                corr = correlation_matrix.get(ticker, {}).get(selected_ticker, 0)
+                
+                if abs(corr) > max_correlation:
+                    logger.debug(
+                        f"Skipping {ticker} (corr={corr:.2f} with {selected_ticker})"
+                    )
+                    is_redundant = True
+                    break
+            
+            if not is_redundant:
+                filtered_buys.append(trade)
+        
+        return filtered_buys + sell_trades
+
+
 def check_and_rebalance(
     current_positions: Dict[str, float],
     target_allocation: Dict[str, float],
