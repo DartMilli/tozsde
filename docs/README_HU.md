@@ -4,7 +4,7 @@
 
 Az `docs/` mappa **hierarchikus és kategorizált** dokumentációt tartalmaz a ToZsDE projekt minden aspektusához.
 
-**✅ Státusz:** Teljes dokumentáció a `docs/` mappában van szervezve. SPRINT 1-4 kész, SPRINT 5 készülőben.
+**✅ Státusz:** Teljes dokumentáció a `docs/` mappában van szervezve. SPRINT 1-5 szoftveresen kész, hardveres Pi-telepítés pending.
 
 ---
 
@@ -19,6 +19,7 @@ Az `docs/` mappa **hierarchikus és kategorizált** dokumentációt tartalmaz a 
 | **[INDEX.md](./01_deployment/INDEX.md)** | 📌 Telepítési navigáció | ✅ **KEZDJ ITT** |
 | **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** | 🇭🇺 **MAGYAR** - Teljes lépésről-lépésre Rpi setup | ✅ **KANONIKUS** |
 | **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** | 🇬🇧 English - Complete setup guide | ✅ CANONICAL |
+| **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** | ✅ Telepítés utáni ellenőrzőlista | ✅ **ÚJ** |
 
 **Telepítés EGYETLEN paranccsal:**
 ```bash
@@ -48,7 +49,7 @@ bash deploy_rpi.sh  # 10 perc, mindent automatizál
 ✅ SPRINT 2: Fejlett funkciók (integrálva)
 ✅ SPRINT 3: Portfólió optimalizáció (51 teszt)
 ✅ SPRINT 4: Hardening & Monitoring (25 teszt)
-➡️  SPRINT 5: Raspberry Pi Telepítés (MOST)
+✅ SPRINT 5: Raspberry Pi Telepítés (szoftver kész, hardver pending)
 ```
 
 ---
@@ -58,7 +59,7 @@ bash deploy_rpi.sh  # 10 perc, mindent automatizál
 | Fájl | Cél | Státusz |
 |------|-----|--------|
 | **[COMPREHENSIVE_CODE_REVIEW.md](./03_testing/COMPREHENSIVE_CODE_REVIEW.md)** | Kód architektúra SPRINT 1-4 | ✅ Archív |
-| **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** | 📊 **139/139 teszt - 100% KÉSZ** | ✅ **OLVASD** |
+| **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** | 📊 **203/203 teszt - 100% KÉSZ** | ✅ **OLVASD** |
 | **[PROJECT_COMPLETION_SUMMARY.md](./03_testing/PROJECT_COMPLETION_SUMMARY.md)** | Projekt összefoglalása | ✅ Archív |
 
 ---
@@ -105,14 +106,15 @@ crontab -l
 ## 📊 Projekt Státusz
 
 ### Befejezett
-✅ **SPRINT 1-4:** 139/139 teszt (100%)
+✅ **SPRINT 1-5 (szoftver):** 203/203 teszt (100%)
 - Data Manager, Indikátorok, Config, Training
 - RL Module, Drift Detection, Ensemble
 - Risk Parity, Correlation Limits, Rebalancing
 - Admin Dashboard, Metrics, Error Alerting
 
 ### Folyamatban
-➡️ **SPRINT 5:** Raspberry Pi Deployment
+✅ **SPRINT 5 (szoftver):** Raspberry Pi Deployment kész
+⏳ **Következő:** Hardveres telepítés amikor a Pi megérkezik
 - Teljes automatizált telepítés (deploy_rpi.sh)
 - systemd service (Flask API)
 - Cron scheduling (3 feladat)
@@ -131,7 +133,7 @@ tozsde_webapp/
 │   ├── optimization/            [GA Optimizer]
 │   ├── ui/                      [Flask API]
 │   └── ... (további modulok)
-├── tests/                        [139 Teszt - 100% KÉSZ]
+├── tests/                        [203 Teszt - 100% KÉSZ]
 ├── docs/                         [Dokumentáció]
 ├── deploy_rpi.sh                 [ONE-CLICK Telepítő Script]
 ├── requirements.txt              [Python Függőségek]
@@ -146,7 +148,8 @@ tozsde_webapp/
 2. **Készítsd el:** Raspberry Pi 4/5 + SD-kártya + USB tápegység
 3. **Telepítsd:** `bash deploy_rpi.sh`
 4. **Ellenőrizd:** `curl http://raspberrypi.local:5000/api/health`
-5. **Monitorozz:** Naplók 6:00 AM után (első napi futás)
+5. **Futtasd:** [01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)
+6. **Monitorozz:** Naplók 6:00 AM után (első napi futás)
 
 System LIVE lesz és kereskedni fog! 🚀
 
@@ -156,7 +159,7 @@ System LIVE lesz és kereskedni fog! 🚀
 
 | Mappa | Fájlok | Leírás |
 |-------|--------|--------|
-| **01_deployment/** | 2 | Raspberry Pi telepítési útmutatók |
+| **01_deployment/** | 4 | Raspberry Pi telepítési útmutatók + ellenőrzőlista |
 | **02_implementation/** | 3 | SPRINT specifikációk & fejlesztői guide |
 | **03_testing/** | 4 | Teszt eredmények & kód review |
 
@@ -165,14 +168,16 @@ System LIVE lesz és kereskedni fog! 🚀
 ## ✨ Legutóbbi Frissítések
 
 - **[START_HERE_HU.txt](../START_HERE_HU.txt)** - Magyar Gyors Kezdési Útmutató 🆕
-- **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** - Magyar Teljes Telepítési Útmutató 🆕
+- **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** - Magyar Teljes Telepítési Útmutató
+- **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Telepítés utáni ellenőrzőlista 🆕
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 203/203 teszt összefoglaló
 - **[IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)** - SPRINT 1-5 Specifikációk
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 139/139 Teszt Eredmények
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 203/203 Teszt Eredmények
 
 ---
 
-**Státusz:** ✅ SPRINT 1-4 Kész | ➡️ SPRINT 5 Telepítés Következik
+**Státusz:** ✅ SPRINT 1-5 Szoftver Kész | ⏳ Hardver telepítés pending
 **Cél Platform:** 🍓 Raspberry Pi 4/5 (64-bit ARM)
-**Teszt Lefedettség:** ✅ 139/139 (100%)
+**Teszt Lefedettség:** ✅ 203/203 (100%)
 
 Jó kereskedést! 🎉

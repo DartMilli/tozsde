@@ -26,7 +26,7 @@ set -e  # Exit immediately on any error
 APP_DIR="/home/pi/tozsde_webapp"
 VENV_DIR="$APP_DIR/venv"
 LOGS_DIR="$APP_DIR/logs"
-SCRIPTS_DIR="$APP_DIR/scripts"
+SCRIPTS_DIR="$APP_DIR/app/scripts"
 USER="pi"
 GROUP="pi"
 
@@ -221,15 +221,15 @@ add_cron_entry() {
 }
 
 # Daily pipeline - 6:00 AM
-DAILY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.daily_pipeline >> /home/pi/tozsde_webapp/logs/cron_daily.log 2>&1"
+DAILY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.infrastructure.cron_tasks --daily >> /home/pi/tozsde_webapp/logs/cron_daily.log 2>&1"
 add_cron_entry "0 6 * * *" "$DAILY_CMD"
 
 # Weekly audit - Monday 4:00 AM
-WEEKLY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.backtesting.audit_runner >> /home/pi/tozsde_webapp/logs/cron_weekly.log 2>&1"
+WEEKLY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.infrastructure.cron_tasks --weekly >> /home/pi/tozsde_webapp/logs/cron_weekly.log 2>&1"
 add_cron_entry "0 4 * * 1" "$WEEKLY_CMD"
 
 # Monthly optimization - 1st of month 1:00 AM
-MONTHLY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.optimization.runner >> /home/pi/tozsde_webapp/logs/cron_monthly.log 2>&1"
+MONTHLY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.infrastructure.cron_tasks --monthly >> /home/pi/tozsde_webapp/logs/cron_monthly.log 2>&1"
 add_cron_entry "0 1 1 * *" "$MONTHLY_CMD"
 
 # Health check - every 5 minutes

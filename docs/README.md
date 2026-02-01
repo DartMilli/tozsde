@@ -4,7 +4,7 @@
 
 Ez az `docs/` mappa **hierarchikus és kategorizált** dokumentációt tartalmaz a projekt minden aspektusához.
 
-**✅ Státusz:** Minden dokumentáció a `docs/` mappában szervezett. A gyökérből az összes `.md` fájl átmozgatva.
+**✅ Státusz:** Dokumentáció rendezve a `docs/` mappában. SPRINT 1-5 szoftveresen kész, hardveres Pi-telepítés pending.
 
 ### 📌 LEGÚJABB: Dokumentáció Cleanup
 
@@ -27,6 +27,7 @@ Ez az `docs/` mappa **hierarchikus és kategorizált** dokumentációt tartalmaz
 | **[INDEX.md](./01_deployment/INDEX.md)** | 📌 Navigation hub for deployment | ✅ **START HERE** |
 | **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** | 🇬🇧 English - Complete step-by-step Rpi setup | ✅ **CANONICAL** |
 | **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** | 🇭🇺 Magyar - Teljes Rpi setup útmutató | ✅ **KANONIKUS** |
+| **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** | ✅ Post-deploy verification checklist | ✅ **NEW** |
 
 **Deployment in ONE command:**
 ```bash
@@ -56,7 +57,7 @@ bash deploy_rpi.sh  # 10 minutes, automates everything
 
 ### 3️⃣ [03_testing/](./03_testing/) - Testing & QA
 
-**Testing Documentation (139/139 tests PASSING)**
+**Testing Documentation (203/203 tests PASSING)**
 
 | Fájl | Cél | Státusz |
 |------|-----|--------|
@@ -91,13 +92,13 @@ Rendszer-architektúra és konfigurációs alapok:
 ```
 ✅ 01_deployment/       9 fájl (Befejezve)
 ✅ 02_implementation/   8 fájl (Befejezve)
-✅ 03_testing/         7 fájl (SPRINT 1-3 Befejezve)
+✅ 03_testing/         7 fájl (SPRINT 1-5 Befejezve)
 📝 04_infrastructure/   3 fájl (Tervezve)
 ─────────────────────────────
-📋 TOTAL:              27 fájl (szervezett)
+📋 TOTAL:              28 fájl (szervezett)
 ```
 
-### SPRINT 1-3 Teszt Implementáció Status
+### SPRINT 1-5 Teszt Implementáció Status
 
 ```
 SPRINT 1 (Core Infrastructure):
@@ -123,8 +124,8 @@ SPRINT 3 (Portfolio Optimization):
                     SPRINT 3 TOTAL: 51/51 tests ✅
 
 ═════════════════════════════════════════════════
-🎉 CUMULATIVE TOTAL: 139/139 TESTS PASSING ✅
-   (SPRINT 1: 63 + SPRINT 2: integrated + SPRINT 3: 51 + SPRINT 4: 25)
+🎉 CUMULATIVE TOTAL: 203/203 TESTS PASSING ✅
+   (SPRINT 1: 63 + SPRINT 2: integrated + SPRINT 3: 51 + SPRINT 4: 25 + SPRINT 5: 82)
 ```
 
 ---
@@ -133,7 +134,7 @@ SPRINT 3 (Portfolio Optimization):
 
 ### What Are You Working On?
 
-- **🏗️ Deployment?** → [01_deployment/DEPLOYMENT_ARCHITECTURE.md](./01_deployment/DEPLOYMENT_ARCHITECTURE.md)
+- **🏗️ Deployment?** → [01_deployment/INDEX.md](./01_deployment/INDEX.md)
 - **💻 Development?** → [02_implementation/IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)
 - **🧪 Testing?** → [03_testing/FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md) **← START HERE**
 - **🔧 Infrastructure?** → [04_infrastructure/ARCHITECTURE_OVERVIEW.md](./04_infrastructure/ARCHITECTURE_OVERVIEW.md)
@@ -144,7 +145,8 @@ SPRINT 3 (Portfolio Optimization):
 - **SPRINT 2:** ✅ **COMPLETE** - Enhanced Decision Making (integrated)
 - **SPRINT 3:** ✅ **COMPLETE** (51/51 tests) - Portfolio Optimization
 - **SPRINT 4:** ✅ **COMPLETE** (25/25 tests) - Hardening & Monitoring
-- **TOTAL:** ✅ **139/139 TESTS PASSING (100%)**
+- **SPRINT 5:** ✅ **COMPLETE (Software)** (82 tests) - Raspberry Pi Deployment
+- **TOTAL:** ✅ **203/203 TESTS PASSING (100%)**
 
 ---
 
@@ -175,9 +177,9 @@ docs/
 
 | Kategória | Fájlok | Legutóbb Módosítva | Státusz |
 |-----------|--------|-------------------|--------|
-| Deployment | 9 | 2024-12-XX | ✅ Aktív |
-| Implementation | 8 | 2024-12-XX | ✅ Aktív |
-| Testing | 7 | **2026-01-22** | ✅ **COMPLETE** |
+| Deployment | 9 | **2026-02-01** | ✅ Aktív |
+| Implementation | 8 | **2026-02-01** | ✅ Aktív |
+| Testing | 7 | **2026-02-01** | ✅ **COMPLETE** |
 | Infrastructure | 3 | 2025-01-21 | 📝 Új |
 
 ---
@@ -189,10 +191,11 @@ SPRINT 1 (Weeks 1-2):     ✅ COMPLETE - 63 tests, Core Infrastructure
 SPRINT 2 (Weeks 3-4):     ✅ COMPLETE - RL Module, Drift Detection
 SPRINT 3 (Weeks 5-6):     ✅ COMPLETE - 51 tests, Portfolio Optimization
 SPRINT 4 (Weeks 7-8):     ✅ COMPLETE - 25 tests, Admin Dashboard & Monitoring
+SPRINT 5 (Weeks 9-10):    ✅ COMPLETE (Software) - 82 tests, Pi Deployment
 ────────────────────────────────────────────────────────────
-CUMULATIVE PROGRESS:       ✅ 139/139 TESTS PASSING (100%)
+CUMULATIVE PROGRESS:       ✅ 203/203 TESTS PASSING (100%)
 
-🚀 SPRINT 5 - Raspberry Pi Production Deployment (NEXT)
+🚀 Raspberry Pi Deployment: Hardware pending (run deploy_rpi.sh when ready)
 ```
 
 ---
@@ -227,14 +230,15 @@ curl http://tozsde-pi.local:5000/api/health
 
 ---
 
-**Készítve:** 2026-01-23
+**Készítve:** 2026-02-01
 **Szervezési Szint:** 📊 Hierarchikus (04 kategória)
 **Deploy Target:** 🍓 Raspberry Pi 4/5
-**Status:** ✅ Production Ready
+**Status:** ✅ Software Complete (Hardware Pending)
 
 ### ✨ Latest Updates
 
 - **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Complete Rpi setup (2026-01-23) 🆕
-- **[IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)** - SPRINT 1-4 Complete, SPRINT 5 specs
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 139/139 tests passing summary
+- **[IMPLEMENTATION_PLAN.md](./02_implementation/IMPLEMENTATION_PLAN.md)** - SPRINT 1-5 Complete (software)
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 203/203 tests passing summary
+- **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Post-deploy checklist (hardware pending)
 - **[DOCUMENTATION_UPDATE_SUMMARY.md](./03_testing/DOCUMENTATION_UPDATE_SUMMARY.md)** - All documentation changes
