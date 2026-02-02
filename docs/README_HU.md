@@ -2,17 +2,17 @@
 
 ## 📋 Egyszerűsített Dokumentációs Struktúra (2026-02-01)
 
-**✅ Státusz:** Sprint 1-8 szoftver kész (342/342 teszt), hardveres telepítés pending
+**✅ Státusz:** Sprint 1-9 szoftver kész (359/359 teszt), hardveres telepítés pending
 
 ---
 
 ## 🗂️ Fő Dokumentációs Fájlok
 
 ### 🌟 [SPRINTS.md](./SPRINTS.md) - Teljes Fejlesztési Történet
-**Sprint 1-8 átfogó részletezés** - Funkciók, tesztek, architektúra döntések (Angol nyelven)
+**Sprint 1-9 átfogó részletezés** - Funkciók, tesztek, architektúra döntések (Angol nyelven)
 
 ### 📊 [03_testing/FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)
-**Teszt suite összefoglaló** - 277/277 teszt sikeres (100%)
+**Teszt suite összefoglaló** - 359/359 teszt sikeres (100%)
 
 ### 🍓 [01_deployment/](./01_deployment/) - Raspberry Pi Telepítés
 - **RASPBERRY_PI_SETUP_GUIDE_HU.md** (Magyar)
@@ -32,7 +32,7 @@ bash deploy_rpi.sh  # 10 perc, mindent automatizál
 docs/
 ├── README.md                    ◄──── English
 ├── README_HU.md (ez a fájl)     ◄──── KEZDJ ITT
-├── SPRINTS.md                   ◄──── Teljes Sprint 1-8 történet (ÚJ)
+├── SPRINTS.md                   ◄──── Teljes Sprint 1-9 történet
 │
 ├── 01_deployment/               ◄──── Raspberry Pi Setup
 │   ├── RASPBERRY_PI_SETUP_GUIDE_HU.md
@@ -40,7 +40,7 @@ docs/
 │   └── DEPLOYMENT_VERIFICATION_CHECKLIST.md
 │
 └── 03_testing/                  ◄──── Teszt Eredmények
-    └── FINAL_STATUS_REPORT.md (277/277 teszt)
+    └── FINAL_STATUS_REPORT.md (359/359 teszt)
 ```
 
 **Cleanup elvégezve (2026-02-01):**
@@ -48,6 +48,12 @@ docs/
 - ✅ Összevonva: Összes sprint terv → SPRINTS.md
 - ✅ Eltávolítva: 02_implementation/*.md (6 fájl összevonva)
 - ✅ Eredmény: **4 alapvető dokumentációs fájl** (15+-ről lecsökkentve)
+
+**Sprint 9 hozzáadva (2026-02-01):**
+- ✅ PerformanceAnalytics modul (500+ sor)
+- ✅ ErrorReporter komponens (580+ sor)
+- ✅ AdminDashboard bővítés (12 REST API endpoint)
+- ✅ 17 új teszt, 0 regresszió
 - Health monitoring
 
 ---
@@ -97,10 +103,10 @@ System LIVE lesz és kereskedni fog! 🚀
 
 ## ✨ Legutóbbi Frissítések
 
-- **[SPRINTS.md](./SPRINTS.md)** - Sprint 1-8 teljes történet 🆕
+- **[SPRINTS.md](./SPRINTS.md)** - Sprint 1-9 teljes történet (Sprint 9 Product Hardening hozzáadva)
+- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 359/359 Teszt Eredmények
 - **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** - Magyar Teljes Telepítési Útmutató
 - **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Telepítés utáni ellenőrzőlista
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 277/277 Teszt Eredmények
 
 ---
 
