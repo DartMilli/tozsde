@@ -18,9 +18,13 @@ from app.config.config import Config
 from app.data_access.data_manager import DataManager
 from app.backtesting.backtester import Backtester
 from app.reporting.metrics import BacktestReport
+from app.ui.admin_dashboard import admin_bp
 
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
+
+# Register Admin Dashboard blueprint
+app.register_blueprint(admin_bp)
 
 # ═════════════════════════════════════════════════════════════════════════════
 # CORS & DEVELOPMENT MIDDLEWARE
