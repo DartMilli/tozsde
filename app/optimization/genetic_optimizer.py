@@ -202,7 +202,7 @@ def custom_ea_simple(
 
     # ➤ További generációk
     for gen in range(1, ngen + 1):
-        logger.info(f"\nGeneráció {gen}/{ngen}", flush=True)
+        logger.info(f"\nGeneráció {gen}/{ngen}")
         start_time = time.time()
 
         # ➤ Szelekció és másolatok
