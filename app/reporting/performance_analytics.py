@@ -478,7 +478,12 @@ class PerformanceAnalytics:
                     if prev_equity > 0:
                         daily_return = (curr_equity - prev_equity) / prev_equity
                         returns.append(daily_return)
-                        dates.append(datetime.fromisoformat(rows[i][0]))
+                        date_value = rows[i][0]
+                        try:
+                            parsed_date = datetime.fromisoformat(date_value)
+                        except AttributeError:
+                            parsed_date = datetime.strptime(date_value, "%Y-%m-%d")
+                        dates.append(parsed_date)
             
             conn.close()
         except (sqlite3.Error, Exception) as e:

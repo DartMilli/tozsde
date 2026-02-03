@@ -128,18 +128,21 @@ def build_explanation(payload: dict, decision: dict) -> dict:
         )
 
     # --- Header blocks ---
+    avg_conf_str = f"{avg_conf:.2f}" if avg_conf is not None else "n/a"
+    avg_wf_str = f"{avg_wf:.2f}" if avg_wf is not None else "n/a"
+    
     header_hu = (
         f"{ticker}: {strength} {action}\n"
-        f"Összbizalom: {avg_conf:.2f if avg_conf is not None else 'n/a'}, "
-        f"WF: {avg_wf:.2f if avg_wf is not None else 'n/a'}, "
+        f"Összbizalom: {avg_conf_str}, "
+        f"WF: {avg_wf_str}, "
         f"Ensemble: {ensemble_quality}, "
         f"Minőség pontszám: {quality_score:.2f}\n"
     )
 
     header_en = (
         f"{ticker}: {strength} {action}\n"
-        f"Confidence: {avg_conf:.2f if avg_conf is not None else 'n/a'}, "
-        f"WF: {avg_wf:.2f if avg_wf is not None else 'n/a'}, "
+        f"Confidence: {avg_conf_str}, "
+        f"WF: {avg_wf_str}, "
         f"Ensemble: {ensemble_quality}, "
         f"Decision quality score: {quality_score:.2f}\n"
     )

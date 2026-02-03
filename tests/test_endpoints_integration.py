@@ -1,6 +1,18 @@
 # AdminDashboard Endpoint Testing Script
 # Run this after starting Flask app: python run_dev.py
 
+import os
+import sys
+try:
+    import pytest
+    if ("pytest" in sys.modules) or os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYTEST_ADDOPTS"):
+        pytest.skip(
+            "Integration script; requires running Flask app manually.",
+            allow_module_level=True,
+        )
+except Exception:
+    pass
+
 import requests
 import json
 from datetime import datetime

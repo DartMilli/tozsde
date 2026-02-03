@@ -59,6 +59,12 @@ def compute_decision_quality(payload: dict) -> float:
     avg_wf = payload.get("avg_wf_score", 0.0)
     ensemble_quality = payload.get("ensemble_quality", "CHAOTIC")
 
+    # Handle None values
+    if avg_conf is None:
+        avg_conf = 0.0
+    if avg_wf is None:
+        avg_wf = 0.0
+
     ensemble_score_map = {
         "STABLE": 1.0,
         "MIXED": 0.7,

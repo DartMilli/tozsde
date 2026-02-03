@@ -98,9 +98,9 @@ def dev_status():
             "environment": app.config.get("ENV", "unknown"),
             "timestamp": datetime.now().isoformat(),
             "config": {
-                "TICKERS": Config.TICKERS,
-                "ENABLE_NOTIFICATIONS": Config.ENABLE_NOTIFICATIONS,
-                "ENABLE_RL": Config.ENABLE_RL,
+                "TICKERS": Config.get_supported_tickers(),
+                "ENABLE_NOTIFICATIONS": getattr(Config, "ENABLE_NOTIFICATIONS", False),
+                "ENABLE_RL": getattr(Config, "ENABLE_RL", False),
             },
             "database": {
                 "connected": True,  # TODO: Implement actual DB check
@@ -129,7 +129,15 @@ def dev_config():
         if not k.startswith("_") and not k.startswith("SECRET")
     }
 
-    return jsonify(config_dict)
+    # Ensure JSON-serializable values (e.g., Path)
+    safe_config = {}
+    for k, v in config_dict.items():
+        try:
+            safe_config[k] = json.loads(json.dumps(v, default=str))
+        except Exception:
+            safe_config[k] = str(v)
+
+    return jsonify(safe_config)
 
 
 @app.route("/dev/db-init", methods=["POST"])
@@ -206,7 +214,7 @@ def dev_metrics():
                     "memory_mb": process.memory_info().rss / 1024 / 1024,
                 },
                 "data": {
-                    "tickers": Config.TICKERS,
+                    "tickers": Config.get_supported_tickers(),
                     "last_update": None,  # TODO: Get from DB
                 },
                 "pipeline": {
@@ -216,7 +224,15 @@ def dev_metrics():
             }
         )
     except Exception as e:
-        return jsonify({"status": "ERROR", "error": str(e)}), 500
+        app.logger.error(f"Dev metrics error: {e}")
+        return jsonify(
+            {
+                "system": {"cpu_percent": 0.0, "memory_mb": 0.0},
+                "data": {"tickers": Config.get_supported_tickers(), "last_update": None},
+                "pipeline": {"last_run": None, "next_run": None},
+                "error": str(e),
+            }
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -302,7 +318,7 @@ def report():
     df = sanitize_dataframe(df)
     df.index.name = "Date"
 
-    params = get_params()
+    params = get_params(ticker)
 
     bt = Backtester(df, ticker)
     report: BacktestReport = bt.run(params)

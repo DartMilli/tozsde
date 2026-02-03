@@ -1,7 +1,8 @@
 from collections import defaultdict
+from typing import Dict, List
 
 
-def audit_confidence_buckets(rows: list[dict]) -> dict:
+def audit_confidence_buckets(rows: List[Dict]) -> Dict:
     buckets = defaultdict(list)
 
     for r in rows:
@@ -25,7 +26,7 @@ def audit_confidence_buckets(rows: list[dict]) -> dict:
     return summary
 
 
-def audit_decision_levels(rows: list[dict]) -> dict:
+def audit_decision_levels(rows: List[Dict]) -> Dict:
     levels = defaultdict(list)
 
     for r in rows:
@@ -49,7 +50,7 @@ def audit_decision_levels(rows: list[dict]) -> dict:
     return out
 
 
-def detect_overconfidence(rows: list[dict]) -> list[dict]:
+def detect_overconfidence(rows: List[Dict]) -> List[Dict]:
     flags = []
 
     for r in rows:

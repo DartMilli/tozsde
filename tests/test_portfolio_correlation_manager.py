@@ -24,7 +24,7 @@ class TestPortfolioCorrelationManager:
         # Should return DataFrame
         assert isinstance(corr_matrix, pd.DataFrame)
     
-    def test_calculate_diversification_score_single_asset(self, test_db):
+    def test_calculate_diversification_score_single_asset(self, test_db, populated_ohlcv):
         """Test diversification score for single asset."""
         manager = PortfolioCorrelationManager()
         
@@ -35,7 +35,7 @@ class TestPortfolioCorrelationManager:
         # Single asset = zero diversification
         assert score == 0.0
     
-    def test_calculate_diversification_score_multi_asset(self, test_db):
+    def test_calculate_diversification_score_multi_asset(self, test_db, populated_ohlcv):
         """Test diversification score returns valid range."""
         manager = PortfolioCorrelationManager()
         
@@ -46,7 +46,7 @@ class TestPortfolioCorrelationManager:
         # Should always be between 0 and 1 (even with real but missing data)
         assert 0 <= score <= 1.0
     
-    def test_decompose_portfolio_risk(self, test_db):
+    def test_decompose_portfolio_risk(self, test_db, populated_ohlcv):
         """Test risk decomposition returns valid structure."""
         manager = PortfolioCorrelationManager()
         
@@ -59,7 +59,7 @@ class TestPortfolioCorrelationManager:
         assert risk_decomp.systematic_risk >= 0
         assert len(risk_decomp.top_risk_contributors) > 0
     
-    def test_optimize_for_low_correlation(self, test_db):
+    def test_optimize_for_low_correlation(self, test_db, populated_ohlcv):
         """Test portfolio selection."""
         manager = PortfolioCorrelationManager()
 
@@ -72,7 +72,7 @@ class TestPortfolioCorrelationManager:
         assert len(selected) <= 2
         assert all(ticker in ["AAPL", "JNJ", "XOM"] for ticker in selected)
     
-    def test_get_highly_correlated_pairs(self, test_db):
+    def test_get_highly_correlated_pairs(self, test_db, populated_ohlcv):
         """Test high correlation pair detection."""
         manager = PortfolioCorrelationManager()
 
@@ -85,7 +85,7 @@ class TestPortfolioCorrelationManager:
         assert isinstance(pairs, list)
 
 
-def test_check_portfolio_diversification(test_db):
+def test_check_portfolio_diversification(test_db, populated_ohlcv):
     """Test diversification convenience function."""
     portfolio = {"AAPL": 0.5, "MSFT": 0.5}
     
@@ -94,7 +94,7 @@ def test_check_portfolio_diversification(test_db):
     assert 0 <= score <= 1.0
 
 
-def test_find_uncorrelated_assets(test_db):
+def test_find_uncorrelated_assets(test_db, populated_ohlcv):
     """Test uncorrelated asset finder returns list."""
     uncorrelated = find_uncorrelated_assets(
         base_ticker="AAPL",

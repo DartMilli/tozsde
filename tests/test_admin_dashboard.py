@@ -199,6 +199,114 @@ class TestAdminMetrics:
         mock_metrics.get_daily_summary.assert_called_with("2025-01-20")
 
 
+class TestAdminPerformance:
+    """Test performance endpoints."""
+
+    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    @patch("app.reporting.performance_analytics.PerformanceAnalytics.calculate_performance_metrics")
+    def test_performance_summary(self, mock_calc, mock_load, client, admin_headers):
+        """Test performance summary endpoint."""
+        mock_load.return_value = ([], [])
+        response = client.get("/admin/performance/summary?days=30", headers=admin_headers)
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert "message" in data or "total_return" in data
+
+    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    def test_performance_drawdown(self, mock_load, client, admin_headers):
+        """Test drawdown analysis endpoint."""
+        mock_load.return_value = ([], [])
+        response = client.get("/admin/performance/drawdown?days=90", headers=admin_headers)
+        assert response.status_code == 200
+
+    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    def test_performance_rolling(self, mock_load, client, admin_headers):
+        """Test rolling metrics endpoint."""
+        mock_load.return_value = ([], [])
+        response = client.get("/admin/performance/rolling?days=180", headers=admin_headers)
+        assert response.status_code == 200
+
+
+class TestAdminErrors:
+    """Test error reporting endpoints."""
+
+    @patch("app.infrastructure.error_reporter.ErrorReporter.get_error_statistics")
+    def test_errors_summary(self, mock_stats, client, admin_headers):
+        """Test error summary endpoint."""
+        mock_obj = MagicMock()
+        mock_obj.total_errors = 5
+        mock_obj.errors_by_severity = {"ERROR": 3}
+        mock_obj.errors_by_type = {}
+        mock_obj.errors_by_module = {}
+        mock_obj.error_rate_per_hour = 0.2
+        mock_obj.most_common_error = "test"
+        mock_obj.critical_errors = 1
+        mock_stats.return_value = mock_obj
+        
+        response = client.get("/admin/errors/summary", headers=admin_headers)
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert "total_errors" in data or "error" in data
+
+    @patch("app.infrastructure.error_reporter.ErrorReporter.get_recent_errors")
+    def test_errors_recent(self, mock_recent, client, admin_headers):
+        """Test recent errors endpoint."""
+        mock_recent.return_value = []
+        response = client.get("/admin/errors/recent?limit=50", headers=admin_headers)
+        assert response.status_code == 200
+
+    @patch("app.infrastructure.error_reporter.ErrorReporter.get_error_trends")
+    def test_errors_trends(self, mock_trends, client, admin_headers):
+        """Test error trends endpoint."""
+        mock_trends.return_value = {}
+        response = client.get("/admin/errors/trends?days=30", headers=admin_headers)
+        assert response.status_code == 200
+
+
+class TestAdminCapital:
+    """Test capital management endpoints."""
+
+    @patch("app.decision.capital_optimizer.CapitalUtilizationOptimizer.get_position_history")
+    def test_capital_utilization(self, mock_history, client, admin_headers):
+        """Test capital utilization endpoint."""
+        mock_history.return_value = []
+        response = client.get("/admin/capital/utilization", headers=admin_headers)
+        assert response.status_code == 200
+
+
+class TestAdminDecisions:
+    """Test decision monitoring endpoints."""
+
+    @patch("app.infrastructure.decision_logger.NoTradeDecisionLogger.get_no_trade_analysis")
+    def test_decisions_no_trades(self, mock_analysis, client, admin_headers):
+        """Test no-trade decisions endpoint."""
+        mock_analysis.return_value = {}
+        response = client.get("/admin/decisions/no-trades?days=7", headers=admin_headers)
+        assert response.status_code == 200
+
+
+class TestAdminStrategies:
+    """Test strategy performance endpoints."""
+
+    @patch("app.decision.decision_history_analyzer.DecisionHistoryAnalyzer.analyze_strategy_performance")
+    def test_strategies_performance(self, mock_stats, client, admin_headers):
+        """Test strategy performance endpoint."""
+        mock_stats.return_value = {"win_rate": 0.5, "sharpe": 1.5, "max_drawdown": 0.1, "total_trades": 10}
+        response = client.get("/admin/strategies/performance", headers=admin_headers)
+        assert response.status_code == 200
+
+
+class TestAdminConfidence:
+    """Test confidence distribution endpoints."""
+
+    @patch("app.decision.confidence_allocator.ConfidenceBucketAllocator.get_bucket_statistics")
+    def test_confidence_distribution(self, mock_dist, client, admin_headers):
+        """Test confidence distribution endpoint."""
+        mock_dist.return_value = {}
+        response = client.get("/admin/confidence/distribution", headers=admin_headers)
+        assert response.status_code == 200
+
+
 class TestForceRebalance:
     """Test force rebalance endpoint."""
 

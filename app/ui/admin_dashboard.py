@@ -18,11 +18,25 @@ from flask import Blueprint, jsonify, request
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import logging
+from app.config.config import Config
 
 logger = logging.getLogger(__name__)
 
 # Create Flask blueprint
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+
+def _check_admin_auth():
+    """Verify admin API key from request header."""
+    api_key = request.headers.get("X-Admin-Key")
+    return api_key == Config.ADMIN_API_KEY
+
+
+@admin_bp.before_request
+def _require_admin_auth():
+    """Enforce admin authentication on all admin endpoints."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
 
 
 @admin_bp.route('/health', methods=['GET'])
@@ -34,15 +48,10 @@ def health_check():
         JSON: System health status
     """
     try:
-        health_status = {
-            'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
-            'services': {
-                'database': 'connected',
-                'trading_engine': 'active',
-                'decision_system': 'operational'
-            }
-        }
+        from app.infrastructure.metrics import get_metrics
+
+        metrics = get_metrics()
+        health_status = metrics.get_health_status()
         return jsonify(health_status), 200
     except Exception as e:
         logger.error(f"Health check failed: {e}")

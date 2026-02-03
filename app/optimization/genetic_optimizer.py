@@ -109,7 +109,7 @@ def evaluate_individual(individual, dataframes, keys):
             continue  # Hibás részvényadat: átugorjuk
 
     if valid_count == 0:
-        return (-1000.0,)  # Extrém negatív fitness, ha semmin nem működött
+        return -1000.0, 0  # Extrém negatív fitness, ha semmin nem működött
 
     return total_fitness / valid_count, valid_count
 

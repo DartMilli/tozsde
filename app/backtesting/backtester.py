@@ -65,7 +65,7 @@ class Backtester:
                     "profit_factor": 0,
                 },
                 diagnostics={
-                    "equity_curve": pd.Series(),
+                    "equity_curve": pd.Series(dtype=float),
                     "final_value": self.initial_capital,
                     "sharpe": 0,
                     "total_cost": 0,

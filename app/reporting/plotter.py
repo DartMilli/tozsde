@@ -151,13 +151,13 @@ def get_candle_img_buffer(df, indicators, signals=None):
     if not np.all(np.isnan(buy_signals)):
         apds.append(
             mpf.make_addplot(
-                buy_signals, type="scatter", marker="^", color="lime", s=100
+                buy_signals, type="scatter", marker="^", color="lime"
             )
         )
     if not np.all(np.isnan(sell_signals)):
         apds.append(
             mpf.make_addplot(
-                sell_signals, type="scatter", marker="v", color="red", s=100
+                sell_signals, type="scatter", marker="v", color="red"
             )
         )
 
@@ -435,7 +435,7 @@ def plot_gradient_scatter(subset, ticker, model_type):
     _place_top_annotations_greedy(ax, top3.to_dict("records"), cmap, norm, legend_box)
 
     fig.savefig(
-        f"{Config.CHARTS_DIR}/{ticker}_{model_type}_sharpe_vs_value_gradient.png",
+        f"{Config.CHART_DIR}/{ticker}_{model_type}_sharpe_vs_value_gradient.png",
         bbox_inches="tight",
     )
     plt.close(fig)
@@ -483,7 +483,7 @@ def plot_strategy_colored_scatter(subset, ticker, model_type):
     _place_top_annotations_greedy(ax, top3.to_dict("records"), cmap, norm, legend_box)
 
     fig.savefig(
-        f"{Config.CHARTS_DIR}/{ticker}_{model_type}_sharpe_vs_value_by_strategy.png",
+        f"{Config.CHART_DIR}/{ticker}_{model_type}_sharpe_vs_value_by_strategy.png",
         bbox_inches="tight",
     )
     plt.close(fig)

@@ -25,7 +25,7 @@ from app.config.config import Config
 from app.data_access.data_manager import DataManager
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def test_db():
     """Create temporary test database that persists across session."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -51,6 +51,38 @@ def test_db():
         Config.DATA_DIR = original_data_dir
         Config.DB_PATH = original_db_path
         Config.LOG_DIR = original_log_dir
+
+
+@pytest.fixture(scope="function")
+def populated_ohlcv(test_db):
+    """Populate test DB with OHLCV data for correlation-based tests."""
+    rng = np.random.RandomState(123)
+    dates = pd.date_range(start="2025-01-01", periods=180, freq="D")
+
+    base_returns = rng.normal(0.0005, 0.01, len(dates))
+
+    tickers = ["AAPL", "MSFT", "JNJ", "XOM", "SPY", "VOO", "QQQ"]
+
+    for i, ticker in enumerate(tickers):
+        noise = rng.normal(0, 0.005 + i * 0.0002, len(dates))
+        returns = base_returns * (0.85 - i * 0.05) + noise
+        prices = 100 * np.exp(np.cumsum(returns))
+
+        df = pd.DataFrame(
+            {
+                "date": dates.strftime("%Y-%m-%d"),
+                "Open": prices * (1 + rng.normal(0, 0.002, len(dates))),
+                "High": prices * (1 + np.abs(rng.normal(0, 0.003, len(dates)))),
+                "Low": prices * (1 - np.abs(rng.normal(0, 0.003, len(dates)))),
+                "Close": prices,
+                "Volume": rng.uniform(900000, 1100000, len(dates)),
+            }
+        )
+        df.set_index(dates, inplace=True)
+
+        test_db.save_ohlcv(ticker, df)
+
+    return tickers
 
 
 @pytest.fixture
