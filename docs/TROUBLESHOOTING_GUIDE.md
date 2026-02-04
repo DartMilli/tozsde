@@ -354,7 +354,7 @@ pytest tests/ -vv --tb=short
 ### 3. **Check Documentation**
 - [SPRINTS.md](../SPRINTS.md) - Complete feature history
 - [README.md](../README.md) - Project overview
-- [RASPBERRY_PI_SETUP_GUIDE.md](../01_deployment/RASPBERRY_PI_SETUP_GUIDE.md) - Deployment guide
+- [RASPBERRY_PI_SETUP_GUIDE.md](../deployment/RASPBERRY_PI_SETUP_GUIDE.md) - Deployment guide
 
 ### 4. **Common Log Locations**
 - **Application:** `logs/app.log`

@@ -1,7 +1,7 @@
 # DEVELOPMENT SPRINTS SUMMARY
 **Project:** ToZsDE Trading System  
-**Status:** Sprint 1-10 Complete (625 passed, 1 skipped)  
-**Updated:** 2026-02-02
+**Status:** Sprint 1-10 Complete (historical) + Sprint 11 closed (maintenance + deprecation cleanup)  
+**Updated:** 2026-02-04
 
 ---
 
@@ -19,7 +19,8 @@
 | **8** | Capital Efficiency (P6) | 78 | - | ✅ COMPLETE | 2026-02-01 |
 | **9** | Product Hardening | 17 | 59% | ✅ COMPLETE | 2026-02-02 |
 | **10** | Quality & Coverage ↓ | 625 | 83% | ✅ COMPLETE | 2026-02-02 |
-| **TOTAL** | | **625+** | **83%** | **COMPLETE** | **2026-02-02** |
+| **11** | Coverage + Maintenance | 700+ | 91% | ✅ COMPLETE | 2026-02-04 |
+| **TOTAL** | | **700+** | **91%** | **COMPLETE** | **2026-02-04** |
 
 ---
 
@@ -723,9 +724,7 @@ tests/
 **Target:** 430+ tests, 75%+ coverage
 
 ### Planning Documents
-- ✅ BUG_FIX_COVERAGE_PLAN.md (15+ pages)
-- ✅ SPRINT10_QUICK_GUIDE.md (quick reference)
-- ✅ IMPLEMENTATION_SUMMARY.md (visual timeline)
+- ✅ Planning docs consolidated into this file
 
 ### Key Objectives
 - Fix 5 known bugs (portfolio tests, deprecation warnings, etc.)
@@ -734,9 +733,28 @@ tests/
 - Add 79+ new tests across core modules
 
 ### Status
-**🟢 READY TO START** - 2026-02-03
+**✅ COMPLETE** - 2026-02-02
 
 ---
 
-**Last Updated:** 2026-02-02  
-**Next Review:** Before Sprint 8 kickoff
+## SPRINT 11: Coverage & Maintenance ✅
+
+**Timeline:** 2026-02-03 to 2026-02-04
+**Outcome:** 91% coverage, clean suite, deprecation cleanup
+
+### Highlights
+- Coverage validation (full suite)
+- Admin endpoint tests aligned with StrategyStats API
+- LSTM predictor fixes (save/load, NaN handling, test runtime)
+- Plotter lazy-import to avoid optional dependency failures
+- Timezone-aware UTC timestamps (no `utcnow()` deprecations)
+- Matplotlib colormap API update
+- NaN-safe indicator dtype handling
+
+### Notes
+- Raspberry Pi deployment pending hardware
+
+---
+
+**Last Updated:** 2026-02-04  
+**Next Review:** Before Sprint 12 kickoff

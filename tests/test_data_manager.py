@@ -130,9 +130,9 @@ class TestDataManagerRecommendations:
             )
 
         # Fetch history range with wider date range
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         start = (now - timedelta(hours=1)).isoformat()
         end = (now + timedelta(hours=1)).isoformat()
 

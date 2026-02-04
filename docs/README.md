@@ -1,6 +1,6 @@
 # ToZsDE Trading System - Documentation
 
-**Status:** ✅ Sprint 1-10 Complete | 625 passing tests | 83% coverage
+**Status:** ✅ Sprint 11c Maintenance Complete | 700+ tests passing | 91% coverage
 
 ---
 
@@ -22,10 +22,9 @@
 docs/
 ├── INDEX.md                             ◄──── Navigation hub
 ├── README.md, README_HU.md              ◄──── Project overview
-├── SPRINTS.md                           ◄──── Sprint 1-10 history
+├── SPRINTS.md                           ◄──── Sprint history (single source)
 ├── FAQ.md                               ◄──── Q&A
 ├── TROUBLESHOOTING_GUIDE.md             ◄──── Problem solving
-├── BUG_FIX_COVERAGE_PLAN.md             ◄──── Sprint 10 plan (reference)
 │
 ├── deployment/                          ◄──── Raspberry Pi setup
 │   ├── RASPBERRY_PI_SETUP_GUIDE.md
@@ -40,10 +39,10 @@ docs/
 
 ## 📊 Project Status
 
-- ✅ **625 tests passing** (1 skipped integration)
-- ✅ **83% code coverage**
+- ✅ **700+ tests passing** (latest run)
+- ✅ **91% code coverage**
 - ✅ **Production-ready**
-- ✅ **All 10 sprints complete**
+- ✅ **Sprints 1-10 complete + Sprint 11c maintenance**
 
 **Cleanup completed (2026-02-02):**
 - ✅ Removed: START_HERE.txt, CLEANUP_SUMMARY.md, 04_infrastructure/ (empty)
@@ -77,8 +76,8 @@ SPRINT 3 (Portfolio Optimization):
                     SPRINT 3 TOTAL: 51/51 tests ✅
 
 ═════════════════════════════════════════════════
-🎉 CUMULATIVE TOTAL: 625 PASSED, 1 SKIPPED ✅
-    (SPRINT 1-10 total; 83% coverage)
+🎉 CUMULATIVE TOTAL: 700+ PASSED ✅
+    (latest run; 91% coverage)
 ```
 
 ---
@@ -87,7 +86,7 @@ SPRINT 3 (Portfolio Optimization):
 
 ### What Are You Working On?
 
-- **🏗️ Deployment?** → [01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)
+- **🏗️ Deployment?** → [deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](./deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)
 - **💻 Development?** → [SPRINTS.md](./SPRINTS.md)
 - **🧪 Testing?** → [testing/TEST_STATUS_REPORT.md](./testing/TEST_STATUS_REPORT.md) **← START HERE**
 
@@ -102,7 +101,7 @@ SPRINT 3 (Portfolio Optimization):
 - **SPRINT 7:** ✅ **COMPLETE** (21/21 tests) - Portfolio Optimization with ETF Support
 - **SPRINT 8:** ✅ **COMPLETE** (78/78 tests) - Capital Efficiency Optimization
 - **SPRINT 9:** ✅ **COMPLETE** (17/17 tests) - Product Hardening & Analytics
-- **TOTAL:** ✅ **625 PASSED, 1 SKIPPED (83% COVERAGE)**
+- **TOTAL:** ✅ **700+ PASSED (91% COVERAGE)**
 
 ---
 
@@ -120,11 +119,10 @@ docs/
 │   ├── RASPBERRY_PI_SETUP_GUIDE_HU.md
 │   ├── DEPLOYMENT_VERIFICATION_CHECKLIST.md
 │   └── ...other deployment files
-├── 02_implementation/                  [Empty - Sprint specs consolidated to SPRINTS.md]
 ├── testing/                            [Testing & QA]
 │   ├── TEST_STATUS_REPORT.md
 │   └── ...other test reports
-└── 04_infrastructure/                  [Empty - docs consolidated]
+└── ...                                 [Other docs]
 ```
 
 ### Status Indicators
@@ -157,7 +155,7 @@ SPRINT 3 (Weeks 5-6):     ✅ COMPLETE - 51 tests, Portfolio Optimization
 SPRINT 4 (Weeks 7-8):     ✅ COMPLETE - 25 tests, Admin Dashboard & Monitoring
 SPRINT 5 (Weeks 9-10):    ✅ COMPLETE (Software) - 82 tests, Pi Deployment
 ────────────────────────────────────────────────────────────
-CUMULATIVE PROGRESS:       ✅ 625 PASSED, 1 SKIPPED (83% COVERAGE)
+CUMULATIVE PROGRESS:       ✅ 700+ PASSED (91% COVERAGE)
 
 🚀 Raspberry Pi Deployment: Hardware pending (run deploy_rpi.sh when ready)
 ```
@@ -190,18 +188,18 @@ curl http://tozsde-pi.local:5000/api/health
 - ✅ Health checks (every 5 minutes)
 - ✅ Log rotation (7 days retention)
 
-**For complete step-by-step guide:** See [01_deployment/RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)
+**For complete step-by-step guide:** See [deployment/RASPBERRY_PI_SETUP_GUIDE.md](./deployment/RASPBERRY_PI_SETUP_GUIDE.md)
 
 ---
 
 **Készítve:** 2026-02-02
 **Szervezési Szint:** 📊 Hierarchikus (04 kategória)
 **Deploy Target:** 🍓 Raspberry Pi 4/5
-**Status:** ✅ Software Complete (83% Coverage, Hardware Pending)
+**Status:** ✅ Software Complete (91% Coverage, Hardware Pending)
 
 ### ✨ Latest Updates
 
-- **[SPRINTS.md](./SPRINTS.md)** - Complete Sprint 1-7 history 🆕
-- **[RASPBERRY_PI_SETUP_GUIDE.md](./01_deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Complete Rpi setup guide
-- **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./01_deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Post-deploy checklist
-- **[FINAL_STATUS_REPORT.md](./03_testing/FINAL_STATUS_REPORT.md)** - 277/277 tests passing summary
+- **[SPRINTS.md](./SPRINTS.md)** - Complete Sprint 1-10 history
+- **[deployment/RASPBERRY_PI_SETUP_GUIDE.md](./deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Raspberry Pi setup guide
+- **[deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](./deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Post-deploy checklist
+- **[testing/TEST_STATUS_REPORT.md](./testing/TEST_STATUS_REPORT.md)** - Latest test status

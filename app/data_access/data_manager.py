@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict
 from app.config.config import Config
 from contextlib import contextmanager
@@ -21,9 +21,14 @@ class DataManager:
     def __init__(self):
         self.db_path = str(Config.DB_PATH)  # Convert Path to string for sqlite3
 
+    @contextmanager
     def _get_conn(self):
         """Privát metódus az adatbázis kapcsolat létrehozásához."""
-        return sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     # --- SÉMA ÉS INICIALIZÁLÁS (P9/Ops) ---
 
@@ -213,7 +218,7 @@ class DataManager:
             conn.execute(
                 query,
                 (
-                    datetime.utcnow().isoformat(),
+                    datetime.now(timezone.utc).isoformat(),
                     ticker,
                     action_code,
                     label,
@@ -293,6 +298,7 @@ class DataManager:
             """,
                 (today, ticker, signal, confidence, json.dumps(params)),
             )
+            conn.commit()
 
     def get_today_recommendations(self):
         today = datetime.now().strftime("%Y-%m-%d")
@@ -311,14 +317,12 @@ class DataManager:
                 """,
                 (ticker, date, score_details),
             )
+            conn.commit()
 
     @contextmanager
     def connection(self):
-        conn = self._get_conn()
-        try:
+        with self._get_conn() as conn:
             yield conn
-        finally:
-            conn.close()
 
     def save_market_data(self, symbol: str, df: pd.DataFrame):
         if df.empty:
@@ -402,15 +406,6 @@ class DataManager:
         return []
 
     # ---------- Convenience connection() ----------
-    from contextlib import contextmanager
-
-    @contextmanager
-    def connection(self):
-        conn = self._get_conn()
-        try:
-            yield conn
-        finally:
-            conn.close()
 
     # --- RÉGI KOMPATIBILITÁSI METÓDUSOK ---
 

@@ -18,7 +18,7 @@ Usage:
     recent = metrics.get_recent_metrics(hours=24)
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 from app.config.config import Config
@@ -148,7 +148,7 @@ class SystemMetrics:
             "uptime_pct": recent["success_rate"],
             "error_rate": round(error_rate, 3),
             "avg_response_time_sec": recent["avg_duration_sec"],
-            "last_check": datetime.utcnow().isoformat(),
+            "last_check": datetime.now(timezone.utc).isoformat(),
         }
 
 

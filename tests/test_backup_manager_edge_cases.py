@@ -2,7 +2,7 @@
 
 import os
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.infrastructure.backup_manager import BackupManager
@@ -97,7 +97,7 @@ def test_cleanup_old_backups(tmp_path):
     backup_path = Path(result["backup_path"])
 
     # Make it old
-    old_time = datetime.utcnow() - timedelta(days=manager.BACKUP_RETENTION_DAYS + 1)
+    old_time = datetime.now(timezone.utc) - timedelta(days=manager.BACKUP_RETENTION_DAYS + 1)
     os.utime(backup_path, (old_time.timestamp(), old_time.timestamp()))
 
     cleanup = manager.cleanup_old_backups()
@@ -165,7 +165,7 @@ def test_cleanup_with_corrupted_backup(tmp_path, monkeypatch):
     corrupted.write_bytes(b'\x00\x01\x02\xFF')
     
     # Set old timestamp
-    old_time = datetime.utcnow() - timedelta(days=60)
+    old_time = datetime.now(timezone.utc) - timedelta(days=60)
     os.utime(corrupted, (old_time.timestamp(), old_time.timestamp()))
     
     # Should handle corrupted backups gracefully
@@ -218,7 +218,7 @@ def test_cleanup_multiple_backups(tmp_path):
     
     # Make first one very old
     first_backup = Path(backup_results[0]["backup_path"])
-    old_time = datetime.utcnow() - timedelta(days=60)
+    old_time = datetime.now(timezone.utc) - timedelta(days=60)
     os.utime(first_backup, (old_time.timestamp(), old_time.timestamp()))
     
     # Cleanup should remove old but keep new

@@ -9,7 +9,7 @@ import pytest
 import os
 import sqlite3
 import gzip
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -175,7 +175,7 @@ class TestBackupManagerComprehensive:
             backup_paths.append(Path(result['backup_path']))
         
         # Make first one very old
-        old_time = (datetime.utcnow() - timedelta(days=60)).timestamp()
+        old_time = (datetime.now(timezone.utc) - timedelta(days=60)).timestamp()
         os.utime(backup_paths[0], (old_time, old_time))
         
         # Cleanup
@@ -302,7 +302,7 @@ class TestBackupManagerComprehensive:
         backup_path = Path(result['backup_path'])
         
         # Set to exactly retention_days + 1
-        old_time = (datetime.utcnow() - timedelta(days=retention_days + 1)).timestamp()
+        old_time = (datetime.now(timezone.utc) - timedelta(days=retention_days + 1)).timestamp()
         os.utime(backup_path, (old_time, old_time))
         
         # Create newer backup
@@ -387,7 +387,7 @@ class TestBackupManagerComprehensive:
         log_file.write_text("log")
         
         # Age the backup
-        old_time = (datetime.utcnow() - timedelta(days=60)).timestamp()
+        old_time = (datetime.now(timezone.utc) - timedelta(days=60)).timestamp()
         os.utime(backup_file, (old_time, old_time))
         
         manager = BackupManager(db_path=tmp_path / "test.db", backup_dir=backup_dir)

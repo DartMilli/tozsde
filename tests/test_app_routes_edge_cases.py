@@ -135,7 +135,9 @@ def test_chart_success_returns_png(monkeypatch, client):
     monkeypatch.setattr("app.ui.app.load_data", lambda *a, **k: df)
     monkeypatch.setattr("app.ui.app.sanitize_dataframe", lambda x: x)
     monkeypatch.setattr("app.ui.app.compute_signals", lambda *a, **k: ([], {}))
-    monkeypatch.setattr("app.ui.app.get_candle_img_buffer", lambda *a, **k: BytesIO(b"png"))
+    monkeypatch.setattr(
+        "app.ui.app.get_candle_img_buffer", lambda *a, **k: BytesIO(b"png")
+    )
 
     res = client.get("/chart?ticker=SPY&start=2025-01-01&end=2025-01-05")
     assert res.status_code == 200
@@ -208,7 +210,9 @@ def test_admin_health_authorized(monkeypatch, client):
             return {"status": "healthy"}
 
     monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
-    monkeypatch.setattr("app.infrastructure.metrics.get_metrics", lambda: DummyMetrics())
+    monkeypatch.setattr(
+        "app.infrastructure.metrics.get_metrics", lambda: DummyMetrics()
+    )
 
     res = client.get("/admin/health", headers={"X-Admin-Key": "key"})
     assert res.status_code == 200
@@ -224,7 +228,9 @@ def test_admin_metrics_recent(monkeypatch, client):
             return {"status": "healthy"}
 
     monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
-    monkeypatch.setattr("app.infrastructure.metrics.get_metrics", lambda: DummyMetrics())
+    monkeypatch.setattr(
+        "app.infrastructure.metrics.get_metrics", lambda: DummyMetrics()
+    )
 
     res = client.get("/admin/metrics", headers={"X-Admin-Key": "key"})
     assert res.status_code == 200

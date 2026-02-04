@@ -26,7 +26,7 @@ Usage:
 """
 
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import traceback
 
 from app.config.config import Config
@@ -157,7 +157,7 @@ Tozsde Alert
 
 Error Code: {error_code}
 Severity: {severity.upper()}
-Timestamp: {datetime.utcnow().isoformat()}
+Timestamp: {datetime.now(timezone.utc).isoformat()}
 
 Description:
 {description}

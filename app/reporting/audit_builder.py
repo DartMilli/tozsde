@@ -128,7 +128,7 @@ def build_audit_metadata(payload: dict, decision: dict) -> dict:
         "decision_level": decision_level,  # P7.1.1
         "trade_allowed": trade_allowed,  # P7.1.1
         "drift_status": drift_status,  # NEW: Performance drift alert level
-        "timestamp_utc": datetime.utcnow().isoformat(),
+        "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
 
 

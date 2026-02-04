@@ -1,152 +1,271 @@
-# AdminDashboard Endpoint Testing Script
-# Run this after starting Flask app: python run_dev.py
+"""Admin dashboard endpoint tests using Flask test client."""
 
-import os
-import sys
-try:
-    import pytest
-    if ("pytest" in sys.modules) or os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYTEST_ADDOPTS"):
-        pytest.skip(
-            "Integration script; requires running Flask app manually.",
-            allow_module_level=True,
-        )
-except Exception:
-    pass
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
-import requests
-import json
-from datetime import datetime
+import pytest
 
-BASE_URL = "http://localhost:5000"
+from app.config.config import Config
+from app.ui.app import app
+from app.decision.decision_history_analyzer import StrategyStats
 
-def test_endpoint(name, url, method='GET', data=None):
-    """Test a single endpoint and display results."""
-    print(f"\n{'='*60}")
-    print(f"Testing: {name}")
-    print(f"URL: {url}")
-    print(f"Method: {method}")
-    print(f"{'='*60}")
-    
-    try:
-        if method == 'GET':
-            response = requests.get(url, timeout=10)
-        elif method == 'POST':
-            response = requests.post(url, json=data, timeout=10)
-        
-        print(f"Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            print("✅ SUCCESS")
-            try:
-                json_data = response.json()
-                print("\nResponse (formatted):")
-                print(json.dumps(json_data, indent=2)[:1000])  # First 1000 chars
-                if len(str(json_data)) > 1000:
-                    print("... (truncated)")
-            except:
-                print("\nResponse (text):")
-                print(response.text[:500])
-        else:
-            print(f"❌ FAILED: {response.status_code}")
-            print(f"Error: {response.text[:500]}")
-            
-    except requests.exceptions.ConnectionError:
-        print("❌ CONNECTION ERROR: Flask app not running?")
-        print("   Start it with: python run_dev.py")
-    except Exception as e:
-        print(f"❌ ERROR: {str(e)}")
 
-def main():
-    """Test all AdminDashboard endpoints."""
-    print("="*60)
-    print("AdminDashboard Endpoint Testing")
-    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*60)
-    
-    # 1. Health Check
-    test_endpoint(
-        "Health Check",
-        f"{BASE_URL}/admin/health"
-    )
-    
-    # 2. Performance Summary (30 days)
-    test_endpoint(
-        "Performance Summary (30 days)",
-        f"{BASE_URL}/admin/performance/summary?days=30"
-    )
-    
-    # 3. Performance Summary (90 days)
-    test_endpoint(
-        "Performance Summary (90 days)",
-        f"{BASE_URL}/admin/performance/summary?days=90"
-    )
-    
-    # 4. Detailed Performance
-    test_endpoint(
-        "Detailed Performance (90 days)",
-        f"{BASE_URL}/admin/performance/detailed?days=90"
-    )
-    
-    # 5. Chart Data
-    test_endpoint(
-        "Chart Data (180 days)",
-        f"{BASE_URL}/admin/performance/chart-data?days=180"
-    )
-    
-    # 6. Error Summary
-    test_endpoint(
-        "Error Summary",
-        f"{BASE_URL}/admin/errors/summary"
-    )
-    
-    # 7. Recent Errors
-    test_endpoint(
-        "Recent Errors (limit 50)",
-        f"{BASE_URL}/admin/errors/recent?limit=50"
-    )
-    
-    # 8. Critical Errors Only
-    test_endpoint(
-        "Critical Errors",
-        f"{BASE_URL}/admin/errors/critical"
-    )
-    
-    # 9. Error Export (CSV)
-    test_endpoint(
-        "Export Errors (CSV)",
-        f"{BASE_URL}/admin/errors/export",
-        method='POST',
-        data={"format": "csv", "severity": "ERROR"}
-    )
-    
-    # 10. Capital Status
-    test_endpoint(
-        "Capital Status",
-        f"{BASE_URL}/admin/capital/status"
-    )
-    
-    # 11. Capital History
-    test_endpoint(
-        "Capital History (30 days)",
-        f"{BASE_URL}/admin/capital/history?days=30"
-    )
-    
-    # 12. Capital Allocation
-    test_endpoint(
-        "Capital Allocation",
-        f"{BASE_URL}/admin/capital/allocation"
-    )
-    
-    # 13. Capital Projection
-    test_endpoint(
-        "Capital Projection",
-        f"{BASE_URL}/admin/capital/projection"
-    )
-    
-    print("\n" + "="*60)
-    print("Testing Complete!")
-    print(f"Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*60)
+@pytest.fixture
+def client():
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        yield c
 
-if __name__ == "__main__":
-    main()
+
+def _auth_headers():
+    return {"X-Admin-Key": "key"}
+
+
+def test_admin_health_endpoint(monkeypatch, client):
+    class DummyMetrics:
+        def get_health_status(self):
+            return {"status": "healthy"}
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.infrastructure.metrics.get_metrics", lambda: DummyMetrics()
+    )
+
+    res = client.get("/admin/health", headers=_auth_headers())
+    assert res.status_code == 200
+    assert res.get_json()["status"] == "healthy"
+
+
+def test_performance_summary_endpoint(monkeypatch, client):
+    class DummyAnalytics:
+        def load_returns_from_db(self, days_back=30):
+            return [0.01, 0.02], [
+                datetime.now(timezone.utc),
+                datetime.now(timezone.utc),
+            ]
+
+        def calculate_performance_metrics(self, returns, dates):
+            return SimpleNamespace(
+                total_return=0.1,
+                annualized_return=0.2,
+                volatility=0.05,
+                sharpe_ratio=1.2,
+                sortino_ratio=1.4,
+                calmar_ratio=1.1,
+                max_drawdown=0.1,
+                win_rate=0.6,
+                profit_factor=1.5,
+                total_trades=10,
+                period_start=dates[0],
+                period_end=dates[-1],
+            )
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.reporting.performance_analytics.PerformanceAnalytics", DummyAnalytics
+    )
+
+    res = client.get("/admin/performance/summary", headers=_auth_headers())
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "total_return" in data
+
+
+def test_performance_drawdown_endpoint(monkeypatch, client):
+    class DummyAnalytics:
+        def load_returns_from_db(self, days_back=90):
+            return [0.01, -0.02], [
+                datetime.now(timezone.utc),
+                datetime.now(timezone.utc),
+            ]
+
+        def analyze_drawdowns(self, returns, dates):
+            return SimpleNamespace(
+                max_drawdown=0.2,
+                max_drawdown_duration_days=5,
+                current_drawdown=0.1,
+                drawdown_start=dates[0],
+                drawdown_end=dates[-1],
+                recovery_date=dates[-1] + timedelta(days=3),
+                time_to_recovery_days=3,
+                drawdowns=[{"start": dates[0], "end": dates[-1]}],
+            )
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.reporting.performance_analytics.PerformanceAnalytics", DummyAnalytics
+    )
+
+    res = client.get("/admin/performance/drawdown", headers=_auth_headers())
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "max_drawdown" in data
+
+
+def test_performance_rolling_endpoint(monkeypatch, client):
+    class DummyAnalytics:
+        def load_returns_from_db(self, days_back=90):
+            return [0.01, 0.02], [
+                datetime.now(timezone.utc),
+                datetime.now(timezone.utc),
+            ]
+
+        def calculate_rolling_metrics(self, returns, dates, window_days=30):
+            return SimpleNamespace(
+                window_size_days=window_days,
+                returns=[0.01, 0.02],
+                volatilities=[0.1, 0.2],
+                sharpe_ratios=[1.0, 1.1],
+                dates=dates,
+            )
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.reporting.performance_analytics.PerformanceAnalytics", DummyAnalytics
+    )
+
+    res = client.get("/admin/performance/rolling", headers=_auth_headers())
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "rolling_returns" in data
+
+
+def test_error_summary_endpoint(monkeypatch, client):
+    class DummyStats:
+        total_errors = 2
+        errors_by_severity = {"ERROR": 2}
+        errors_by_type = {"ValueError": 1}
+        errors_by_module = {"mod": 2}
+        error_rate_per_hour = 0.5
+        most_common_error = "ValueError"
+        critical_errors = 0
+
+    class DummyReporter:
+        def get_error_statistics(self, hours_back=24):
+            return DummyStats()
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.infrastructure.error_reporter.ErrorReporter", DummyReporter
+    )
+
+    res = client.get("/admin/errors/summary", headers=_auth_headers())
+    assert res.status_code == 200
+    assert res.get_json()["total_errors"] == 2
+
+
+def test_error_recent_endpoint(monkeypatch, client):
+    class DummyReporter:
+        def get_recent_errors(self, limit=50, severity=None):
+            return [{"msg": "oops"}]
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.infrastructure.error_reporter.ErrorReporter", DummyReporter
+    )
+
+    res = client.get("/admin/errors/recent", headers=_auth_headers())
+    assert res.status_code == 200
+    assert res.get_json()["count"] == 1
+
+
+def test_error_trends_endpoint(monkeypatch, client):
+    class DummyReporter:
+        def get_error_trends(self, days=7):
+            return {"days": days, "counts": [1, 2, 3]}
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.infrastructure.error_reporter.ErrorReporter", DummyReporter
+    )
+
+    res = client.get("/admin/errors/trends", headers=_auth_headers())
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["days"] == 7
+
+
+def test_capital_utilization_endpoint(monkeypatch, client):
+    class DummyOptimizer:
+        def get_position_history(self):
+            return [
+                {"portfolio_weight": 0.1, "kelly_fraction": 0.2},
+                {"portfolio_weight": 0.2, "kelly_fraction": 0.3},
+            ]
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.decision.capital_optimizer.CapitalUtilizationOptimizer", DummyOptimizer
+    )
+
+    res = client.get("/admin/capital/utilization", headers=_auth_headers())
+    assert res.status_code == 200
+    assert "average_utilization" in res.get_json()
+
+
+def test_no_trade_decisions_endpoint(monkeypatch, client):
+    class DummyLogger:
+        def get_no_trade_analysis(self, days_back=7):
+            return {"count": 2}
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.infrastructure.decision_logger.NoTradeDecisionLogger", DummyLogger
+    )
+
+    res = client.get("/admin/decisions/no-trades", headers=_auth_headers())
+    assert res.status_code == 200
+    assert res.get_json()["count"] == 2
+
+
+def test_strategy_performance_endpoint(monkeypatch, client):
+    class DummyAnalyzer:
+        def analyze_strategy_performance(self, strategy_name, days=30):
+            return StrategyStats(
+                strategy_name=strategy_name,
+                total_trades=10,
+                win_rate=0.6,
+                avg_pnl=0.01,
+                sharpe_ratio=1.1,
+                max_drawdown=0.1,
+                last_30d_performance=0.6,
+                status="GOOD",
+                trades_analyzed=10,
+            )
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.decision.decision_history_analyzer.DecisionHistoryAnalyzer", DummyAnalyzer
+    )
+
+    res = client.get("/admin/strategies/performance", headers=_auth_headers())
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "strategies" in data
+
+
+def test_confidence_distribution_endpoint(monkeypatch, client):
+    class DummyBucket:
+        def __init__(self, value):
+            self.value = value
+
+    class DummyStats:
+        def __init__(self):
+            self.count = 3
+            self.avg_confidence = 0.7
+            self.total_capital = 1000.0
+            self.avg_multiplier = 1.2
+
+    class DummyAllocator:
+        def get_bucket_statistics(self):
+            return {DummyBucket("high"): DummyStats()}
+
+    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    monkeypatch.setattr(
+        "app.decision.confidence_allocator.ConfidenceBucketAllocator", DummyAllocator
+    )
+
+    res = client.get("/admin/confidence/distribution", headers=_auth_headers())
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "distribution" in data

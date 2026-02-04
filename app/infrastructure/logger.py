@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from app.config.config import Config
 
 
@@ -31,7 +31,7 @@ def setup_logger(name: str) -> logging.Logger:
 
     log_path = os.path.join(
         Config.LOG_DIR,
-        f"app_{datetime.utcnow().strftime('%Y_%m')}.log",
+        f"app_{datetime.now(timezone.utc).strftime('%Y_%m')}.log",
     )
 
     file_handler = logging.FileHandler(log_path)

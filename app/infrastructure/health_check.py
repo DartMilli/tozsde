@@ -17,10 +17,10 @@ Features:
 
 Usage:
     from app.infrastructure.health_check import HealthChecker
-    
+
     checker = HealthChecker()
     status = checker.check_all()
-    
+
     if not status['healthy']:
         print(f"Issues: {status['issues']}")
 """
@@ -30,7 +30,7 @@ import os
 import psutil
 import sqlite3
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 import urllib.request
@@ -58,7 +58,7 @@ class HealthChecker:
         self.db_path = str(Config.DB_PATH)
         self.log_dir = Config.LOG_DIR
         self.health_log = self.log_dir / "health_check.jsonl"
-        
+
         # Ensure log directory exists
         os.makedirs(self.log_dir, exist_ok=True)
 
@@ -82,40 +82,40 @@ class HealthChecker:
             }
         """
         logger.info("Starting comprehensive health check...")
-        
+
         checks = {
-            'api': self.check_api_health(),
-            'database': self.check_database_health(),
-            'disk': self.check_disk_space(),
-            'memory': self.check_memory_usage(),
-            'cpu': self.check_cpu_usage(),
-            'cron': self.check_cron_execution()
+            "api": self.check_api_health(),
+            "database": self.check_database_health(),
+            "disk": self.check_disk_space(),
+            "memory": self.check_memory_usage(),
+            "cpu": self.check_cpu_usage(),
+            "cron": self.check_cron_execution(),
         }
-        
+
         # Determine overall health
         issues = []
         for check_name, check_result in checks.items():
-            if not check_result.get('healthy', False):
+            if not check_result.get("healthy", False):
                 issue = f"{check_name}: {check_result.get('message', 'Unknown issue')}"
                 issues.append(issue)
-        
+
         healthy = len(issues) == 0
-        
+
         status = {
-            'timestamp': datetime.utcnow().isoformat(),
-            'healthy': healthy,
-            'issues': issues,
-            'checks': checks
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "healthy": healthy,
+            "issues": issues,
+            "checks": checks,
         }
-        
+
         # Log to JSONL
         self._log_health_status(status)
-        
+
         if healthy:
             logger.info("✓ All health checks passed")
         else:
             logger.warning(f"✗ Health issues detected: {issues}")
-        
+
         return status
 
     def check_api_health(self) -> Dict:
@@ -126,43 +126,43 @@ class HealthChecker:
             dict: {'healthy': bool, 'status_code': int, 'response_time': float, 'message': str}
         """
         api_url = "http://localhost:5000/api/health"
-        
+
         try:
             start = time.time()
-            req = urllib.request.Request(api_url, method='GET')
-            
+            req = urllib.request.Request(api_url, method="GET")
+
             with urllib.request.urlopen(req, timeout=self.API_TIMEOUT_SEC) as response:
                 status_code = response.getcode()
                 response_time = time.time() - start
-                
+
                 if status_code == 200:
                     return {
-                        'healthy': True,
-                        'status_code': status_code,
-                        'response_time': round(response_time, 3),
-                        'message': 'API responding normally'
+                        "healthy": True,
+                        "status_code": status_code,
+                        "response_time": round(response_time, 3),
+                        "message": "API responding normally",
                     }
                 else:
                     return {
-                        'healthy': False,
-                        'status_code': status_code,
-                        'response_time': round(response_time, 3),
-                        'message': f'API returned non-200 status: {status_code}'
+                        "healthy": False,
+                        "status_code": status_code,
+                        "response_time": round(response_time, 3),
+                        "message": f"API returned non-200 status: {status_code}",
                     }
-        
+
         except urllib.error.URLError as e:
             return {
-                'healthy': False,
-                'status_code': None,
-                'response_time': None,
-                'message': f'API not reachable: {str(e)}'
+                "healthy": False,
+                "status_code": None,
+                "response_time": None,
+                "message": f"API not reachable: {str(e)}",
             }
         except Exception as e:
             return {
-                'healthy': False,
-                'status_code': None,
-                'response_time': None,
-                'message': f'API check failed: {str(e)}'
+                "healthy": False,
+                "status_code": None,
+                "response_time": None,
+                "message": f"API check failed: {str(e)}",
             }
 
     def check_database_health(self) -> Dict:
@@ -175,42 +175,42 @@ class HealthChecker:
         try:
             conn = sqlite3.connect(self.db_path, timeout=self.DB_TIMEOUT_SEC)
             cursor = conn.cursor()
-            
+
             # Check if database is accessible
             cursor.execute("SELECT 1")
             result = cursor.fetchone()
-            
+
             # Count tables
             cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")
             table_count = cursor.fetchone()[0]
-            
+
             # Test write operation (no-op transaction)
             cursor.execute("BEGIN")
             cursor.execute("SELECT 1")
             cursor.execute("ROLLBACK")
-            
+
             conn.close()
-            
+
             return {
-                'healthy': True,
-                'writable': True,
-                'tables': table_count,
-                'message': f'Database healthy ({table_count} tables)'
+                "healthy": True,
+                "writable": True,
+                "tables": table_count,
+                "message": f"Database healthy ({table_count} tables)",
             }
-        
+
         except sqlite3.OperationalError as e:
             return {
-                'healthy': False,
-                'writable': False,
-                'tables': 0,
-                'message': f'Database locked or inaccessible: {str(e)}'
+                "healthy": False,
+                "writable": False,
+                "tables": 0,
+                "message": f"Database locked or inaccessible: {str(e)}",
             }
         except Exception as e:
             return {
-                'healthy': False,
-                'writable': False,
-                'tables': 0,
-                'message': f'Database check failed: {str(e)}'
+                "healthy": False,
+                "writable": False,
+                "tables": 0,
+                "message": f"Database check failed: {str(e)}",
             }
 
     def check_disk_space(self) -> Dict:
@@ -221,27 +221,30 @@ class HealthChecker:
             dict: {'healthy': bool, 'free_pct': float, 'free_gb': float, 'message': str}
         """
         try:
-            usage = psutil.disk_usage('/')
+            usage = psutil.disk_usage("/")
             free_pct = 100 - usage.percent
             free_gb = usage.free / (1024**3)  # Convert to GB
-            
+
             healthy = free_pct >= self.DISK_SPACE_THRESHOLD_PCT
-            
+
             return {
-                'healthy': healthy,
-                'free_pct': round(free_pct, 1),
-                'free_gb': round(free_gb, 2),
-                'total_gb': round(usage.total / (1024**3), 2),
-                'message': f'{free_pct:.1f}% free ({free_gb:.2f} GB)' if healthy 
-                          else f'Low disk space: {free_pct:.1f}% free'
+                "healthy": healthy,
+                "free_pct": round(free_pct, 1),
+                "free_gb": round(free_gb, 2),
+                "total_gb": round(usage.total / (1024**3), 2),
+                "message": (
+                    f"{free_pct:.1f}% free ({free_gb:.2f} GB)"
+                    if healthy
+                    else f"Low disk space: {free_pct:.1f}% free"
+                ),
             }
-        
+
         except Exception as e:
             return {
-                'healthy': False,
-                'free_pct': None,
-                'free_gb': None,
-                'message': f'Disk check failed: {str(e)}'
+                "healthy": False,
+                "free_pct": None,
+                "free_gb": None,
+                "message": f"Disk check failed: {str(e)}",
             }
 
     def check_memory_usage(self) -> Dict:
@@ -255,24 +258,27 @@ class HealthChecker:
             memory = psutil.virtual_memory()
             used_pct = memory.percent
             available_gb = memory.available / (1024**3)
-            
+
             healthy = used_pct < self.MEMORY_THRESHOLD_PCT
-            
+
             return {
-                'healthy': healthy,
-                'used_pct': round(used_pct, 1),
-                'available_gb': round(available_gb, 2),
-                'total_gb': round(memory.total / (1024**3), 2),
-                'message': f'{used_pct:.1f}% used ({available_gb:.2f} GB available)' if healthy
-                          else f'High memory usage: {used_pct:.1f}%'
+                "healthy": healthy,
+                "used_pct": round(used_pct, 1),
+                "available_gb": round(available_gb, 2),
+                "total_gb": round(memory.total / (1024**3), 2),
+                "message": (
+                    f"{used_pct:.1f}% used ({available_gb:.2f} GB available)"
+                    if healthy
+                    else f"High memory usage: {used_pct:.1f}%"
+                ),
             }
-        
+
         except Exception as e:
             return {
-                'healthy': False,
-                'used_pct': None,
-                'available_gb': None,
-                'message': f'Memory check failed: {str(e)}'
+                "healthy": False,
+                "used_pct": None,
+                "available_gb": None,
+                "message": f"Memory check failed: {str(e)}",
             }
 
     def check_cpu_usage(self) -> Dict:
@@ -285,91 +291,105 @@ class HealthChecker:
         try:
             # Sample CPU usage over 1 second
             cpu_pct = psutil.cpu_percent(interval=1.0)
-            
+
             healthy = cpu_pct < self.CPU_THRESHOLD_PCT
-            
+
             return {
-                'healthy': healthy,
-                'used_pct': round(cpu_pct, 1),
-                'message': f'{cpu_pct:.1f}% CPU usage' if healthy
-                          else f'High CPU usage: {cpu_pct:.1f}%'
+                "healthy": healthy,
+                "used_pct": round(cpu_pct, 1),
+                "message": (
+                    f"{cpu_pct:.1f}% CPU usage"
+                    if healthy
+                    else f"High CPU usage: {cpu_pct:.1f}%"
+                ),
             }
-        
+
         except Exception as e:
             return {
-                'healthy': False,
-                'used_pct': None,
-                'message': f'CPU check failed: {str(e)}'
+                "healthy": False,
+                "used_pct": None,
+                "message": f"CPU check failed: {str(e)}",
             }
 
     def check_cron_execution(self) -> Dict:
         """
         Check if daily cron job ran recently (via metrics log).
-        
+
         Looks for recent pipeline execution in logs/metrics.jsonl.
 
         Returns:
             dict: {'healthy': bool, 'last_run': str, 'hours_ago': float, 'message': str}
         """
         metrics_log = self.log_dir / "metrics.jsonl"
-        
+
         try:
             if not metrics_log.exists():
                 return {
-                    'healthy': False,
-                    'last_run': None,
-                    'hours_ago': None,
-                    'message': 'No metrics log found (pipeline never ran)'
+                    "healthy": False,
+                    "last_run": None,
+                    "hours_ago": None,
+                    "message": "No metrics log found (pipeline never ran)",
                 }
-            
+
             # Read last 100 lines (reverse order)
             last_pipeline_time = None
-            
-            with open(metrics_log, 'r') as f:
+
+            with open(metrics_log, "r") as f:
                 lines = f.readlines()
-                
+
                 # Search backwards for most recent pipeline execution
                 for line in reversed(lines[-100:]):
                     try:
                         log_entry = json.loads(line.strip())
-                        if log_entry.get('event') == 'pipeline_execution':
-                            last_pipeline_time = log_entry.get('timestamp')
+                        if log_entry.get("event") == "pipeline_execution":
+                            last_pipeline_time = log_entry.get("timestamp")
                             break
                     except json.JSONDecodeError:
                         continue
-            
+
             if not last_pipeline_time:
                 return {
-                    'healthy': False,
-                    'last_run': None,
-                    'hours_ago': None,
-                    'message': 'No pipeline execution found in metrics'
+                    "healthy": False,
+                    "last_run": None,
+                    "hours_ago": None,
+                    "message": "No pipeline execution found in metrics",
                 }
-            
+
             # Calculate hours since last run
-            # Python 3.6 compatible: use strptime instead of fromisoformat
             try:
-                last_run = datetime.strptime(last_pipeline_time, '%Y-%m-%dT%H:%M:%S.%f')
+                last_run = datetime.fromisoformat(last_pipeline_time)
             except ValueError:
-                last_run = datetime.strptime(last_pipeline_time, '%Y-%m-%dT%H:%M:%S')
-            hours_ago = (datetime.utcnow() - last_run).total_seconds() / 3600
-            
+                try:
+                    last_run = datetime.strptime(
+                        last_pipeline_time, "%Y-%m-%dT%H:%M:%S.%f"
+                    )
+                except ValueError:
+                    last_run = datetime.strptime(
+                        last_pipeline_time, "%Y-%m-%dT%H:%M:%S"
+                    )
+            if last_run.tzinfo is None:
+                last_run = last_run.replace(tzinfo=timezone.utc)
+            hours_ago = (datetime.now(timezone.utc) - last_run).total_seconds() / 3600
+
             healthy = hours_ago < self.CRON_MAX_AGE_HOURS
-            
+
             return {
-                'healthy': healthy,
-                'last_run': last_pipeline_time,
-                'hours_ago': round(hours_ago, 1),
-                'message': f'Last pipeline: {hours_ago:.1f}h ago' if healthy
-                          else f'Pipeline overdue: {hours_ago:.1f}h since last run'
+                "healthy": healthy,
+                "last_run": last_pipeline_time,
+                "hours_ago": round(hours_ago, 1),
+                "message": (
+                    f"Last pipeline: {hours_ago:.1f}h ago"
+                    if healthy
+                    else f"Pipeline overdue: {hours_ago:.1f}h since last run"
+                ),
             }
-        
+
         except Exception as e:
             return {
-                'healthy': False,
-                'last_run': None,
-                'hours_ago': None,
-                'message': f'Cron check failed: {str(e)}'
+                "healthy": False,
+                "last_run": None,
+                "hours_ago": None,
+                "message": f"Cron check failed: {str(e)}",
             }
 
     def _log_health_status(self, status: Dict) -> None:
@@ -380,9 +400,9 @@ class HealthChecker:
             status: Health status dictionary from check_all()
         """
         try:
-            with open(self.health_log, 'a') as f:
+            with open(self.health_log, "a") as f:
                 json_line = json.dumps(status)
-                f.write(json_line + '\n')
+                f.write(json_line + "\n")
         except Exception as e:
             logger.error(f"Failed to write health log: {e}")
 
@@ -398,30 +418,38 @@ class HealthChecker:
         """
         if not self.health_log.exists():
             return []
-        
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         recent_logs = []
-        
+
         try:
-            with open(self.health_log, 'r') as f:
+            with open(self.health_log, "r") as f:
                 for line in f:
                     try:
                         log_entry = json.loads(line.strip())
-                        timestamp_str = log_entry.get('timestamp', '')
-                        
-                        # Python 3.6 compatible: use strptime instead of fromisoformat
+                        timestamp_str = log_entry.get("timestamp", "")
+
                         try:
-                            log_time = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M:%S.%f')
+                            log_time = datetime.fromisoformat(timestamp_str)
                         except ValueError:
-                            log_time = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M:%S')
-                        
+                            try:
+                                log_time = datetime.strptime(
+                                    timestamp_str, "%Y-%m-%dT%H:%M:%S.%f"
+                                )
+                            except ValueError:
+                                log_time = datetime.strptime(
+                                    timestamp_str, "%Y-%m-%dT%H:%M:%S"
+                                )
+                        if log_time.tzinfo is None:
+                            log_time = log_time.replace(tzinfo=timezone.utc)
+
                         if log_time >= cutoff:
                             recent_logs.append(log_entry)
                     except (json.JSONDecodeError, ValueError):
                         continue
         except Exception as e:
             logger.error(f"Failed to read health logs: {e}")
-        
+
         return recent_logs
 
     def generate_alert(self, status: Dict) -> Optional[str]:
@@ -434,18 +462,18 @@ class HealthChecker:
         Returns:
             Alert message string if issues found, None otherwise
         """
-        if status['healthy']:
+        if status["healthy"]:
             return None
-        
-        issues = status['issues']
-        alert = f"⚠️ HEALTH CHECK ALERT [{datetime.utcnow().isoformat()}]\n\n"
+
+        issues = status["issues"]
+        alert = f"⚠️ HEALTH CHECK ALERT [{datetime.now(timezone.utc).isoformat()}]\n\n"
         alert += f"Detected {len(issues)} issue(s):\n"
-        
+
         for i, issue in enumerate(issues, 1):
             alert += f"  {i}. {issue}\n"
-        
+
         alert += "\nAction: Check system logs and restart services if needed.\n"
-        
+
         return alert
 
 
@@ -453,28 +481,28 @@ def main():
     """CLI entry point for health check script."""
     checker = HealthChecker()
     status = checker.check_all()
-    
+
     # Print summary
     print(f"\n{'='*60}")
     print(f"HEALTH CHECK SUMMARY - {status['timestamp']}")
     print(f"{'='*60}")
     print(f"Overall Status: {'✓ HEALTHY' if status['healthy'] else '✗ UNHEALTHY'}")
     print(f"{'='*60}\n")
-    
+
     # Print individual checks
-    for check_name, check_result in status['checks'].items():
-        healthy = check_result.get('healthy', False)
-        message = check_result.get('message', 'N/A')
-        status_icon = '✓' if healthy else '✗'
-        
+    for check_name, check_result in status["checks"].items():
+        healthy = check_result.get("healthy", False)
+        message = check_result.get("message", "N/A")
+        status_icon = "✓" if healthy else "✗"
+
         print(f"{status_icon} {check_name.upper()}: {message}")
-    
+
     # Generate alert if needed
-    if not status['healthy']:
+    if not status["healthy"]:
         alert = checker.generate_alert(status)
         print(f"\n{alert}")
         return 1  # Exit code 1 for unhealthy
-    
+
     return 0  # Exit code 0 for healthy
 
 

@@ -20,7 +20,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 from unittest import mock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import sys
 from io import StringIO
 
@@ -244,7 +244,7 @@ class TestCleanupStatistics:
         backup_dir.mkdir(exist_ok=True)
         
         # Create old backup files
-        old_date = (datetime.utcnow() - timedelta(days=35)).strftime('%Y%m%d_%H%M%S%f')
+        old_date = (datetime.now(timezone.utc) - timedelta(days=35)).strftime('%Y%m%d_%H%M%S%f')
         old_backup = backup_dir / f"market_data_backup_{old_date}.db"
         _create_test_db(old_backup, size_kb=100)
         
@@ -278,7 +278,7 @@ class TestCleanupStatistics:
         backup_dir.mkdir(exist_ok=True)
         
         # Create old backup
-        old_date = (datetime.utcnow() - timedelta(days=35)).strftime('%Y%m%d_%H%M%S%f')
+        old_date = (datetime.now(timezone.utc) - timedelta(days=35)).strftime('%Y%m%d_%H%M%S%f')
         old_backup = backup_dir / f"market_data_backup_{old_date}.db"
         _create_test_db(old_backup, size_kb=50)
         
@@ -302,7 +302,7 @@ class TestCleanupStatistics:
         total_bytes = 0
         
         for days_old in [35, 40, 45, 50]:
-            old_date = (datetime.utcnow() - timedelta(days=days_old)).strftime('%Y%m%d_%H%M%S%f')
+            old_date = (datetime.now(timezone.utc) - timedelta(days=days_old)).strftime('%Y%m%d_%H%M%S%f')
             old_backup = backup_dir / f"market_data_backup_{old_date}.db"
             _create_test_db(old_backup, size_kb=50)
             total_bytes += old_backup.stat().st_size
@@ -356,7 +356,7 @@ class TestBackupStatsEdgeCases:
         
         # Create backups of different ages
         for days_ago in [1, 5, 10]:
-            old_date = (datetime.utcnow() - timedelta(days=days_ago)).strftime('%Y%m%d_%H%M%S%f')
+            old_date = (datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime('%Y%m%d_%H%M%S%f')
             backup_file = backup_dir / f"market_data_backup_{old_date}.db"
             _create_test_db(backup_file, size_kb=50)
         
@@ -468,7 +468,7 @@ class TestBackupListFiltering:
         # Create multiple backups with different timestamps
         filenames = []
         for i, days_ago in enumerate([5, 1, 3]):
-            timestamp = (datetime.utcnow() - timedelta(days=days_ago)).strftime('%Y%m%d_%H%M%S%f')
+            timestamp = (datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime('%Y%m%d_%H%M%S%f')
             backup_file = backup_dir / f"market_data_backup_{timestamp}.db"
             _create_test_db(backup_file, size_kb=50)
             filenames.append(backup_file.name)

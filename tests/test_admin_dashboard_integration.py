@@ -94,8 +94,12 @@ class TestHealthEndpoint:
 class TestPerformanceSummaryEndpoint:
     """Test /admin/performance/summary endpoint."""
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.calculate_performance_metrics")
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.calculate_performance_metrics"
+    )
     def test_summary_success(self, mock_calc, mock_load, client, admin_headers):
         """Should return performance summary."""
         returns = [0.01, 0.02, -0.01, 0.015]
@@ -119,7 +123,9 @@ class TestPerformanceSummaryEndpoint:
 
         mock_calc.return_value = mock_metrics
 
-        response = client.get("/admin/performance/summary?days=30", headers=admin_headers)
+        response = client.get(
+            "/admin/performance/summary?days=30", headers=admin_headers
+        )
 
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -127,7 +133,9 @@ class TestPerformanceSummaryEndpoint:
         assert "sharpe_ratio" in data
         assert data["total_trades"] == 20
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
     def test_summary_no_data(self, mock_load, client, admin_headers):
         """Should handle empty data gracefully."""
         mock_load.return_value = ([], [])
@@ -138,7 +146,9 @@ class TestPerformanceSummaryEndpoint:
         data = json.loads(response.data)
         assert "No performance data" in data["message"]
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
     def test_summary_custom_period(self, mock_load, client, admin_headers):
         """Should respect custom days parameter."""
         mock_load.return_value = ([], [])
@@ -155,10 +165,15 @@ class TestDrawdownEndpoint:
     """Test /admin/performance/drawdown endpoint."""
 
     @patch("app.reporting.performance_analytics.PerformanceAnalytics.analyze_drawdowns")
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
     def test_drawdown_success(self, mock_load, mock_analyze, client, admin_headers):
         """Should return drawdown analysis."""
-        mock_load.return_value = ([0.01, -0.02, 0.015], [datetime(2025, 1, i) for i in range(1, 4)])
+        mock_load.return_value = (
+            [0.01, -0.02, 0.015],
+            [datetime(2025, 1, i) for i in range(1, 4)],
+        )
 
         mock_dd = MagicMock()
         mock_dd.max_drawdown = -0.05
@@ -172,7 +187,9 @@ class TestDrawdownEndpoint:
 
         mock_analyze.return_value = mock_dd
 
-        response = client.get("/admin/performance/drawdown?days=90", headers=admin_headers)
+        response = client.get(
+            "/admin/performance/drawdown?days=90", headers=admin_headers
+        )
 
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -180,7 +197,9 @@ class TestDrawdownEndpoint:
         assert data["max_drawdown_duration_days"] == 5
         assert data["total_drawdowns"] == 3
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
     def test_drawdown_no_data(self, mock_load, client, admin_headers):
         """Should handle empty drawdown data."""
         mock_load.return_value = ([], [])
@@ -195,8 +214,12 @@ class TestDrawdownEndpoint:
 class TestRollingPerformanceEndpoint:
     """Test /admin/performance/rolling endpoint."""
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.calculate_rolling_metrics")
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.calculate_rolling_metrics"
+    )
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
     def test_rolling_success(self, mock_load, mock_rolling, client, admin_headers):
         """Should return rolling performance metrics."""
         dates = [datetime(2025, 1, i) for i in range(1, 11)]
@@ -221,7 +244,9 @@ class TestRollingPerformanceEndpoint:
         assert len(data["rolling_returns"]) == 3
         assert len(data["rolling_volatilities"]) == 3
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
     def test_rolling_no_data(self, mock_load, client, admin_headers):
         """Should handle empty rolling data."""
         mock_load.return_value = ([], [])
@@ -309,7 +334,9 @@ class TestRecentErrorsEndpoint:
         assert len(data["errors"]) == 2
 
     @patch("app.infrastructure.error_reporter.ErrorReporter.get_recent_errors")
-    def test_recent_errors_with_severity_filter(self, mock_get_recent, client, admin_headers):
+    def test_recent_errors_with_severity_filter(
+        self, mock_get_recent, client, admin_headers
+    ):
         """Should filter by severity."""
         mock_errors = [
             {
@@ -329,7 +356,9 @@ class TestRecentErrorsEndpoint:
         assert data["count"] == 1
 
     @patch("app.infrastructure.error_reporter.ErrorReporter.get_recent_errors")
-    def test_recent_errors_invalid_severity(self, mock_get_recent, client, admin_headers):
+    def test_recent_errors_invalid_severity(
+        self, mock_get_recent, client, admin_headers
+    ):
         """Should reject invalid severity."""
         response = client.get(
             "/admin/errors/recent?severity=INVALID", headers=admin_headers
@@ -366,7 +395,9 @@ class TestErrorTrendsEndpoint:
 class TestCapitalUtilizationEndpoint:
     """Test /admin/capital/utilization endpoint."""
 
-    @patch("app.decision.capital_optimizer.CapitalUtilizationOptimizer.get_position_history")
+    @patch(
+        "app.decision.capital_optimizer.CapitalUtilizationOptimizer.get_position_history"
+    )
     def test_capital_utilization_success(self, mock_history, client, admin_headers):
         """Should return capital utilization metrics."""
         mock_history.return_value = [
@@ -392,7 +423,9 @@ class TestCapitalUtilizationEndpoint:
         assert "average_kelly_fraction" in data
         assert data["total_positions"] == 2
 
-    @patch("app.decision.capital_optimizer.CapitalUtilizationOptimizer.get_position_history")
+    @patch(
+        "app.decision.capital_optimizer.CapitalUtilizationOptimizer.get_position_history"
+    )
     def test_capital_utilization_no_data(self, mock_history, client, admin_headers):
         """Should handle empty position history."""
         mock_history.return_value = []
@@ -407,7 +440,9 @@ class TestCapitalUtilizationEndpoint:
 class TestNoTradeDecisionsEndpoint:
     """Test /admin/decisions/no-trades endpoint."""
 
-    @patch("app.infrastructure.decision_logger.NoTradeDecisionLogger.get_no_trade_analysis")
+    @patch(
+        "app.infrastructure.decision_logger.NoTradeDecisionLogger.get_no_trade_analysis"
+    )
     def test_no_trade_decisions_success(self, mock_analysis, client, admin_headers):
         """Should return no-trade analysis."""
         mock_analysis_data = {
@@ -423,7 +458,9 @@ class TestNoTradeDecisionsEndpoint:
         }
         mock_analysis.return_value = mock_analysis_data
 
-        response = client.get("/admin/decisions/no-trades?days=7", headers=admin_headers)
+        response = client.get(
+            "/admin/decisions/no-trades?days=7", headers=admin_headers
+        )
 
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -434,28 +471,42 @@ class TestNoTradeDecisionsEndpoint:
 class TestStrategyPerformanceEndpoint:
     """Test /admin/strategies/performance endpoint."""
 
-    @patch("app.decision.decision_history_analyzer.DecisionHistoryAnalyzer.analyze_strategy_performance")
+    @patch(
+        "app.decision.decision_history_analyzer.DecisionHistoryAnalyzer.analyze_strategy_performance"
+    )
     def test_strategy_performance_success(self, mock_analyze, client, admin_headers):
         """Should return strategy performance breakdown."""
-        def side_effect(strategy, days_back):
-            stats = {
-                "win_rate": 0.65,
-                "sharpe": 1.2,
-                "max_drawdown": -0.08,
-                "total_trades": 25,
-            }
-            return stats if strategy in ["momentum", "mean_reversion", "breakout"] else None
+        from app.decision.decision_history_analyzer import StrategyStats
+
+        def side_effect(strategy, days=30):
+            if strategy in ["momentum", "mean_reversion", "breakout"]:
+                return StrategyStats(
+                    strategy_name=strategy,
+                    total_trades=25,
+                    win_rate=0.65,
+                    avg_pnl=0.02,
+                    sharpe_ratio=1.2,
+                    max_drawdown=0.08,
+                    last_30d_performance=0.6,
+                    status="GOOD",
+                    trades_analyzed=25,
+                )
+            return None
 
         mock_analyze.side_effect = side_effect
 
-        response = client.get("/admin/strategies/performance?days=30", headers=admin_headers)
+        response = client.get(
+            "/admin/strategies/performance?days=30", headers=admin_headers
+        )
 
         assert response.status_code == 200
         data = json.loads(response.data)
         assert "strategies" in data
         assert data["period_days"] == 30
 
-    @patch("app.decision.decision_history_analyzer.DecisionHistoryAnalyzer.analyze_strategy_performance")
+    @patch(
+        "app.decision.decision_history_analyzer.DecisionHistoryAnalyzer.analyze_strategy_performance"
+    )
     def test_strategy_performance_no_data(self, mock_analyze, client, admin_headers):
         """Should handle no strategy data."""
         mock_analyze.return_value = None
@@ -470,7 +521,9 @@ class TestStrategyPerformanceEndpoint:
 class TestConfidenceDistributionEndpoint:
     """Test /admin/confidence/distribution endpoint."""
 
-    @patch("app.decision.confidence_allocator.ConfidenceBucketAllocator.get_bucket_statistics")
+    @patch(
+        "app.decision.confidence_allocator.ConfidenceBucketAllocator.get_bucket_statistics"
+    )
     def test_confidence_distribution_success(self, mock_stats, client, admin_headers):
         """Should return confidence bucket statistics."""
         from app.decision.confidence_allocator import ConfidenceBucket
@@ -542,10 +595,10 @@ class TestAdminErrorHandling:
         data = json.loads(response.data)
         assert "error" in data
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
-    def test_performance_exception_handling(
-        self, mock_load, client, admin_headers
-    ):
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
+    def test_performance_exception_handling(self, mock_load, client, admin_headers):
         """Should handle exceptions in performance endpoint."""
         mock_load.side_effect = RuntimeError("Database error")
 
@@ -556,9 +609,7 @@ class TestAdminErrorHandling:
         assert "error" in data
 
     @patch("app.infrastructure.error_reporter.ErrorReporter.get_error_statistics")
-    def test_error_summary_exception_handling(
-        self, mock_stats, client, admin_headers
-    ):
+    def test_error_summary_exception_handling(self, mock_stats, client, admin_headers):
         """Should handle exceptions in error summary endpoint."""
         mock_stats.side_effect = RuntimeError("Reporter error")
 
@@ -573,8 +624,12 @@ class TestAdminErrorHandling:
 class TestParameterValidation:
     """Test parameter validation across endpoints."""
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.calculate_performance_metrics")
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.calculate_performance_metrics"
+    )
     def test_days_parameter_parsing(self, mock_calc, mock_load, client, admin_headers):
         """Should parse days parameter correctly."""
         mock_load.return_value = ([], [])
@@ -582,17 +637,28 @@ class TestParameterValidation:
         client.get("/admin/performance/summary?days=60", headers=admin_headers)
         mock_load.assert_called_with(days_back=60)
 
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db")
-    @patch("app.reporting.performance_analytics.PerformanceAnalytics.calculate_rolling_metrics")
-    def test_window_parameter_parsing(self, mock_rolling, mock_load, client, admin_headers):
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.load_returns_from_db"
+    )
+    @patch(
+        "app.reporting.performance_analytics.PerformanceAnalytics.calculate_rolling_metrics"
+    )
+    def test_window_parameter_parsing(
+        self, mock_rolling, mock_load, client, admin_headers
+    ):
         """Should parse window parameter correctly."""
-        mock_load.return_value = ([0.01] * 10, [datetime(2025, 1, i) for i in range(1, 11)])
+        mock_load.return_value = (
+            [0.01] * 10,
+            [datetime(2025, 1, i) for i in range(1, 11)],
+        )
         mock_rolling.return_value = MagicMock(
             window_size_days=14, returns=[], volatilities=[], sharpe_ratios=[], dates=[]
         )
 
         client.get("/admin/performance/rolling?window=14", headers=admin_headers)
-        mock_rolling.assert_called_with([0.01] * 10, mock_load.return_value[1], window_days=14)
+        mock_rolling.assert_called_with(
+            [0.01] * 10, mock_load.return_value[1], window_days=14
+        )
 
     @patch("app.infrastructure.error_reporter.ErrorReporter.get_recent_errors")
     def test_limit_parameter_parsing(self, mock_get_recent, client, admin_headers):

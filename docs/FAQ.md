@@ -112,7 +112,7 @@ pytest tests/test_file.py -s
 ## Deployment
 
 ### Q11: How do I deploy to Raspberry Pi?
-**A:** Follow [RASPBERRY_PI_SETUP_GUIDE.md](01_deployment/RASPBERRY_PI_SETUP_GUIDE.md):
+**A:** Follow [RASPBERRY_PI_SETUP_GUIDE.md](deployment/RASPBERRY_PI_SETUP_GUIDE.md):
 ```bash
 # On Raspberry Pi
 bash deploy_rpi.sh

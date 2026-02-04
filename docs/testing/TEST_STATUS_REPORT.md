@@ -1,5 +1,22 @@
 # Test & Code Quality Status Report
 
+## ✅ Current Status (2026-02-03)
+
+- **Sprint:** 11c Maintenance
+- **Coverage:** **91%** (full suite)
+- **Status:** ✅ Clean suite
+- **Notes:** Windows venv-ben sérült matplotlib dist-info → venv rebuild ajánlott (scripts/rebuild_venv.ps1)
+
+### Latest Commands
+
+```
+python -m pytest tests --cov=app --cov-report=term --cov-report=html -q -r a
+```
+
+---
+
+## 📌 Historical Snapshot (2026-02-02)
+
 **Date:** 2026-02-02  
 **Sprint:** 9 (Product Hardening)  
 **Python Version:** 3.6.6

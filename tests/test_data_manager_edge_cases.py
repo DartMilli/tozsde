@@ -1,7 +1,7 @@
 """Edge case tests for DataManager advanced methods."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import numpy as np
@@ -119,7 +119,7 @@ def test_get_unevaluated_buy_decisions_and_update(test_db):
         conn.execute(
             "INSERT INTO decision_history (timestamp, ticker, action_code, action_label, confidence, wf_score, decision_blob, audit_blob) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 "AAPL",
                 1,
                 "BUY",
@@ -152,7 +152,7 @@ def test_pipeline_metrics_logging_and_summary(test_db):
     assert recent["total_executions"] >= 2
     assert recent["errors_count"] >= 1
 
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     summary = dm.get_daily_summary(today)
     assert summary["executions"] >= 2
     assert "AAPL" in summary["tickers_processed"]

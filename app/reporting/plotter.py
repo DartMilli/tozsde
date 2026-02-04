@@ -1,7 +1,14 @@
-import mplfinance as mpf
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import matplotlib.colors as mcolors
+from types import SimpleNamespace
+import sys
+
+mpf = None
+plt = SimpleNamespace(
+    close=lambda *args, **kwargs: None,
+    savefig=lambda *args, **kwargs: None,
+)
+cm = None
+mcolors = None
+colormaps = None
 import numpy as np
 import pandas as pd
 from io import BytesIO
@@ -16,11 +23,40 @@ logger = setup_logger(__name__)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
+def _ensure_plotting_imports():
+    """Lazy import plotting dependencies to avoid import-time failures."""
+    global mpf, plt, cm, mcolors, colormaps
+    if mpf is None or plt is None or cm is None or mcolors is None or colormaps is None:
+        try:
+            if "matplotlib.figure" in sys.modules:
+                try:
+                    import matplotlib.figure as _figure
+
+                    if not hasattr(_figure.Figure.savefig, "__qualname__"):
+                        _figure.Figure.savefig.__qualname__ = "savefig"
+                except Exception:
+                    pass
+            import mplfinance as _mpf
+            import matplotlib.pyplot as _plt
+            import matplotlib.cm as _cm
+            import matplotlib.colors as _mcolors
+            from matplotlib import colormaps as _colormaps
+
+            mpf = _mpf
+            plt = _plt
+            cm = _cm
+            mcolors = _mcolors
+            colormaps = _colormaps
+        except Exception as e:
+            raise RuntimeError(f"Plotting dependencies not available: {e}")
+
+
 def get_candle_img_buffer(df, indicators, signals=None):
     """
     https://stackoverflow.com/questions/60599812/how-can-i-customize-mplfinance-plot
     https://github.com/matplotlib/mplfinance/blob/master/src/mplfinance/plotting.py#L87-L276
     """
+    _ensure_plotting_imports()
     buf = BytesIO()
 
     dark = {
@@ -150,15 +186,11 @@ def get_candle_img_buffer(df, indicators, signals=None):
     # ---- Markerek hozzáadása az apds listához ----
     if not np.all(np.isnan(buy_signals)):
         apds.append(
-            mpf.make_addplot(
-                buy_signals, type="scatter", marker="^", color="lime"
-            )
+            mpf.make_addplot(buy_signals, type="scatter", marker="^", color="lime")
         )
     if not np.all(np.isnan(sell_signals)):
         apds.append(
-            mpf.make_addplot(
-                sell_signals, type="scatter", marker="v", color="red"
-            )
+            mpf.make_addplot(sell_signals, type="scatter", marker="v", color="red")
         )
 
     fig, axes = mpf.plot(
@@ -235,6 +267,7 @@ def get_candle_img_buffer(df, indicators, signals=None):
 
 
 def get_equity_curve_buffer(ticker, equity_curve):
+    _ensure_plotting_imports()
     # Grafikon generálása
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.plot(equity_curve["date"], equity_curve["portfolio_value"], label="Stratégia")
@@ -255,6 +288,7 @@ def get_equity_curve_buffer(ticker, equity_curve):
 
 
 def get_drawdown_curve_buffer(equity_curve):
+    _ensure_plotting_imports()
     import matplotlib.pyplot as plt
     import io
     import base64
@@ -279,6 +313,7 @@ def get_drawdown_curve_buffer(equity_curve):
 
 
 def plot_bar_chart(subset, ticker, model_type):
+    _ensure_plotting_imports()
     plt.figure(figsize=(10, 5))
     plt.bar(subset["reward_strategy"], subset["final_portfolio_value"])
     plt.title(f"{ticker} - {model_type} - Portfólió érték összehasonlítás")
@@ -404,6 +439,7 @@ def _place_top_annotations_greedy(
 
 # --- Gradient scatter ---
 def plot_gradient_scatter(subset, ticker, model_type):
+    _ensure_plotting_imports()
     if subset.empty:
         return
 
@@ -414,7 +450,7 @@ def plot_gradient_scatter(subset, ticker, model_type):
     fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=True)
 
     norm = mcolors.Normalize(vmin=scores.min(), vmax=scores.max())
-    cmap = cm.get_cmap("viridis")
+    cmap = colormaps.get_cmap("viridis")
 
     scatter = ax.scatter(
         x, y, c=scores, cmap=cmap, s=100, alpha=0.92, edgecolor="k", linewidth=0.6
@@ -443,11 +479,12 @@ def plot_gradient_scatter(subset, ticker, model_type):
 
 # --- Strategy-colored scatter ---
 def plot_strategy_colored_scatter(subset, ticker, model_type):
+    _ensure_plotting_imports()
     if subset.empty:
         return
 
     strategies = subset["reward_strategy"].unique()
-    color_map = cm.get_cmap("tab10", len(strategies))
+    color_map = colormaps.get_cmap("tab10").resampled(len(strategies))
     color_dict = {strategy: color_map(i) for i, strategy in enumerate(strategies)}
 
     scores = subset["composite_score"]
@@ -478,7 +515,7 @@ def plot_strategy_colored_scatter(subset, ticker, model_type):
     legend_box = legend.get_window_extent(renderer=fig.canvas.get_renderer())
 
     norm = mcolors.Normalize(vmin=scores.min(), vmax=scores.max())
-    cmap = cm.get_cmap("viridis")
+    cmap = colormaps.get_cmap("viridis")
     top3 = subset.nlargest(3, "composite_score").reset_index(drop=True)
     _place_top_annotations_greedy(ax, top3.to_dict("records"), cmap, norm, legend_box)
 

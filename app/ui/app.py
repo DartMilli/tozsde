@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from flask import send_file
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import json
 
@@ -228,7 +228,10 @@ def dev_metrics():
         return jsonify(
             {
                 "system": {"cpu_percent": 0.0, "memory_mb": 0.0},
-                "data": {"tickers": Config.get_supported_tickers(), "last_update": None},
+                "data": {
+                    "tickers": Config.get_supported_tickers(),
+                    "last_update": None,
+                },
                 "pipeline": {"last_run": None, "next_run": None},
                 "error": str(e),
             }
@@ -381,7 +384,7 @@ def admin_dashboard():
                 "metrics": recent_metrics,
                 "daily_summary": daily_summary,
                 "recommendations_today": len(recommendations) if recommendations else 0,
-                "last_update": datetime.utcnow().isoformat(),
+                "last_update": datetime.now(timezone.utc).isoformat(),
             }
         )
     except Exception as e:
@@ -456,7 +459,7 @@ def admin_force_rebalance():
         return jsonify(
             {
                 "status": "rebalance_initiated",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "message": "Rebalancing triggered manually",
             }
         )

@@ -235,8 +235,8 @@ def rsi_old(data, period=14):
     delta = np.diff(data, prepend=data[0])
     gain = np.maximum(delta, 0)
     loss = -np.minimum(delta, 0)
-    avg_gain = np.full_like(data, np.nan)
-    avg_loss = np.full_like(data, np.nan)
+    avg_gain = np.full_like(data, np.nan, dtype=float)
+    avg_loss = np.full_like(data, np.nan, dtype=float)
     avg_gain[period] = np.mean(gain[:period])
     avg_loss[period] = np.mean(loss[:period])
     for i in range(period + 1, len(data)):
@@ -340,7 +340,7 @@ def atr(high, low, close, period=14):
         high[1:] - low[1:],
         np.maximum(np.abs(high[1:] - close[:-1]), np.abs(low[1:] - close[:-1])),
     )
-    atr_vals = np.full_like(close, np.nan)
+    atr_vals = np.full_like(close, np.nan, dtype=float)
     atr_vals[period] = np.mean(tr[:period])
     for i in range(period + 1, len(close)):
         atr_vals[i] = (atr_vals[i - 1] * (period - 1) + tr[i - 1]) / period
@@ -405,13 +405,13 @@ def adx(high, low, close, period=14):
     plus_di = 100 * np.divide(
         plus_dm_smooth,
         tr_smooth,
-        out=np.full_like(plus_dm_smooth, np.nan),
+        out=np.full_like(plus_dm_smooth, np.nan, dtype=float),
         where=tr_smooth != 0,
     )
     minus_di = 100 * np.divide(
         minus_dm_smooth,
         tr_smooth,
-        out=np.full_like(minus_dm_smooth, np.nan),
+        out=np.full_like(minus_dm_smooth, np.nan, dtype=float),
         where=tr_smooth != 0,
     )
 

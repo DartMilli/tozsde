@@ -56,6 +56,21 @@ def test_detect_pi_mode_arm_linux(monkeypatch):
     assert detect_pi_mode(platform_module=platform_stub) is True
 
 
+def test_detect_pi_mode_model_file(monkeypatch, tmp_path):
+    monkeypatch.delenv("PI_MODE", raising=False)
+    model_path = tmp_path / "model"
+    model_path.write_text("Raspberry Pi 4 Model B")
+
+    platform_stub = DummyPlatform("Linux", "x86_64")
+    assert detect_pi_mode(platform_module=platform_stub, model_path=model_path) is True
+
+
+def test_detect_pi_mode_invalid_env(monkeypatch):
+    monkeypatch.setenv("PI_MODE", "maybe")
+    platform_stub = DummyPlatform("Linux", "x86_64")
+    assert detect_pi_mode(platform_module=platform_stub) is False
+
+
 def test_apply_pi_config_no_pi(monkeypatch):
     monkeypatch.setenv("PI_MODE", "false")
     cfg = DummyConfig
@@ -78,3 +93,14 @@ def test_apply_pi_config_pi_mode(monkeypatch):
     assert getattr(cfg, "MAX_BACKTEST_WINDOW") == 252
     assert getattr(cfg, "SQLITE_SINGLE_CONNECTION") is True
     assert getattr(cfg, "DISABLE_HEAVY_TASKS") is True
+
+
+def test_apply_pi_config_creates_dirs(monkeypatch, tmp_path):
+    monkeypatch.setenv("PI_MODE", "true")
+    monkeypatch.setenv("PI_BASE_DIR", str(tmp_path))
+    cfg = DummyConfig
+
+    result = apply_pi_config(config_cls=cfg, ensure_dirs=True)
+    assert result["applied"] is True
+    assert cfg.DATA_DIR.exists()
+    assert cfg.LOG_DIR.exists()
