@@ -52,6 +52,7 @@ from app.reporting.audit_builder import build_audit_summary, build_audit_metadat
 from app.decision.decision_policy import apply_decision_policy
 from app.decision.decision_event import build_decision_event
 from app.notifications.mailer import send_email
+from app.notifications.alerter import ErrorAlerter
 from app.config.config import Config
 from app.decision.allocation import allocate_capital
 
@@ -141,6 +142,13 @@ def run_daily(dry_run: bool = False, ticker: str = None):
             logger.error(
                 f"✗ DAILY analysis failed for {ticker_symbol}: {e}", exc_info=True
             )
+            if not dry_run:
+                ErrorAlerter.alert(
+                    error_code="MISSING_TICKER_DATA",
+                    message=f"Daily analysis failed for {ticker_symbol}: {e}",
+                    details={"ticker": ticker_symbol},
+                    severity="auto",
+                )
 
     if not daily_candidates:
         logger.warning("No candidates generated")
@@ -211,6 +219,12 @@ def run_daily(dry_run: bool = False, ticker: str = None):
                 logger.info(f"✓ Email sent to {Config.NOTIFY_EMAIL}")
             except Exception as e:
                 logger.error(f"✗ Failed to send email: {e}")
+                ErrorAlerter.alert(
+                    error_code="AUTHENTICATION_FAILED",
+                    message=f"Failed to send notification email: {e}",
+                    details={"recipient": Config.NOTIFY_EMAIL},
+                    severity="auto",
+                )
 
     logger.info("=" * 80)
     logger.info("DAILY pipeline completed")

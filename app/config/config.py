@@ -166,4 +166,11 @@ class Config:
 
 
 # Inicializáláskor futtatjuk
+try:
+    from app.config.pi_config import apply_pi_config
+
+    apply_pi_config(config_cls=Config, ensure_dirs=False)
+except Exception:
+    pass
+
 Config.ensure_dirs()

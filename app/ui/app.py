@@ -91,6 +91,20 @@ def dev_status():
         return jsonify({"error": "Not available in production"}), 403
 
     dm = DataManager()
+    tables = []
+    db_connected = False
+    db_error = None
+
+    try:
+        with dm.connection() as conn:
+            rows = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            ).fetchall()
+            tables = [r[0] for r in rows]
+            db_connected = True
+    except Exception as e:
+        db_error = str(e)
+        app.logger.error(f"Dev status DB check failed: {e}")
 
     return jsonify(
         {
@@ -103,8 +117,9 @@ def dev_status():
                 "ENABLE_RL": getattr(Config, "ENABLE_RL", False),
             },
             "database": {
-                "connected": True,  # TODO: Implement actual DB check
-                "tables": ["ohlcv", "recommendations", "trades"],  # TODO: Get from DB
+                "connected": db_connected,
+                "tables": tables,
+                "error": db_error,
             },
         }
     )
@@ -177,9 +192,20 @@ def dev_clear_recs():
     try:
         dm = DataManager()
         today = datetime.today().date()
-        # TODO: Implement clearing of recommendations for today
+        deleted = 0
+        with dm.connection() as conn:
+            cursor = conn.execute(
+                "DELETE FROM recommendations WHERE date = ?",
+                (today.isoformat(),),
+            )
+            conn.commit()
+            deleted = cursor.rowcount if cursor.rowcount is not None else 0
         return jsonify(
-            {"status": "OK", "message": f"Cleared recommendations for {today}"}
+            {
+                "status": "OK",
+                "message": f"Cleared recommendations for {today}",
+                "deleted": deleted,
+            }
         )
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)}), 500
@@ -207,6 +233,30 @@ def dev_metrics():
 
         process = psutil.Process(os.getpid())
 
+        dm = DataManager()
+        last_update = None
+        last_run = None
+        next_run = None
+
+        try:
+            with dm.connection() as conn:
+                last_update_row = conn.execute(
+                    "SELECT MAX(date) FROM ohlcv"
+                ).fetchone()
+                last_update = last_update_row[0] if last_update_row else None
+
+                last_run_row = conn.execute(
+                    "SELECT MAX(timestamp) FROM pipeline_metrics"
+                ).fetchone()
+                last_run = last_run_row[0] if last_run_row else None
+        except Exception as e:
+            app.logger.error(f"Dev metrics DB query failed: {e}")
+
+        now = datetime.now()
+        next_run = now.replace(hour=6, minute=0, second=0, microsecond=0)
+        if next_run <= now:
+            next_run = next_run + timedelta(days=1)
+
         return jsonify(
             {
                 "system": {
@@ -215,11 +265,11 @@ def dev_metrics():
                 },
                 "data": {
                     "tickers": Config.get_supported_tickers(),
-                    "last_update": None,  # TODO: Get from DB
+                    "last_update": last_update,
                 },
                 "pipeline": {
-                    "last_run": None,  # TODO: Get from history
-                    "next_run": None,  # TODO: Calculate from schedule
+                    "last_run": last_run,
+                    "next_run": next_run.isoformat() if next_run else None,
                 },
             }
         )
