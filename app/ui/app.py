@@ -240,9 +240,7 @@ def dev_metrics():
 
         try:
             with dm.connection() as conn:
-                last_update_row = conn.execute(
-                    "SELECT MAX(date) FROM ohlcv"
-                ).fetchone()
+                last_update_row = conn.execute("SELECT MAX(date) FROM ohlcv").fetchone()
                 last_update = last_update_row[0] if last_update_row else None
 
                 last_run_row = conn.execute(
