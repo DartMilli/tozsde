@@ -14,6 +14,12 @@
 
 **Raspberry Pi-ra telepítesz?** Kövesd az [deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md](./deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md).
 
+**Gyors egészség‑ellenőrzés?** Futtasd a smoke tesztet:
+
+```
+python -m app.scripts.smoke_test
+```
+
 ---
 
 ## 📂 Dokumentáció Szerkezete

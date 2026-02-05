@@ -165,6 +165,14 @@ class Config:
             d.mkdir(parents=True, exist_ok=True)
 
 
+def _enforce_secret_key_policy():
+    env = os.getenv("FLASK_ENV") or os.getenv("ENV") or "development"
+    env = env.lower()
+    if env in {"production", "prod"}:
+        if not Config.SECRET_KEY or Config.SECRET_KEY == "dev_key_do_not_use_in_prod":
+            raise RuntimeError("SECRET_KEY must be set in production environment")
+
+
 # Inicializáláskor futtatjuk
 try:
     from app.config.pi_config import apply_pi_config
@@ -172,5 +180,7 @@ try:
     apply_pi_config(config_cls=Config, ensure_dirs=False)
 except Exception:
     pass
+
+_enforce_secret_key_policy()
 
 Config.ensure_dirs()

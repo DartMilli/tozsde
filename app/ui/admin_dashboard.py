@@ -32,6 +32,18 @@ def _check_admin_auth():
     return api_key == Config.ADMIN_API_KEY
 
 
+def _parse_positive_int(value, default: int, field_name: str):
+    if value is None:
+        return default, None
+    try:
+        parsed = int(value)
+        if parsed <= 0:
+            return None, f"{field_name} must be positive"
+        return parsed, None
+    except (TypeError, ValueError):
+        return None, f"Invalid {field_name}"
+
+
 @admin_bp.before_request
 def _require_admin_auth():
     """Enforce admin authentication on all admin endpoints."""
@@ -70,7 +82,9 @@ def get_performance_summary():
         JSON: Performance metrics summary
     """
     try:
-        days = int(request.args.get("days", 30))
+        days, err = _parse_positive_int(request.args.get("days"), 30, "days")
+        if err:
+            return jsonify({"error": err}), 400
 
         # Import analytics module
         from app.reporting.performance_analytics import PerformanceAnalytics
@@ -121,7 +135,9 @@ def get_drawdown_analysis():
         JSON: Drawdown statistics
     """
     try:
-        days = int(request.args.get("days", 90))
+        days, err = _parse_positive_int(request.args.get("days"), 90, "days")
+        if err:
+            return jsonify({"error": err}), 400
 
         from app.reporting.performance_analytics import PerformanceAnalytics
 
@@ -178,8 +194,12 @@ def get_rolling_performance():
         JSON: Rolling performance data
     """
     try:
-        days = int(request.args.get("days", 90))
-        window = int(request.args.get("window", 30))
+        days, err = _parse_positive_int(request.args.get("days"), 90, "days")
+        if err:
+            return jsonify({"error": err}), 400
+        window, err = _parse_positive_int(request.args.get("window"), 30, "window")
+        if err:
+            return jsonify({"error": err}), 400
 
         from app.reporting.performance_analytics import PerformanceAnalytics
 
@@ -213,6 +233,47 @@ def get_rolling_performance():
         return jsonify({"error": str(e)}), 500
 
 
+@admin_bp.route("/performance/pyfolio", methods=["GET"])
+def get_pyfolio_report():
+    """
+    Get PyFolio performance report (optional dependency).
+
+    Query params:
+        days: Number of days to analyze (default: 252)
+
+    Returns:
+        JSON: PyFolio metrics and rolling stats
+    """
+    try:
+        days, err = _parse_positive_int(request.args.get("days"), 252, "days")
+        if err:
+            return jsonify({"error": err}), 400
+
+        from app.reporting.performance_analytics import PerformanceAnalytics
+        from app.reporting.pyfolio_report import PyFolioReportGenerator
+        import pandas as pd
+
+        analytics = PerformanceAnalytics(db_path=str(Config.DB_PATH))
+        returns, dates = analytics.load_returns_from_db(days_back=days)
+
+        if not returns:
+            return (
+                jsonify(
+                    {"message": "No performance data available", "period_days": days}
+                ),
+                200,
+            )
+
+        series = pd.Series(returns, index=pd.to_datetime(dates))
+        generator = PyFolioReportGenerator()
+        report = generator.generate_report(series)
+
+        return jsonify(report), 200
+    except Exception as e:
+        logger.error(f"Error getting PyFolio report: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @admin_bp.route("/errors/summary", methods=["GET"])
 def get_error_summary():
     """
@@ -225,7 +286,9 @@ def get_error_summary():
         JSON: Error statistics
     """
     try:
-        hours = int(request.args.get("hours", 24))
+        hours, err = _parse_positive_int(request.args.get("hours"), 24, "hours")
+        if err:
+            return jsonify({"error": err}), 400
 
         from app.infrastructure.error_reporter import ErrorReporter
 
@@ -262,7 +325,9 @@ def get_recent_errors():
         JSON: List of recent errors
     """
     try:
-        limit = int(request.args.get("limit", 50))
+        limit, err = _parse_positive_int(request.args.get("limit"), 50, "limit")
+        if err:
+            return jsonify({"error": err}), 400
         severity_str = request.args.get("severity")
 
         from app.infrastructure.error_reporter import ErrorReporter, ErrorSeverity
@@ -295,7 +360,9 @@ def get_error_trends():
         JSON: Error trend data
     """
     try:
-        days = int(request.args.get("days", 7))
+        days, err = _parse_positive_int(request.args.get("days"), 7, "days")
+        if err:
+            return jsonify({"error": err}), 400
 
         from app.infrastructure.error_reporter import ErrorReporter
 
@@ -362,7 +429,9 @@ def get_no_trade_decisions():
         JSON: No-trade decision statistics
     """
     try:
-        days = int(request.args.get("days", 7))
+        days, err = _parse_positive_int(request.args.get("days"), 7, "days")
+        if err:
+            return jsonify({"error": err}), 400
 
         from app.infrastructure.decision_logger import NoTradeDecisionLogger
 
@@ -387,7 +456,9 @@ def get_strategy_performance():
         JSON: Strategy performance breakdown
     """
     try:
-        days = int(request.args.get("days", 30))
+        days, err = _parse_positive_int(request.args.get("days"), 30, "days")
+        if err:
+            return jsonify({"error": err}), 400
 
         from app.decision.decision_history_analyzer import DecisionHistoryAnalyzer
 

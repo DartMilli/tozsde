@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import hashlib
+from collections import OrderedDict
 
 """
 Támogatott indikátorok:
@@ -167,6 +169,34 @@ def get_indicator_description():
     return technical_indicators_summary
 
 
+_CACHE_MAX = 128
+_indicator_cache = OrderedDict()
+
+
+def _fingerprint_multi(*arrays):
+    hasher = hashlib.blake2b(digest_size=8)
+    total_len = 0
+    for arr in arrays:
+        arr = np.asarray(arr, dtype=float)
+        total_len += arr.shape[0]
+        hasher.update(arr.view(np.uint8))
+    return total_len, hasher.hexdigest()
+
+
+def _cached_result(key, compute_fn):
+    cached = _indicator_cache.get(key)
+    if cached is not None:
+        _indicator_cache.move_to_end(key)
+        return cached
+
+    value = compute_fn()
+    _indicator_cache[key] = value
+    _indicator_cache.move_to_end(key)
+    if len(_indicator_cache) > _CACHE_MAX:
+        _indicator_cache.popitem(last=False)
+    return value
+
+
 def sma(data, period):
     """
     SMA (Simple Moving Average)
@@ -182,9 +212,15 @@ def sma(data, period):
         Erősség: Egyszerű, megbízható trendindikátor
         Gyengeség: Késik a piaci mozgásokhoz képest
     """
-    data = np.asarray(data)
-    sma_vals = np.convolve(data, np.ones(period) / period, mode="valid")
-    return np.concatenate([np.full(period - 1, np.nan), sma_vals])
+    data = np.asarray(data, dtype=float)
+    fingerprint = _fingerprint_multi(data)
+    key = ("sma", fingerprint, period)
+
+    def _compute():
+        sma_vals = np.convolve(data, np.ones(period) / period, mode="valid")
+        return np.concatenate([np.full(period - 1, np.nan), sma_vals])
+
+    return _cached_result(key, _compute)
 
 
 def ema_old(data, period):
@@ -213,7 +249,14 @@ def ema_old(data, period):
 
 def ema(data, period):
     """Pandas optimalizált EMA"""
-    return pd.Series(data).ewm(span=period, adjust=False).mean().values
+    data = np.asarray(data, dtype=float)
+    fingerprint = _fingerprint_multi(data)
+    key = ("ema", fingerprint, period)
+
+    def _compute():
+        return pd.Series(data).ewm(span=period, adjust=False).mean().values
+
+    return _cached_result(key, _compute)
 
 
 def rsi_old(data, period=14):
@@ -231,7 +274,7 @@ def rsi_old(data, period=14):
         Erősség: Jó azonosító extrém zónákban
         Gyengeség: Oldalazásnál sok fals szignál
     """
-    data = np.asarray(data)
+    data = np.asarray(data, dtype=float)
     delta = np.diff(data, prepend=data[0])
     gain = np.maximum(delta, 0)
     loss = -np.minimum(delta, 0)
@@ -250,22 +293,23 @@ def rsi_old(data, period=14):
 
 def rsi(data, period=14):
     """Pandas optimalizált RSI"""
-    delta = pd.Series(data).diff()
-    gain = (delta.where(delta > 0, 0)).fillna(0)
-    loss = (-delta.where(delta < 0, 0)).fillna(0)
+    data = np.asarray(data, dtype=float)
+    fingerprint = _fingerprint_multi(data)
+    key = ("rsi", fingerprint, period)
 
-    # avg_gain = gain.rolling(window=period, min_periods=period).mean()
-    # avg_loss = loss.rolling(window=period, min_periods=period).mean()
+    def _compute():
+        delta = pd.Series(data).diff()
+        gain = (delta.where(delta > 0, 0)).fillna(0)
+        loss = (-delta.where(delta < 0, 0)).fillna(0)
 
-    # Wilder's smoothing (opcionális, de a standard RSI így számol)
-    # Az egyszerűség kedvéért lehet a sima rolling mean, ami gyorsabb.
-    # Ha pontos Wilder kell, akkor ewm-et kell használni:
-    avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
+        avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
 
-    rs = avg_gain / avg_loss
-    rsi_vals = 100 - (100 / (1 + rs))
-    return rsi_vals.fillna(0).values
+        rs = avg_gain / avg_loss
+        rsi_vals = 100 - (100 / (1 + rs))
+        return rsi_vals.fillna(0).values
+
+    return _cached_result(key, _compute)
 
 
 def macd(data, fast=12, slow=26, signal=9):
@@ -283,12 +327,18 @@ def macd(data, fast=12, slow=26, signal=9):
         Erősség: Kombinált trend és momentum indikátor
         Gyengeség: Késleltetett reakció, beállításérzékeny
     """
-    data = np.asarray(data)
-    ema_fast = ema(data, fast)
-    ema_slow = ema(data, slow)
-    macd_line = ema_fast - ema_slow
-    signal_line = ema(macd_line, signal)
-    return macd_line, signal_line
+    data = np.asarray(data, dtype=float)
+    fingerprint = _fingerprint_multi(data)
+    key = ("macd", fingerprint, fast, slow, signal)
+
+    def _compute():
+        ema_fast = ema(data, fast)
+        ema_slow = ema(data, slow)
+        macd_line = ema_fast - ema_slow
+        signal_line = ema(macd_line, signal)
+        return macd_line, signal_line
+
+    return _cached_result(key, _compute)
 
 
 def bbands(data, period=20, std_dev=2):
@@ -306,17 +356,23 @@ def bbands(data, period=20, std_dev=2):
         Erősség: Jól mutatja a piac feszültségét
         Gyengeség: Nincs konkrét irányjelzés
     """
-    data = np.asarray(data)
-    ma = sma(data, period)
-    rolling_std = np.array(
-        [
-            np.std(data[i - period + 1 : i + 1]) if i >= period - 1 else np.nan
-            for i in range(len(data))
-        ]
-    )
-    upper = ma + std_dev * rolling_std
-    lower = ma - std_dev * rolling_std
-    return upper, ma, lower
+    data = np.asarray(data, dtype=float)
+    fingerprint = _fingerprint_multi(data)
+    key = ("bbands", fingerprint, period, float(std_dev))
+
+    def _compute():
+        ma = sma(data, period)
+        rolling_std = np.array(
+            [
+                np.std(data[i - period + 1 : i + 1]) if i >= period - 1 else np.nan
+                for i in range(len(data))
+            ]
+        )
+        upper = ma + std_dev * rolling_std
+        lower = ma - std_dev * rolling_std
+        return upper, ma, lower
+
+    return _cached_result(key, _compute)
 
 
 def atr(high, low, close, period=14):
@@ -333,18 +389,24 @@ def atr(high, low, close, period=14):
         Erősség: Robusztus volatilitásmérő
         Gyengeség: Nem ad irányt, nem szignálgenerátor önmagában
     """
-    high = np.asarray(high)
-    low = np.asarray(low)
-    close = np.asarray(close)
-    tr = np.maximum(
-        high[1:] - low[1:],
-        np.maximum(np.abs(high[1:] - close[:-1]), np.abs(low[1:] - close[:-1])),
-    )
-    atr_vals = np.full_like(close, np.nan, dtype=float)
-    atr_vals[period] = np.mean(tr[:period])
-    for i in range(period + 1, len(close)):
-        atr_vals[i] = (atr_vals[i - 1] * (period - 1) + tr[i - 1]) / period
-    return atr_vals
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
+    fingerprint = _fingerprint_multi(high, low, close)
+    key = ("atr", fingerprint, period)
+
+    def _compute():
+        tr = np.maximum(
+            high[1:] - low[1:],
+            np.maximum(np.abs(high[1:] - close[:-1]), np.abs(low[1:] - close[:-1])),
+        )
+        atr_vals = np.full_like(close, np.nan, dtype=float)
+        atr_vals[period] = np.mean(tr[:period])
+        for i in range(period + 1, len(close)):
+            atr_vals[i] = (atr_vals[i - 1] * (period - 1) + tr[i - 1]) / period
+        return atr_vals
+
+    return _cached_result(key, _compute)
 
 
 def adx(high, low, close, period=14):
@@ -362,68 +424,76 @@ def adx(high, low, close, period=14):
 
         Visszatér: (adx, plus_di, minus_di) numpy tömbökkel. Ha túl rövid az adatsor, akkor NaN-okkal.
     """
-    high = np.asarray(high)
-    low = np.asarray(low)
-    close = np.asarray(close)
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
+    fingerprint = _fingerprint_multi(high, low, close)
+    key = ("adx", fingerprint, period)
 
-    min_len = period * 2 + 1
-    length = len(close)
+    def _compute():
+        min_len = period * 2 + 1
+        length = len(close)
 
-    # Ha túl rövid az adatsor, térjünk vissza NaN-okkal
-    if length < min_len:
-        nan_arr = np.full(length, np.nan)
-        return nan_arr, nan_arr, nan_arr
+        if length < min_len:
+            nan_arr = np.full(length, np.nan)
+            return nan_arr, nan_arr, nan_arr
 
-    up_move = high[1:] - high[:-1]
-    down_move = low[:-1] - low[1:]
+        up_move = high[1:] - high[:-1]
+        down_move = low[:-1] - low[1:]
 
-    plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
-    minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
 
-    tr1 = high[1:] - low[1:]
-    tr2 = np.abs(high[1:] - close[:-1])
-    tr3 = np.abs(low[1:] - close[:-1])
-    tr = np.maximum.reduce([tr1, tr2, tr3])
+        tr1 = high[1:] - low[1:]
+        tr2 = np.abs(high[1:] - close[:-1])
+        tr3 = np.abs(low[1:] - close[:-1])
+        tr = np.maximum.reduce([tr1, tr2, tr3])
 
-    plus_dm_smooth = np.full(length, np.nan)
-    minus_dm_smooth = np.full(length, np.nan)
-    tr_smooth = np.full(length, np.nan)
+        plus_dm_smooth = np.full(length, np.nan)
+        minus_dm_smooth = np.full(length, np.nan)
+        tr_smooth = np.full(length, np.nan)
 
-    plus_dm_smooth[period] = np.sum(plus_dm[:period])
-    minus_dm_smooth[period] = np.sum(minus_dm[:period])
-    tr_smooth[period] = np.sum(tr[:period])
+        plus_dm_smooth[period] = np.sum(plus_dm[:period])
+        minus_dm_smooth[period] = np.sum(minus_dm[:period])
+        tr_smooth[period] = np.sum(tr[:period])
 
-    for i in range(period + 1, length):
-        plus_dm_smooth[i] = (
-            plus_dm_smooth[i - 1] - (plus_dm_smooth[i - 1] / period) + plus_dm[i - 1]
+        for i in range(period + 1, length):
+            plus_dm_smooth[i] = (
+                plus_dm_smooth[i - 1]
+                - (plus_dm_smooth[i - 1] / period)
+                + plus_dm[i - 1]
+            )
+            minus_dm_smooth[i] = (
+                minus_dm_smooth[i - 1]
+                - (minus_dm_smooth[i - 1] / period)
+                + minus_dm[i - 1]
+            )
+            tr_smooth[i] = tr_smooth[i - 1] - (tr_smooth[i - 1] / period) + tr[i - 1]
+
+        plus_di = 100 * np.divide(
+            plus_dm_smooth,
+            tr_smooth,
+            out=np.full_like(plus_dm_smooth, np.nan, dtype=float),
+            where=tr_smooth != 0,
         )
-        minus_dm_smooth[i] = (
-            minus_dm_smooth[i - 1] - (minus_dm_smooth[i - 1] / period) + minus_dm[i - 1]
+        minus_di = 100 * np.divide(
+            minus_dm_smooth,
+            tr_smooth,
+            out=np.full_like(minus_dm_smooth, np.nan, dtype=float),
+            where=tr_smooth != 0,
         )
-        tr_smooth[i] = tr_smooth[i - 1] - (tr_smooth[i - 1] / period) + tr[i - 1]
 
-    plus_di = 100 * np.divide(
-        plus_dm_smooth,
-        tr_smooth,
-        out=np.full_like(plus_dm_smooth, np.nan, dtype=float),
-        where=tr_smooth != 0,
-    )
-    minus_di = 100 * np.divide(
-        minus_dm_smooth,
-        tr_smooth,
-        out=np.full_like(minus_dm_smooth, np.nan, dtype=float),
-        where=tr_smooth != 0,
-    )
+        dx = 100 * np.abs(plus_di - minus_di) / (plus_di + minus_di + 1e-10)
 
-    dx = 100 * np.abs(plus_di - minus_di) / (plus_di + minus_di + 1e-10)
+        adx_vals = np.full(length, np.nan)
+        adx_vals[period * 2] = np.nanmean(dx[period : period * 2])
 
-    adx_vals = np.full(length, np.nan)
-    adx_vals[period * 2] = np.nanmean(dx[period : period * 2])
+        for i in range(period * 2 + 1, length):
+            adx_vals[i] = (adx_vals[i - 1] * (period - 1) + dx[i]) / period
 
-    for i in range(period * 2 + 1, length):
-        adx_vals[i] = (adx_vals[i - 1] * (period - 1) + dx[i]) / period
+        return adx_vals, plus_di, minus_di
 
-    return adx_vals, plus_di, minus_di
+    return _cached_result(key, _compute)
 
 
 def stoch(high, low, close, k_period=14, d_period=3):
@@ -441,22 +511,28 @@ def stoch(high, low, close, k_period=14, d_period=3):
         Erősség: Gyorsan jelez, jól működik ciklikus piacokon
         Gyengeség: Zajos piacon sok fals jel
     """
-    high = np.asarray(high)
-    low = np.asarray(low)
-    close = np.asarray(close)
-    lowest_low = np.array(
-        [
-            np.min(low[i - k_period + 1 : i + 1]) if i >= k_period - 1 else np.nan
-            for i in range(len(low))
-        ]
-    )
-    highest_high = np.array(
-        [
-            np.max(high[i - k_period + 1 : i + 1]) if i >= k_period - 1 else np.nan
-            for i in range(len(high))
-        ]
-    )
-    k = 100 * (close - lowest_low) / (highest_high - lowest_low + 1e-10)
-    d = np.convolve(k[~np.isnan(k)], np.ones(d_period) / d_period, mode="valid")
-    d_full = np.concatenate([np.full(len(k) - len(d), np.nan), d])
-    return k, d_full
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
+    fingerprint = _fingerprint_multi(high, low, close)
+    key = ("stoch", fingerprint, k_period, d_period)
+
+    def _compute():
+        lowest_low = np.array(
+            [
+                np.min(low[i - k_period + 1 : i + 1]) if i >= k_period - 1 else np.nan
+                for i in range(len(low))
+            ]
+        )
+        highest_high = np.array(
+            [
+                np.max(high[i - k_period + 1 : i + 1]) if i >= k_period - 1 else np.nan
+                for i in range(len(high))
+            ]
+        )
+        k = 100 * (close - lowest_low) / (highest_high - lowest_low + 1e-10)
+        d = np.convolve(k[~np.isnan(k)], np.ones(d_period) / d_period, mode="valid")
+        d_full = np.concatenate([np.full(len(k) - len(d), np.nan), d])
+        return k, d_full
+
+    return _cached_result(key, _compute)

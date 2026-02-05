@@ -69,6 +69,21 @@ def log_response(response):
     return response
 
 
+def _parse_date(value: str, field_name: str):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _validate_ticker(ticker: str):
+    if not ticker:
+        return False
+    return ticker.upper() in {t.upper() for t in Config.get_supported_tickers()}
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # DEVELOPMENT ENDPOINTS (only in development mode)
 # ═════════════════════════════════════════════════════════════════════════════
@@ -304,30 +319,35 @@ def index():
 
 @app.route("/chart")
 def chart():
-    ticker = request.args.get("ticker", "VOO")
+    ticker = request.args.get("ticker", "VOO").upper()
+    if not _validate_ticker(ticker):
+        return jsonify({"error": "Invalid ticker"}), 400
 
-    format = "%Y-%m-%d"
-    default_end_date = datetime.today()
-    end = request.args.get("end", default_end_date.strftime(format))
-    try:
-        datetime.strptime(end, format)
-    except ValueError:
-        end = default_end_date.strftime(format)
+    default_end_date = datetime.today().date()
+    end_str = request.args.get("end", default_end_date.strftime("%Y-%m-%d"))
+    end_date = _parse_date(end_str, "end")
+    if not end_date:
+        return jsonify({"error": "Invalid end date. Use YYYY-MM-DD."}), 400
 
-    default_start_date = datetime.strptime(end, format) - timedelta(days=183)
-    start = request.args.get("start", default_start_date.strftime(format))
-    try:
-        datetime.strptime(start, format)
-    except ValueError:
-        start = default_start_date.strftime(format)
+    default_start_date = end_date - timedelta(days=183)
+    start_str = request.args.get("start", default_start_date.strftime("%Y-%m-%d"))
+    start_date = _parse_date(start_str, "start")
+    if not start_date:
+        return jsonify({"error": "Invalid start date. Use YYYY-MM-DD."}), 400
+
+    if start_date > end_date:
+        return jsonify({"error": "Start date must be <= end date."}), 400
 
     df = load_data(
         ticker,
-        datetime.strptime(start, format).date(),
-        datetime.strptime(end, format).date(),
+        start_date,
+        end_date,
     )
     if df is None or df.empty:
-        return f"Nincs elérhető adat a {ticker} tickerhez {start} és {end} között.", 404
+        return (
+            f"Nincs elérhető adat a {ticker} tickerhez {start_date} és {end_date} között.",
+            404,
+        )
     df = sanitize_dataframe(df)
     df.index.name = "Date"
 
@@ -340,11 +360,16 @@ def chart():
 
 @app.route("/history")
 def ticker_history():
-    ticker = request.args.get("ticker")
+    ticker = request.args.get("ticker", "").upper()
     start = request.args.get("start")
     end = request.args.get("end")
-    if not ticker:
-        return "Hiányzó ticker", 400
+    if not _validate_ticker(ticker):
+        return jsonify({"error": "Invalid ticker"}), 400
+
+    if start and not _parse_date(start, "start"):
+        return jsonify({"error": "Invalid start date. Use YYYY-MM-DD."}), 400
+    if end and not _parse_date(end, "end"):
+        return jsonify({"error": "Invalid end date. Use YYYY-MM-DD."}), 400
 
     dm = DataManager()
     history = dm.get_ticker_historical_recommendations(ticker, start, end)
@@ -358,9 +383,16 @@ def indicator_description():
 
 @app.route("/report")
 def report():
-    ticker = request.args.get("ticker", "VOO")
+    ticker = request.args.get("ticker", "VOO").upper()
     start = request.args.get("start", "2022-01-01")
     end = request.args.get("end", "2025-01-01")
+
+    if not _validate_ticker(ticker):
+        return jsonify({"error": "Invalid ticker"}), 400
+    if not _parse_date(start, "start"):
+        return jsonify({"error": "Invalid start date. Use YYYY-MM-DD."}), 400
+    if not _parse_date(end, "end"):
+        return jsonify({"error": "Invalid end date. Use YYYY-MM-DD."}), 400
 
     df = load_data(ticker, start, end)
     if df is None or df.empty:
@@ -385,6 +417,23 @@ def report():
         report=report,
         equity_image=equity_img,
         drawdown_image=drawdown_img,
+    )
+
+
+@app.route("/params")
+def params_view():
+    ticker = request.args.get("ticker", "VOO").upper()
+    if not _validate_ticker(ticker):
+        return jsonify({"error": "Invalid ticker"}), 400
+
+    params = get_params(ticker)
+    tickers = Config.get_supported_tickers()
+
+    return render_template(
+        "params.html",
+        ticker=ticker,
+        params=params,
+        tickers=tickers,
     )
 
 
@@ -454,6 +503,9 @@ def admin_metrics():
         # Query parameters
         hours = request.args.get("hours", 24, type=int)
         date = request.args.get("date", None, type=str)
+
+        if date and not _parse_date(date, "date"):
+            return jsonify({"error": "Invalid date. Use YYYY-MM-DD."}), 400
 
         if date:
             # Specific date summary

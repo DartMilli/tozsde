@@ -756,5 +756,52 @@ tests/
 
 ---
 
+## SPRINT 12: Stability & Validation (P0/P9) 🟡 PLANNED
+
+**Timeline:** 2026-02-05 to 2026-02-11
+**Objective:** Close P0/P9 gaps (input validation, SECRET_KEY policy, smoke test)
+
+### Scope
+- Enforce input validation on all public Flask endpoints
+- Enforce SECRET_KEY policy (no default in production)
+- Add smoke test script (DB connectivity + core pipeline sanity)
+
+### Deliverables
+- Request validation layer (schemas or explicit checks)
+- Startup guardrails for secrets
+- `scripts/smoke_test.py` + documentation
+
+### Exit Criteria
+- All public routes reject invalid input with clear errors
+- Production startup fails fast without a valid SECRET_KEY
+- Smoke test runs clean on CI/dev
+
+---
+
+## SPRINT 13: Performance & Learning Integrations (P2/P8/P3) 🟡 PLANNED
+
+**Timeline:** 2026-02-12 to 2026-02-20
+**Objective:** Close P2/P3/P8 gaps (caching, reporting, RL strategy selection, PyFolio)
+
+### Scope
+- Indicator/fitness memoization
+- Parameter visualization in reporting UI
+- RL strategy selection wiring (not just logging)
+- PyFolio integration (optional dependency + graceful fallback)
+
+### Deliverables
+- Cache layer for indicators/fitness
+- Parameter report view/endpoint
+- RL decision refinement step
+- PyFolio report entry point + requirements update
+
+### Exit Criteria
+- Optimization runtime improves measurably
+- UI exposes parameter summaries
+- RL selection influences decision path
+- PyFolio report can be generated when installed
+
+---
+
 **Last Updated:** 2026-02-04  
 **Next Review:** Before Sprint 12 kickoff

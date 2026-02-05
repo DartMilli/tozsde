@@ -14,6 +14,12 @@
 
 **Deploying to Raspberry Pi?** Follow [deployment/RASPBERRY_PI_SETUP_GUIDE.md](./deployment/RASPBERRY_PI_SETUP_GUIDE.md).
 
+**Running a quick health check?** Run the smoke test:
+
+```
+python -m app.scripts.smoke_test
+```
+
 ---
 
 ## 📂 Documentation Structure
