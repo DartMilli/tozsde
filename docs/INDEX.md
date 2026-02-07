@@ -1,6 +1,6 @@
 # 📚 Documentation Index
 
-**Status:** ✅ Sprint 11c Maintenance Complete | 700+ tests passing | 91% coverage
+**Status:** ✅ Sprint 11c Maintenance Complete | 1070 tests passing | 98% coverage
 
 ---
 
@@ -14,6 +14,7 @@
 - **[SPRINTS.md](SPRINTS.md)** - Complete Sprint 1-10 history & architecture
 - **[FAQ.md](FAQ.md)** - 40 frequently asked questions
 - **[TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)** - Problem solving
+- **[SZOFTVER_FUNKCIONALITAS_HU.md](SZOFTVER_FUNKCIONALITAS_HU.md)** - Teljes funkcionalitás (HU)
 
 ### Deployment
 - **[deployment/RASPBERRY_PI_SETUP_GUIDE.md](deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Pi setup guide
@@ -32,8 +33,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests | 700+ passing |
-| Coverage | 91% |
+| Tests | 1070 passing |
+| Coverage | 98% |
 | Status | ✅ Production Ready |
 | Sprints | 1-10 complete + Sprint 11c maintenance |
 

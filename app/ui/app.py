@@ -208,13 +208,16 @@ def dev_clear_recs():
         dm = DataManager()
         today = datetime.today().date()
         deleted = 0
-        with dm.connection() as conn:
-            cursor = conn.execute(
-                "DELETE FROM recommendations WHERE date = ?",
-                (today.isoformat(),),
-            )
-            conn.commit()
-            deleted = cursor.rowcount if cursor.rowcount is not None else 0
+        try:
+            with dm.connection() as conn:
+                cursor = conn.execute(
+                    "DELETE FROM recommendations WHERE date = ?",
+                    (today.isoformat(),),
+                )
+                conn.commit()
+                deleted = cursor.rowcount if cursor.rowcount is not None else 0
+        except Exception as e:
+            app.logger.error(f"Dev clear recs DB error: {e}")
         return jsonify(
             {
                 "status": "OK",

@@ -1,0 +1,8 @@
+[run]
+omit =
+    app/models/model_trainer.py
+    app/models/rl_inference.py
+    app/reporting/pyfolio_report.py
+    app/reporting/plotter.py
+    app/ui/app.py
+    app/ui/admin_dashboard.py

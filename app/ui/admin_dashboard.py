@@ -253,7 +253,10 @@ def get_pyfolio_report():
         from app.reporting.pyfolio_report import PyFolioReportGenerator
         import pandas as pd
 
-        analytics = PerformanceAnalytics(db_path=str(Config.DB_PATH))
+        try:
+            analytics = PerformanceAnalytics(db_path=str(Config.DB_PATH))
+        except TypeError:
+            analytics = PerformanceAnalytics()
         returns, dates = analytics.load_returns_from_db(days_back=days)
 
         if not returns:

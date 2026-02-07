@@ -264,7 +264,7 @@ if __name__ == "__main__":
     for ticker in tickers:
         logger.info(f"Loading data for {ticker}...")
         df = load_data(ticker, start="2020-01-01", end="2025-06-30")
-        signals, indicators = compute_signals(df, ticker)
+        signals, indicators = compute_signals(df, ticker, params=None)
         if signals:
             logger.info("Trading signals:\n%s", "\n".join(signals))
         else:

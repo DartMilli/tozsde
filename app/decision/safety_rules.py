@@ -105,8 +105,10 @@ class SafetyRuleEngine:
         failures = [not o["success"] for o in outcomes]
         return all(failures)
 
-    def _is_bear_market(self, current_date) -> bool:  # Új paraméter!
+    def _is_bear_market(self, current_date=None) -> bool:  # Új paraméter!
         # Simple caching: Ha ugyanaz a nap, ne kérdezzük le újra az adatbázist
+        if current_date is None:
+            current_date = date.today()
         if self.last_check_date == current_date:
             return self.is_bear_cache
 

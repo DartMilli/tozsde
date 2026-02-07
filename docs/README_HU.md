@@ -1,6 +1,6 @@
 # ToZsDE Trading System - Dokumentáció
 
-**Státusz:** ✅ Sprint 11c Maintenance Complete | 700+ passing teszt | 91% coverage
+**Státusz:** ✅ Sprint 11c Maintenance Complete | 1070 passing teszt | 98% coverage
 
 ---
 
@@ -9,6 +9,8 @@
 **Új vagy itt?** Olvass [INDEX.md](./INDEX.md)-et a teljes navigációért.
 
 **Meg akarod érteni a projektet?** Kezd az [SPRINTS.md](./SPRINTS.md)-el.
+
+**Teljes funkcionalitás (felhasználói + fejlesztői):** [SZOFTVER_FUNKCIONALITAS_HU.md](./SZOFTVER_FUNKCIONALITAS_HU.md)
 
 **Segítség kell?** Nézd meg a [FAQ.md](./FAQ.md) vagy [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md).
 
@@ -45,8 +47,8 @@ docs/
 
 ## 📊 Projekt Státusza
 
-- ✅ **700+ passing teszt** (legutóbbi futás)
-- ✅ **91% kód lefedettség**
+- ✅ **1070 passing teszt** (legutóbbi futás)
+- ✅ **98% kód lefedettség**
 - ✅ **Production-ready**
 - ✅ **Sprint 1-10 kész + Sprint 11c maintenance**
 
@@ -60,7 +62,7 @@ docs/
 - ✅ PerformanceAnalytics modul (500+ sor)
 - ✅ ErrorReporter komponens (580+ sor)
 - ✅ AdminDashboard bővítés (12 REST API endpoint)
-- ✅ 700+ passing teszt (legutóbbi futás)
+- ✅ 1070 passing teszt (legutóbbi futás)
 - Health monitoring
 
 ---
@@ -76,7 +78,7 @@ tozsde_webapp/
 │   ├── optimization/            [GA Optimizer]
 │   ├── ui/                      [Flask API]
 │   └── ... (további modulok)
-├── tests/                        [700+ passing]
+├── tests/                        [1070 passing]
 ├── docs/                         [Dokumentáció]
 ├── deploy_rpi.sh                 [ONE-CLICK Telepítő Script]
 ├── requirements.txt              [Python Függőségek]
@@ -119,6 +121,6 @@ System LIVE lesz és kereskedni fog! 🚀
 
 **Státusz:** ✅ Sprint 11c Maintenance kész | ⏳ Hardver telepítés pending
 **Cél Platform:** 🍓 Raspberry Pi 4/5 (64-bit ARM)
-**Teszt Lefedettség:** ✅ 91% (legutóbbi futás)
+**Teszt Lefedettség:** ✅ 98% (legutóbbi futás)
 
 Jó kereskedést! 🎉

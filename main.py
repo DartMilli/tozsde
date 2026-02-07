@@ -89,7 +89,7 @@ def run_daily(dry_run: bool = False, ticker: str = None):
     dm = DataManager()
 
     # Select tickers to process
-    tickers_to_process = [ticker] if ticker else Config.TICKERS
+    tickers_to_process = [ticker] if ticker else Config.get_supported_tickers()
 
     # 1. GYŰJTÉS FÁZIS - Generate recommendations for each ticker
     daily_candidates = []
@@ -247,7 +247,7 @@ def run_weekly(dry_run: bool = False):
 
         logger.info(f"Analysis period: {start} to {end}")
 
-        for ticker_symbol in Config.TICKERS:
+        for ticker_symbol in Config.get_supported_tickers():
             try:
                 scores = analyzer.analyze(
                     ticker=ticker_symbol,
@@ -295,7 +295,7 @@ def run_monthly(dry_run: bool = False):
     logger.info(f"MONTHLY retraining cycle started (dry_run={dry_run})")
     logger.info("=" * 80)
 
-    for ticker_symbol in Config.TICKERS:
+    for ticker_symbol in Config.get_supported_tickers():
         try:
             logger.info(f"\nProcessing {ticker_symbol}...")
 
