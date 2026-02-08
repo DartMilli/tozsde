@@ -187,4 +187,16 @@ def run_walk_forward(ticker: str):
             "mutpb": 0.2,
         },
     )
-    return wf.run()
+    result = wf.run()
+    if result:
+        try:
+            from app.data_access.data_manager import DataManager
+            import json
+
+            DataManager().save_walk_forward_result(
+                ticker=ticker,
+                result_json=json.dumps(result, default=str),
+            )
+        except Exception:
+            pass
+    return result

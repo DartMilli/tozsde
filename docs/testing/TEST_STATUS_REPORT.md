@@ -1,18 +1,73 @@
 # Test & Code Quality Status Report
 
-## ✅ Current Status (2026-02-06)
+## ✅ Current Status (2026-02-08)
 
-- **Sprint:** 11c Maintenance
-- **Tests:** **1070 passed**
-- **Coverage:** **98%** (full suite)
+- **Sprint:** 12 Stabilization + Validation
+- **Tests:** **1070 passed, 0 failed**
+- **Coverage:** **Not measured in latest run** (last full suite: 98%)
 - **Status:** ✅ Clean suite
-- **Notes:** Latest run on Windows (venv). If venv issues occur, use scripts/rebuild_venv.ps1
+- **Notes:** Full pytest rerun on Windows (venv) after fixes. If venv issues occur, use scripts/rebuild_venv.ps1
 
 ### Latest Commands
 
 ```
-python -m pytest --cov=app --cov=main --cov-report=term-missing
+python -m pytest
 ```
+
+<!-- VALIDATION_START -->
+# Validation Report
+
+## Validation Snapshot
+- **Ticker:** VOO
+- **Date range:** 2020-01-01 → 2024-01-01
+- **Scenario:** elevated_volatility
+
+## Decision Quality
+```json
+{
+  "metrics": {
+    "status": "no_data",
+    "scope": {
+      "ticker": "VOO",
+      "start_date": "2020-01-01",
+      "end_date": "2024-01-01",
+      "rows": 0
+    }
+  }
+}
+```
+
+## Confidence Calibration
+```json
+{
+  "params": {},
+  "metrics": {
+    "status": "no_data"
+  }
+}
+```
+
+## WF Stability
+```json
+{
+  "metrics": {
+    "status": "no_data",
+    "ticker": "VOO"
+  }
+}
+```
+
+## Safety Stress
+```json
+{
+  "results": {
+    "status": "no_data",
+    "scenario": "elevated_volatility"
+  }
+}
+```
+
+<!-- VALIDATION_END -->
 
 ---
 

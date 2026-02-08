@@ -107,6 +107,16 @@ pytest tests/test_file.py --pdb
 pytest tests/test_file.py -s
 ```
 
+### Q10b: How do I run the Phase 5 validation suite?
+**A:**
+```bash
+# Run validation and embed results into the test status report
+python scripts/run_tests_with_report.py --with-validation --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
+
+# Repeatability check
+python main.py validate --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01 --repeat 2 --compare-repeat
+```
+
 ---
 
 ## Deployment

@@ -1,7 +1,10 @@
+import logging
 from datetime import date, timedelta
 from app.config.config import Config
 from app.data_access.data_loader import get_market_volatility_index
 from app.data_access.data_manager import DataManager
+
+logger = logging.getLogger(__name__)
 
 
 class SafetyRuleEngine:
@@ -13,6 +16,7 @@ class SafetyRuleEngine:
         self.history_store = history_store
         self.last_check_date = None
         self.is_bear_cache = False
+        self._drawdown_disabled_logged = False
 
     def apply(
         self,
@@ -94,6 +98,13 @@ class SafetyRuleEngine:
         return len(trade_actions) >= Config.COOLDOWN_MAX_TRADES
 
     def _recent_drawdown(self, ticker: str) -> bool:
+        if not Config.ENABLE_DRAWDOWN_GUARD:
+            if not self._drawdown_disabled_logged:
+                logger.info(
+                    "Drawdown guard disabled (ENABLE_DRAWDOWN_GUARD=false); skipping check."
+                )
+                self._drawdown_disabled_logged = True
+            return False
         # simple version: last N outcomes all failed
         outcomes = self.history_store.load_recent_outcomes(
             ticker,

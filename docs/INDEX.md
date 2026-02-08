@@ -1,6 +1,6 @@
 # 📚 Documentation Index
 
-**Status:** ✅ Sprint 11c Maintenance Complete | 1070 tests passing | 98% coverage
+**Status:** ✅ Sprint 12 Stabilization + Validation Complete | 1070 tests passing | 98% coverage
 
 ---
 
@@ -15,6 +15,7 @@
 - **[FAQ.md](FAQ.md)** - 40 frequently asked questions
 - **[TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)** - Problem solving
 - **[SZOFTVER_FUNKCIONALITAS_HU.md](SZOFTVER_FUNKCIONALITAS_HU.md)** - Teljes funkcionalitás (HU)
+- **[ARCH_REVIEW.md](ARCH_REVIEW.md)** - Architecture review (living)
 
 ### Deployment
 - **[deployment/RASPBERRY_PI_SETUP_GUIDE.md](deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Pi setup guide
@@ -22,10 +23,11 @@
 - **[deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Post-deployment verification
 
 ### Testing
-- **[testing/TEST_STATUS_REPORT.md](./testing/TEST_STATUS_REPORT.md)** - Test metrics & coverage
+- **[testing/TEST_STATUS_REPORT.md](./testing/TEST_STATUS_REPORT.md)** - Test metrics & coverage (includes validation snapshot)
 
 ### Development
 - **[SPRINTS.md](SPRINTS.md)** - Sprint history (single source)
+- **Validation:** Run `python main.py validate` for Phase 5 reports
 
 ---
 
@@ -36,7 +38,7 @@
 | Tests | 1070 passing |
 | Coverage | 98% |
 | Status | ✅ Production Ready |
-| Sprints | 1-10 complete + Sprint 11c maintenance |
+| Sprints | 1-10 complete + Sprint 11c maintenance + Sprint 12 validation |
 
 ---
 

@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 import logging
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict
 from app.config.config import Config
 from contextlib import contextmanager
@@ -88,15 +88,32 @@ class DataManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT,
                     ticker TEXT,
+                    model_id TEXT,
                     action_code INTEGER,
                     action_label TEXT,
                     confidence REAL,
                     wf_score REAL,
                     decision_blob TEXT,
-                    audit_blob TEXT
+                    audit_blob TEXT,
+                    explanation_json TEXT,
+                    model_votes_json TEXT,
+                    safety_overrides_json TEXT
                 )
             """
             )
+            # Ensure new columns exist for existing DBs
+            existing_cols = {
+                row[1]
+                for row in cur.execute("PRAGMA table_info(decision_history)").fetchall()
+            }
+            required_cols = {
+                "model_id",
+                "explanation_json",
+                "model_votes_json",
+                "safety_overrides_json",
+            }
+            for col in required_cols - existing_cols:
+                cur.execute(f"ALTER TABLE decision_history ADD COLUMN {col} TEXT")
             # Market metadata (e.g., VIX / IRX)
             cur.execute(
                 """
@@ -108,10 +125,151 @@ class DataManager:
             )"""
             )
 
+            # Outcomes linked to decisions
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS outcomes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    decision_id INTEGER UNIQUE,
+                    ticker TEXT,
+                    decision_timestamp TEXT,
+                    pnl_pct REAL,
+                    success INTEGER,
+                    future_return REAL,
+                    evaluated_at TEXT,
+                    exit_reason TEXT,
+                    horizon_days INTEGER,
+                    outcome_json TEXT,
+                    FOREIGN KEY(decision_id) REFERENCES decision_history(id)
+                )
+                """
+            )
+            existing_outcome_cols = {
+                row[1] for row in cur.execute("PRAGMA table_info(outcomes)").fetchall()
+            }
+            if "exit_reason" not in existing_outcome_cols:
+                cur.execute("ALTER TABLE outcomes ADD COLUMN exit_reason TEXT")
+            if "horizon_days" not in existing_outcome_cols:
+                cur.execute("ALTER TABLE outcomes ADD COLUMN horizon_days INTEGER")
+
+            # Portfolio state snapshots (paper/live/backtest)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS portfolio_state (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT,
+                    cash REAL,
+                    equity REAL,
+                    pnl_pct REAL,
+                    positions_json TEXT,
+                    source TEXT
+                )
+                """
+            )
+
+            # Decision quality metrics
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS decision_quality_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT,
+                    start_date TEXT,
+                    end_date TEXT,
+                    computed_at TEXT,
+                    metrics_json TEXT
+                )
+                """
+            )
+
+            # Confidence calibration parameters
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS confidence_calibration (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT,
+                    start_date TEXT,
+                    end_date TEXT,
+                    method TEXT,
+                    computed_at TEXT,
+                    params_json TEXT,
+                    metrics_json TEXT
+                )
+                """
+            )
+
+            # Walk-forward results and stability metrics
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS walk_forward_results (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT,
+                    computed_at TEXT,
+                    result_json TEXT
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS wf_stability_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT,
+                    computed_at TEXT,
+                    metrics_json TEXT
+                )
+                """
+            )
+
+            # Safety stress test results
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS safety_stress_results (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT,
+                    start_date TEXT,
+                    end_date TEXT,
+                    scenario TEXT,
+                    computed_at TEXT,
+                    results_json TEXT
+                )
+                """
+            )
+
+            # Unified validation reports
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS validation_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    computed_at TEXT,
+                    report_json TEXT
+                )
+                """
+            )
+
             # Indexek a teljesítmény javítására
             cur.execute("CREATE INDEX IF NOT EXISTS idx_ohlcv_ticker ON ohlcv(ticker)")
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_dh_ticker_ts ON decision_history(ticker, timestamp)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_outcomes_ticker_ts ON outcomes(ticker, decision_timestamp)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_portfolio_ts ON portfolio_state(timestamp)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_dqm_ticker ON decision_quality_metrics(ticker)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_calibration_ticker ON confidence_calibration(ticker)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_wf_results_ticker ON walk_forward_results(ticker)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_wf_metrics_ticker ON wf_stability_metrics(ticker)"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_stress_ticker ON safety_stress_results(ticker)"
             )
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_rec_date ON recommendations(date)"
@@ -203,32 +361,86 @@ class DataManager:
                 df.columns = [c.capitalize() for c in df.columns]
             return df
 
+    def load_ohlcv_batch(self, tickers, start_date=None) -> Dict[str, pd.DataFrame]:
+        """
+        Batch load OHLCV data for multiple tickers.
+        Returns: {ticker: DataFrame}
+        """
+        if not tickers:
+            return {}
+
+        placeholders = ",".join(["?"] * len(tickers))
+        params = list(tickers)
+        query = f"SELECT * FROM ohlcv WHERE ticker IN ({placeholders})"
+
+        if start_date:
+            query += " AND date >= ?"
+            params.append(
+                start_date.isoformat()
+                if hasattr(start_date, "isoformat")
+                else str(start_date)
+            )
+
+        query += " ORDER BY date ASC"
+
+        with self._get_conn() as conn:
+            df = pd.read_sql(query, conn, params=params, parse_dates=["date"])
+
+        if df.empty:
+            return {}
+
+        out = {}
+        for tkr, group in df.groupby("ticker"):
+            group = group.copy()
+            group.set_index("date", inplace=True)
+            group.columns = [c.capitalize() for c in group.columns]
+            out[tkr] = group
+        return out
+
     # --- DÖNTÉSI ELŐZMÉNYEK (History & Audit) ---
 
     def save_history_record(
-        self, ticker, action_code, label, confidence, wf_score, d_blob, a_blob
+        self,
+        ticker,
+        action_code,
+        label,
+        confidence,
+        wf_score,
+        d_blob,
+        a_blob,
+        model_id=None,
+        explanation_json=None,
+        model_votes_json=None,
+        safety_overrides_json=None,
+        timestamp: str = None,
     ):
         """Enkapszulált mentés a history táblába."""
         query = """
             INSERT INTO decision_history 
-            (timestamp, ticker, action_code, action_label, confidence, wf_score, decision_blob, audit_blob)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (timestamp, ticker, model_id, action_code, action_label, confidence, wf_score, decision_blob, audit_blob,
+             explanation_json, model_votes_json, safety_overrides_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         with self._get_conn() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 query,
                 (
-                    datetime.now(timezone.utc).isoformat(),
+                    timestamp or datetime.now(timezone.utc).isoformat(),
                     ticker,
+                    model_id,
                     action_code,
                     label,
                     confidence,
                     wf_score,
                     d_blob,
                     a_blob,
+                    explanation_json or "{}",
+                    model_votes_json or "[]",
+                    safety_overrides_json or "{}",
                 ),
             )
             conn.commit()
+            return cursor.lastrowid
 
     def get_history_range(self, ticker, start_iso, end_iso):
         """Lekérdezi a korábbi döntéseket egy adott időintervallumban."""
@@ -271,14 +483,18 @@ class DataManager:
     def get_correlation_matrix(self, tickers, lookback_days=90, ref_date=None):
         combined_data = {}
 
+        start_date = None
+        if ref_date:
+            start_date = pd.Timestamp(ref_date) - timedelta(days=lookback_days * 2)
+
+        batch = self.load_ohlcv_batch(tickers, start_date=start_date)
+
         for t in tickers:
-            df = self.load_ohlcv(t)
-            if not df.empty:
-                # Időbeli vágás
+            df = batch.get(t)
+            if df is not None and not df.empty:
                 if ref_date:
                     df = df[df.index <= pd.Timestamp(ref_date)]
 
-                # Csak a vágás után vesszük a végét!
                 combined_data[t] = df["Close"].tail(lookback_days)
 
         if not combined_data:
@@ -364,7 +580,8 @@ class DataManager:
             rows = conn.execute(
                 """
                 SELECT timestamp, ticker, action_code, action_label,
-                       confidence, wf_score, decision_blob, audit_blob
+                       model_id, confidence, wf_score, decision_blob, audit_blob,
+                       explanation_json, model_votes_json, safety_overrides_json
                 FROM decision_history
                 WHERE ticker = ?
                 ORDER BY timestamp ASC
@@ -372,13 +589,38 @@ class DataManager:
                 (ticker,),
             ).fetchall()
         out = []
-        for ts, tkr, ac, al, conf, wf, d_blob, a_blob in rows:
+        for (
+            ts,
+            tkr,
+            model_id,
+            ac,
+            al,
+            conf,
+            wf,
+            d_blob,
+            a_blob,
+            explanation_json,
+            model_votes_json,
+            safety_overrides_json,
+        ) in rows:
             out.append(
                 {
                     "timestamp": ts,
                     "ticker": tkr,
+                    "model_id": model_id,
                     "decision": json.loads(d_blob) if d_blob else {},
                     "audit": json.loads(a_blob) if a_blob else {},
+                    "explanation": (
+                        json.loads(explanation_json) if explanation_json else {}
+                    ),
+                    "model_votes": (
+                        json.loads(model_votes_json) if model_votes_json else []
+                    ),
+                    "safety_overrides": (
+                        json.loads(safety_overrides_json)
+                        if safety_overrides_json
+                        else {}
+                    ),
                 }
             )
         return out
@@ -399,11 +641,275 @@ class DataManager:
         return rows
 
     def fetch_recent_outcomes(self, ticker: str, n: int = 3) -> List[Dict]:
+        query = """
+            SELECT pnl_pct, success, future_return, evaluated_at, exit_reason, horizon_days, outcome_json
+            FROM outcomes
+            WHERE ticker = ?
+            ORDER BY decision_timestamp DESC
+            LIMIT ?
         """
-        Placeholder: project snapshot does not define a persistent 'outcomes' table.
-        Return empty list to avoid blocking SafetyRuleEngine.
+        with self._get_conn() as conn:
+            rows = conn.execute(query, (ticker, n)).fetchall()
+        out = []
+        for (
+            pnl_pct,
+            success,
+            future_return,
+            evaluated_at,
+            exit_reason,
+            horizon_days,
+            outcome_json,
+        ) in rows:
+            out.append(
+                {
+                    "pnl_pct": pnl_pct,
+                    "success": bool(success) if success is not None else None,
+                    "future_return": future_return,
+                    "evaluated_at": evaluated_at,
+                    "exit_reason": exit_reason,
+                    "horizon_days": horizon_days,
+                    "details": json.loads(outcome_json) if outcome_json else {},
+                }
+            )
+        return out
+
+    def save_outcome(
+        self,
+        decision_id: int,
+        ticker: str,
+        decision_timestamp: str,
+        pnl_pct: float,
+        success: bool,
+        future_return: float,
+        exit_reason: str,
+        horizon_days: int,
+        outcome_json: str,
+    ) -> None:
+        query = """
+            INSERT OR REPLACE INTO outcomes
+            (decision_id, ticker, decision_timestamp, pnl_pct, success, future_return, evaluated_at,
+             exit_reason, horizon_days, outcome_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        return []
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    decision_id,
+                    ticker,
+                    decision_timestamp,
+                    pnl_pct,
+                    int(bool(success)),
+                    future_return,
+                    datetime.now(timezone.utc).isoformat(),
+                    exit_reason,
+                    horizon_days,
+                    outcome_json,
+                ),
+            )
+            conn.commit()
+
+    def save_portfolio_state(
+        self,
+        timestamp: str,
+        cash: float,
+        equity: float,
+        pnl_pct: float,
+        positions_json: str,
+        source: str,
+    ) -> None:
+        query = """
+            INSERT INTO portfolio_state
+            (timestamp, cash, equity, pnl_pct, positions_json, source)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (timestamp, cash, equity, pnl_pct, positions_json, source),
+            )
+            conn.commit()
+
+    def fetch_portfolio_state_range(self, start_iso: str, end_iso: str) -> List[Dict]:
+        query = """
+            SELECT timestamp, cash, equity, pnl_pct, positions_json, source
+            FROM portfolio_state
+            WHERE timestamp >= ? AND timestamp <= ?
+            ORDER BY timestamp ASC
+        """
+        with self._get_conn() as conn:
+            rows = conn.execute(query, (start_iso, end_iso)).fetchall()
+        out = []
+        for ts, cash, equity, pnl_pct, positions_json, source in rows:
+            out.append(
+                {
+                    "timestamp": ts,
+                    "cash": cash,
+                    "equity": equity,
+                    "pnl_pct": pnl_pct,
+                    "positions": json.loads(positions_json) if positions_json else {},
+                    "source": source,
+                }
+            )
+        return out
+
+    def fetch_latest_portfolio_state(self, source: str = None) -> Dict:
+        query = """
+            SELECT timestamp, cash, equity, pnl_pct, positions_json, source
+            FROM portfolio_state
+        """
+        params = []
+        if source:
+            query += " WHERE source = ?"
+            params.append(source)
+        query += " ORDER BY timestamp DESC LIMIT 1"
+
+        with self._get_conn() as conn:
+            row = conn.execute(query, params).fetchone()
+
+        if not row:
+            return {}
+
+        ts, cash, equity, pnl_pct, positions_json, src = row
+        return {
+            "timestamp": ts,
+            "cash": cash,
+            "equity": equity,
+            "pnl_pct": pnl_pct,
+            "positions": json.loads(positions_json) if positions_json else {},
+            "source": src,
+        }
+
+    # --- Phase 5 analytics persistence ---
+
+    def save_decision_quality_metrics(
+        self, ticker: str, start_date: str, end_date: str, metrics_json: str
+    ) -> None:
+        query = """
+            INSERT INTO decision_quality_metrics
+            (ticker, start_date, end_date, computed_at, metrics_json)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    ticker,
+                    start_date,
+                    end_date,
+                    datetime.now(timezone.utc).isoformat(),
+                    metrics_json,
+                ),
+            )
+            conn.commit()
+
+    def save_confidence_calibration(
+        self,
+        ticker: str,
+        start_date: str,
+        end_date: str,
+        method: str,
+        params_json: str,
+        metrics_json: str,
+    ) -> None:
+        query = """
+            INSERT INTO confidence_calibration
+            (ticker, start_date, end_date, method, computed_at, params_json, metrics_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    ticker,
+                    start_date,
+                    end_date,
+                    method,
+                    datetime.now(timezone.utc).isoformat(),
+                    params_json,
+                    metrics_json,
+                ),
+            )
+            conn.commit()
+
+    def save_walk_forward_result(self, ticker: str, result_json: str) -> None:
+        query = """
+            INSERT INTO walk_forward_results
+            (ticker, computed_at, result_json)
+            VALUES (?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (ticker, datetime.now(timezone.utc).isoformat(), result_json),
+            )
+            conn.commit()
+
+    def save_wf_stability_metrics(self, ticker: str, metrics_json: str) -> None:
+        query = """
+            INSERT INTO wf_stability_metrics
+            (ticker, computed_at, metrics_json)
+            VALUES (?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (ticker, datetime.now(timezone.utc).isoformat(), metrics_json),
+            )
+            conn.commit()
+
+    def save_safety_stress_results(
+        self,
+        ticker: str,
+        start_date: str,
+        end_date: str,
+        scenario: str,
+        results_json: str,
+    ) -> None:
+        query = """
+            INSERT INTO safety_stress_results
+            (ticker, start_date, end_date, scenario, computed_at, results_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    ticker,
+                    start_date,
+                    end_date,
+                    scenario,
+                    datetime.now(timezone.utc).isoformat(),
+                    results_json,
+                ),
+            )
+            conn.commit()
+
+    def save_validation_report(self, report_json: str) -> None:
+        query = """
+            INSERT INTO validation_reports
+            (computed_at, report_json)
+            VALUES (?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (datetime.now(timezone.utc).isoformat(), report_json),
+            )
+            conn.commit()
+
+    def fetch_latest_validation_report(self) -> Dict:
+        query = """
+            SELECT report_json
+            FROM validation_reports
+            ORDER BY computed_at DESC
+            LIMIT 1
+        """
+        with self._get_conn() as conn:
+            row = conn.execute(query).fetchone()
+        if not row:
+            return {}
+        return json.loads(row[0])
 
     # ---------- Convenience connection() ----------
 
@@ -438,17 +944,21 @@ class DataManager:
 
     def get_unevaluated_buy_decisions(self, limit=100):
         """P8: Visszaadja azokat a vételi döntéseket, amiknél még nincs outcome beírva."""
-        # Mivel JSON-ben van az outcome, LIKE-kal keresünk (nem szép, de sémaváltás nélkül ez van)
         query = """
-            SELECT id, timestamp, ticker, audit_blob 
-            FROM decision_history 
-            WHERE action_code = 1 
-              AND audit_blob NOT LIKE '%"outcome"%'
-            ORDER BY timestamp DESC
+            SELECT dh.id, dh.timestamp, dh.ticker, dh.audit_blob
+            FROM decision_history dh
+            LEFT JOIN outcomes o ON o.decision_id = dh.id
+            WHERE dh.action_code = 1 AND o.decision_id IS NULL
+              AND (dh.audit_blob IS NULL OR dh.audit_blob NOT LIKE '%"outcome"%')
+            ORDER BY dh.timestamp DESC
             LIMIT ?
         """
         with self._get_conn() as conn:
             return conn.execute(query, (limit,)).fetchall()
+
+    def get_top_models(self, ticker: str, limit: int = 3):
+        """Compatibility stub for RL model discovery (DB-driven implementations can override)."""
+        return []
 
     def update_history_audit(self, row_id, new_audit_blob):
         """P8: Frissíti egy korábbi döntés audit logját (pl. eredménnyel)."""

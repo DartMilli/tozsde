@@ -52,6 +52,8 @@ default_params = {
     "stoch_d": 3,
 }
 
+_PARAMS_CACHE = {"mtime": None, "data": None}
+
 # Paraméterek határai
 param_bounds = {
     "sma_period": (5, 50),
@@ -73,14 +75,23 @@ def get_params(ticker):
     try:
         PARAMS_FILE = Config.PARAMS_FILE_PATH
 
-        with open(PARAMS_FILE, "r") as f:
-            params_all = json.load(f)
-            if ticker not in params_all:
-                logging.warning(
-                    f"No optimized parameters found for {ticker}; using default values."
-                )
-                return get_default_params()
-            params = params_all[ticker]
+        try:
+            mtime = PARAMS_FILE.stat().st_mtime
+        except Exception:
+            mtime = None
+
+        if _PARAMS_CACHE["data"] is None or _PARAMS_CACHE["mtime"] != mtime:
+            with open(PARAMS_FILE, "r") as f:
+                _PARAMS_CACHE["data"] = json.load(f)
+                _PARAMS_CACHE["mtime"] = mtime
+
+        params_all = _PARAMS_CACHE["data"] or {}
+        if ticker not in params_all:
+            logging.warning(
+                f"No optimized parameters found for {ticker}; using default values."
+            )
+            return get_default_params()
+        params = params_all[ticker]
         # Az stddev értéke lehet, hogy int-ként mentődött, de float kell
         if "bbands_stddev" in params:
             params["bbands_stddev"] = float(params["bbands_stddev"])

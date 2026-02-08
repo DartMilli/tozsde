@@ -1,6 +1,6 @@
 # ToZsDE Trading System - Documentation
 
-**Status:** ✅ Sprint 11c Maintenance Complete | 1070 tests passing | 98% coverage
+**Status:** ✅ Sprint 12 Stabilization + Validation Complete | 1070 tests passing | 98% coverage
 
 ---
 
@@ -9,6 +9,8 @@
 **New here?** Read [INDEX.md](./INDEX.md) for complete navigation.
 
 **Want to understand the project?** Start with [SPRINTS.md](./SPRINTS.md).
+
+**Looking for architecture review?** See [ARCH_REVIEW.md](./ARCH_REVIEW.md).
 
 **Need help?** Check [FAQ.md](./FAQ.md) or [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md).
 
@@ -48,7 +50,7 @@ docs/
 - ✅ **1070 tests passing** (latest run)
 - ✅ **98% code coverage**
 - ✅ **Production-ready**
-- ✅ **Sprints 1-10 complete + Sprint 11c maintenance**
+- ✅ **Sprints 1-10 complete + Sprint 11c maintenance + Sprint 12 validation**
 
 **Cleanup completed (2026-02-02):**
 - ✅ Removed: START_HERE.txt, CLEANUP_SUMMARY.md, 04_infrastructure/ (empty)
@@ -107,7 +109,32 @@ SPRINT 3 (Portfolio Optimization):
 - **SPRINT 7:** ✅ **COMPLETE** (21/21 tests) - Portfolio Optimization with ETF Support
 - **SPRINT 8:** ✅ **COMPLETE** (78/78 tests) - Capital Efficiency Optimization
 - **SPRINT 9:** ✅ **COMPLETE** (17/17 tests) - Product Hardening & Analytics
+- **SPRINT 12:** ✅ **COMPLETE** - Stabilization + Validation Tooling
 - **TOTAL:** ✅ **1070 PASSED (98% COVERAGE)**
+
+---
+
+## ✅ Validation (Phase 5)
+
+Run full validation (decision quality, calibration, WF stability, safety stress):
+
+```
+python main.py validate --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
+```
+
+Repeatability check (same DB snapshot):
+
+```
+python main.py validate --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01 --repeat 2 --compare-repeat
+```
+
+## 🧪 Tests + Validation Report
+
+Append validation snapshot into the test status report:
+
+```
+python scripts/run_tests_with_report.py --with-validation --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
+```
 
 ---
 

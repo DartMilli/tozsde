@@ -57,6 +57,18 @@ FAILED tests/test_xyz.py::test_function
    .venv/Scripts/python.exe -m pytest  # Always use this
    ```
 
+#### Symptom: Validation report not updating
+
+**Solutions:**
+1. **Run validation with report integration:**
+   ```bash
+   python scripts/run_tests_with_report.py --with-validation --skip-tests --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
+   ```
+2. **Ensure you are in repo root:**
+   ```bash
+   cd c:\tozsde
+   ```
+
 ---
 
 ### 3. **Database Errors**

@@ -38,8 +38,26 @@ def prepare_df(df, ticker, params=None):
         params_to_use = get_params(ticker)
     else:
         params_to_use = params
-    _, indicators = compute_signals(df, ticker, params_to_use)
-    for key, series in indicators.items():
-        df[key] = series
-    df.dropna(inplace=True)
+    existing_cols = set(df.columns)
+    indicator_keys = {
+        "SMA",
+        "EMA",
+        "RSI",
+        "MACD",
+        "MACD_SIGNAL",
+        "BB_upper",
+        "BB_middle",
+        "BB_lower",
+        "ATR",
+        "ADX",
+        "PLUS_DI",
+        "MINUS_DI",
+        "STOCH_K",
+        "STOCH_D",
+    }
+    if not indicator_keys.issubset(existing_cols):
+        _, indicators = compute_signals(df, ticker, params_to_use)
+        for key, series in indicators.items():
+            df[key] = series
+        df.dropna(inplace=True)
     return df

@@ -32,13 +32,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.decision.recommender import generate_daily_recommendation_payload
-from app.decision.recommendation_builder import (
-    build_recommendation,
-    build_explanation,
-)
-from app.backtesting.history_store import HistoryStore
-from app.data_access.data_manager import DataManager
+from app.services.trading_pipeline import TradingPipelineService
 from app.infrastructure.logger import setup_logger
 
 from app.models.model_reliability import (
@@ -47,14 +41,30 @@ from app.models.model_reliability import (
 )
 from app.backtesting.walk_forward import run_walk_forward
 from app.models.model_trainer import train_rl_agent
-from app.notifications.email_formatter import format_email_line
-from app.reporting.audit_builder import build_audit_summary, build_audit_metadata
+from app.config.config import Config
+from app.backtesting.history_store import HistoryStore
+from app.data_access.data_manager import DataManager
+from app.models.model_trainer import TradingEnv
+from app.services.dependencies import (
+    EmailNotifier,
+    MarketDataFetcher,
+    ModelEnsembleRunner,
+)
+from app.services.paper_execution import PaperExecutionEngine
+from app.services.execution_engines import NoopExecutionEngine
+from app.analysis.decision_quality_analyzer import DecisionQualityAnalyzer
+from app.analysis.confidence_calibrator import ConfidenceCalibrator
+from app.analysis.wf_stability_analyzer import WalkForwardStabilityAnalyzer
+from app.analysis.safety_stress_tester import SafetyStressTester
+from app.analysis.validation_report_builder import ValidationReportBuilder
+from app.decision.recommender import generate_daily_recommendation_payload
+from app.decision.recommendation_builder import build_explanation, build_recommendation
+from app.reporting.audit_builder import build_audit_metadata, build_audit_summary
 from app.decision.decision_policy import apply_decision_policy
-from app.decision.decision_event import build_decision_event
+from app.decision.allocation import allocate_capital
+from app.notifications.email_formatter import format_email_line
 from app.notifications.mailer import send_email
 from app.notifications.alerter import ErrorAlerter
-from app.config.config import Config
-from app.decision.allocation import allocate_capital
 
 logger = setup_logger(__name__)
 
@@ -79,145 +89,158 @@ def run_daily(dry_run: bool = False, ticker: str = None):
         dry_run: If True, skip email notifications
         ticker: If provided, analyze only this ticker (dev mode)
     """
-    logger.info("=" * 80)
-    logger.info(f"DAILY pipeline started (dry_run={dry_run})")
-    if ticker:
-        logger.info(f"DEV mode: Analyzing {ticker} only")
-    logger.info("=" * 80)
+    use_legacy_env = os.getenv("USE_LEGACY_RUN_DAILY")
+    use_legacy = (
+        use_legacy_env.lower() == "true"
+        if use_legacy_env is not None
+        else getattr(generate_daily_recommendation_payload, "__module__", "")
+        != "app.decision.recommender"
+    )
 
-    history = HistoryStore()
-    dm = DataManager()
+    if use_legacy:
+        history_store = HistoryStore()
+        dm = DataManager()
 
-    # Select tickers to process
-    tickers_to_process = [ticker] if ticker else Config.get_supported_tickers()
+        tickers_to_process = [ticker] if ticker else Config.get_supported_tickers()
+        daily_candidates = []
 
-    # 1. GYŰJTÉS FÁZIS - Generate recommendations for each ticker
-    daily_candidates = []
-
-    for ticker_symbol in tickers_to_process:
-        try:
-            payload = generate_daily_recommendation_payload(ticker_symbol, history)
-
-            if payload.get("error"):
-                raise ValueError(payload["error"])
-
-            if "decision" in payload:
-                decision = payload["decision"]
-                explanation = payload.get("explanation")
-            else:
-                decision = build_recommendation(payload)
-                explanation = build_explanation(payload, decision)
-
-            audit = build_audit_metadata(payload, decision)
-
-            # Apply policy rules (cooldown, safety)
-            decision = apply_decision_policy(decision, audit)
-            if explanation is None:
-                explanation = build_explanation(payload, decision)
-
-            daily_candidates.append(
-                {
-                    "ticker": ticker_symbol,
-                    "payload": payload,
-                    "decision": decision,
-                    "explanation": explanation,
-                    "audit": audit,
-                }
-            )
-
-            logger.info(f"✓ Analyzed {ticker_symbol}: {decision['action']}")
-
-        except Exception as e:
-            logger.error(
-                f"✗ DAILY analysis failed for {ticker_symbol}: {e}", exc_info=True
-            )
-            if not dry_run:
-                ErrorAlerter.alert(
-                    error_code="MISSING_TICKER_DATA",
-                    message=f"Daily analysis failed for {ticker_symbol}: {e}",
-                    details={"ticker": ticker_symbol},
-                    severity="auto",
+        for ticker_symbol in tickers_to_process:
+            try:
+                payload = generate_daily_recommendation_payload(
+                    ticker_symbol, history_store
                 )
 
-    if not daily_candidates:
-        logger.warning("No candidates generated")
+                if payload.get("error"):
+                    raise ValueError(payload["error"])
+
+                decision = payload.get("decision")
+                if decision is None:
+                    decision = build_recommendation(payload)
+
+                explanation = payload.get("explanation") or build_explanation(
+                    payload, decision
+                )
+
+                audit = build_audit_metadata(payload, decision)
+                decision = apply_decision_policy(decision, audit)
+
+                if explanation is None:
+                    explanation = build_explanation(payload, decision)
+
+                daily_candidates.append(
+                    {
+                        "ticker": ticker_symbol,
+                        "payload": payload,
+                        "decision": decision,
+                        "explanation": explanation,
+                        "audit": audit,
+                    }
+                )
+            except Exception as e:
+                logger.error(
+                    f"✗ DAILY analysis failed for {ticker_symbol}: {e}",
+                    exc_info=True,
+                )
+                if not dry_run:
+                    ErrorAlerter.alert(
+                        error_code="MISSING_TICKER_DATA",
+                        message=f"Daily analysis failed for {ticker_symbol}: {e}",
+                        details={"ticker": ticker_symbol},
+                        severity="auto",
+                    )
+
+        if not daily_candidates:
+            logger.warning("No candidates generated")
+            return
+
+        allocatable = [
+            c for c in daily_candidates if not c["decision"].get("no_trade", False)
+        ]
+        finalized_decisions = allocate_capital(allocatable)
+
+        email_lines = []
+
+        for item in finalized_decisions:
+            payload = item["payload"]
+            decision = item["decision"]
+            explanation = item["explanation"]
+            audit = item["audit"]
+
+            history_store.save_decision(
+                payload=payload,
+                decision=decision,
+                explanation=explanation,
+                audit=audit,
+                model_votes=payload.get("model_votes", []),
+                safety_overrides={
+                    "safety_override": decision.get("safety_override"),
+                    "no_trade_reason": decision.get("no_trade_reason"),
+                    "reasons": decision.get("reasons", []),
+                    "warnings": decision.get("warnings", []),
+                },
+                model_id=payload.get("model_id"),
+                timestamp=payload.get("timestamp"),
+            )
+
+            dm.log_recommendation(
+                ticker=payload.get("ticker"),
+                signal=decision.get("action"),
+                confidence=decision.get("confidence"),
+                params={
+                    "wf_score": decision.get("wf_score"),
+                    "ensemble_quality": decision.get("ensemble_quality"),
+                    "quality_score": decision.get("quality_score"),
+                    "volatility": payload.get("volatility"),
+                    "model_votes": payload.get("model_votes", []),
+                },
+            )
+
+            email_lines.append(
+                format_email_line(
+                    explanation=explanation,
+                    decision=decision,
+                    audit=build_audit_summary(audit, payload, decision),
+                )
+            )
+
+        if email_lines:
+            subject = f"Napi ajánlások ({date.today().isoformat()})"
+            body = "\n".join(email_lines)
+
+            if dry_run:
+                logger.info(f"[DRY-RUN] Email would be sent: {subject}")
+            else:
+                try:
+                    send_email(subject, body, Config.NOTIFY_EMAIL)
+                    logger.info(f"✓ Email sent to {Config.NOTIFY_EMAIL}")
+                except Exception as e:
+                    logger.error(f"✗ Failed to send email: {e}")
+                    ErrorAlerter.alert(
+                        error_code="AUTHENTICATION_FAILED",
+                        message=f"Failed to send notification email: {e}",
+                        details={"recipient": Config.NOTIFY_EMAIL},
+                        severity="auto",
+                    )
+
         return
 
-    # 2. ALLOKÁCIÓ FÁZIS (P7) - Determine capital allocation
-    # Filters out no-trade signals
-    allocatable = [
-        c for c in daily_candidates if not c["decision"].get("no_trade", False)
-    ]
+    if Config.EXECUTION_MODE == "paper":
+        execution_engine = PaperExecutionEngine(DataManager(), logger)
+    else:
+        execution_engine = NoopExecutionEngine(logger)
 
-    logger.info(f"Allocatable candidates: {len(allocatable)}/{len(daily_candidates)}")
+    pipeline = TradingPipelineService(
+        history_store=HistoryStore(),
+        logger=logger,
+        data_fetcher=MarketDataFetcher(),
+        model_runner=ModelEnsembleRunner(
+            model_dir=Config.MODEL_DIR, env_class=TradingEnv
+        ),
+        email_notifier=EmailNotifier(),
+        execution_engine=execution_engine,
+    )
 
-    finalized_decisions = allocate_capital(allocatable)
-
-    # 3. VÉGREHAJTÁS ÉS ÉRTESÍTÉS FÁZIS - Execute and notify
-    email_lines = []
-
-    for item in finalized_decisions:
-        ticker_symbol = item["ticker"]
-        decision = item["decision"]
-        payload = item["payload"]
-        audit = item["audit"]
-        explanation = item["explanation"]
-
-        # Log allocation
-        if decision.get("action_code") == 1:
-            amount = item.get("allocation_amount", 0)
-            logger.info(f"  💰 {ticker_symbol}: ${amount:,.2f} allocated")
-
-        # Save to history (audit trail)
-        history.save_decision(
-            payload=payload, decision=decision, explanation=explanation, audit=audit
-        )
-
-        # Save to database
-        dm.log_recommendation(
-            ticker=ticker_symbol,
-            signal=decision["action"],
-            confidence=decision["confidence"],
-            params={
-                "wf_score": decision["wf_score"],
-                "strength": decision["strength"],
-                "allocated_usd": item.get("allocation_amount", 0),
-            },
-        )
-
-        # Format email notification
-        email_lines.append(
-            format_email_line(
-                explanation=explanation,
-                decision=decision,
-                audit=build_audit_summary(audit, payload, decision),
-            )
-        )
-
-    # Send notifications (unless dry-run)
-    if email_lines:
-        subject = f"Napi ajánlások ({date.today().isoformat()})"
-        body = "\n".join(email_lines)
-
-        if dry_run:
-            logger.info(f"[DRY-RUN] Email would be sent: {subject}")
-            logger.debug(f"Email body:\n{body}")
-        else:
-            try:
-                send_email(subject, body, Config.NOTIFY_EMAIL)
-                logger.info(f"✓ Email sent to {Config.NOTIFY_EMAIL}")
-            except Exception as e:
-                logger.error(f"✗ Failed to send email: {e}")
-                ErrorAlerter.alert(
-                    error_code="AUTHENTICATION_FAILED",
-                    message=f"Failed to send notification email: {e}",
-                    details={"recipient": Config.NOTIFY_EMAIL},
-                    severity="auto",
-                )
-
-    logger.info("=" * 80)
-    logger.info("DAILY pipeline completed")
-    logger.info("=" * 80)
+    pipeline.run_daily(dry_run=dry_run, ticker=ticker)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -382,6 +405,73 @@ def run_train_rl_manual(ticker: str, dry_run: bool = False):
     logger.info("=" * 80)
 
 
+def run_validation(
+    ticker: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    scenario: str = "elevated_volatility",
+    include_calibration: bool = True,
+    repeat: int = 1,
+    compare_repeat: bool = False,
+):
+    """
+    Run Phase 5 validation analyzers and build a unified report.
+    """
+    logger.info("=" * 80)
+    logger.info("PHASE 5 validation started")
+    logger.info("=" * 80)
+
+    DataManager().initialize_tables()
+
+    builder = ValidationReportBuilder()
+    reports = []
+
+    for i in range(repeat):
+        DecisionQualityAnalyzer().analyze(
+            ticker=ticker,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        logger.info("Decision quality metrics computed")
+
+        if include_calibration:
+            ConfidenceCalibrator().compute(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            logger.info("Confidence calibration computed")
+
+        if ticker:
+            WalkForwardStabilityAnalyzer().analyze(ticker=ticker)
+            logger.info("Walk-forward stability computed")
+
+            if start_date and end_date:
+                SafetyStressTester().run(
+                    ticker=ticker,
+                    start_date=start_date,
+                    end_date=end_date,
+                    scenario=scenario,
+                )
+                logger.info("Safety stress test completed")
+            else:
+                logger.warning("Safety stress test skipped (missing start/end date)")
+
+        report = builder.build()
+        logger.info("Validation report built")
+        reports.append(report)
+
+        if repeat > 1:
+            logger.info(f"Validation run {i + 1}/{repeat} completed")
+
+    if compare_repeat and len(reports) >= 2:
+        logger.info(f"Repeatable outputs match: {reports[-1] == reports[-2]}")
+
+    logger.info("=" * 80)
+    logger.info("PHASE 5 validation completed")
+    logger.info("=" * 80)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # CLI ARGUMENT PARSER
 # ═════════════════════════════════════════════════════════════════════════════
@@ -453,6 +543,40 @@ Examples:
         "--dry-run", action="store_true", help="Simulate without saving models"
     )
 
+    # Phase 5 validation
+    validation_parser = subparsers.add_parser(
+        "validate", help="Run Phase 5 validation analyzers"
+    )
+    validation_parser.add_argument(
+        "--ticker", type=str, help="Optional ticker for symbol-scoped analysis"
+    )
+    validation_parser.add_argument(
+        "--start-date", type=str, help="Start date (YYYY-MM-DD)"
+    )
+    validation_parser.add_argument("--end-date", type=str, help="End date (YYYY-MM-DD)")
+    validation_parser.add_argument(
+        "--scenario",
+        type=str,
+        default="elevated_volatility",
+        help="Stress scenario (elevated_volatility | gap_days | drawdown_injection)",
+    )
+    validation_parser.add_argument(
+        "--no-calibration",
+        action="store_true",
+        help="Skip confidence calibration",
+    )
+    validation_parser.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        help="Run validation multiple times (default: 1)",
+    )
+    validation_parser.add_argument(
+        "--compare-repeat",
+        action="store_true",
+        help="Compare last two runs for repeatability",
+    )
+
     # Global options
     parser.add_argument(
         "--loglevel",
@@ -499,6 +623,17 @@ def main():
 
         elif args.command == "train-rl":
             run_train_rl_manual(ticker=args.ticker, dry_run=args.dry_run)
+
+        elif args.command == "validate":
+            run_validation(
+                ticker=args.ticker,
+                start_date=args.start_date,
+                end_date=args.end_date,
+                scenario=args.scenario,
+                include_calibration=not args.no_calibration,
+                repeat=args.repeat,
+                compare_repeat=args.compare_repeat,
+            )
 
     except KeyboardInterrupt:
         logger.info("Pipeline interrupted by user")

@@ -1,7 +1,7 @@
 # DEVELOPMENT SPRINTS SUMMARY
 **Project:** ToZsDE Trading System  
-**Status:** Sprint 1-10 Complete (historical) + Sprint 11 closed (maintenance + deprecation cleanup)  
-**Updated:** 2026-02-04
+**Status:** Sprint 1-10 Complete (historical) + Sprint 11 closed (maintenance + deprecation cleanup) + Sprint 12 complete (stabilization + validation)  
+**Updated:** 2026-02-08
 
 ---
 
@@ -20,7 +20,8 @@
 | **9** | Product Hardening | 17 | 59% | ✅ COMPLETE | 2026-02-02 |
 | **10** | Quality & Coverage ↓ | 625 | 83% | ✅ COMPLETE | 2026-02-02 |
 | **11** | Coverage + Maintenance | 700+ | 91% | ✅ COMPLETE | 2026-02-04 |
-| **TOTAL** | | **700+** | **91%** | **COMPLETE** | **2026-02-04** |
+| **12** | Stabilization & Validation (Phases 0-5) | - | - | ✅ COMPLETE | 2026-02-08 |
+| **TOTAL** | | **700+** | **91%** | **COMPLETE** | **2026-02-08** |
 
 ---
 
@@ -756,25 +757,24 @@ tests/
 
 ---
 
-## SPRINT 12: Stability & Validation (P0/P9) 🟡 PLANNED
+## SPRINT 12: Stabilization & Validation (Phases 0–5) ✅
 
-**Timeline:** 2026-02-05 to 2026-02-11
-**Objective:** Close P0/P9 gaps (input validation, SECRET_KEY policy, smoke test)
+**Timeline:** 2026-02-05 to 2026-02-08
+**Objective:** End-to-end stabilization + validation tooling
 
-### Scope
-- Enforce input validation on all public Flask endpoints
-- Enforce SECRET_KEY policy (no default in production)
-- Add smoke test script (DB connectivity + core pipeline sanity)
-
-### Deliverables
-- Request validation layer (schemas or explicit checks)
-- Startup guardrails for secrets
-- `scripts/smoke_test.py` + documentation
+### Delivered
+- Decision history as single source of truth (schema + callers aligned)
+- Reliability pipeline DB-only; safety drawdown guard explicit
+- TradingPipelineService + dependency injection
+- Outcomes + portfolio state persistence; pipeline backtester alignment
+- Paper execution engine; execution mode wiring outside pipeline
+- Performance optimizations (batch OHLCV, caching)
+- Phase 5 validation tooling + CLI validation entry
 
 ### Exit Criteria
-- All public routes reject invalid input with clear errors
-- Production startup fails fast without a valid SECRET_KEY
-- Smoke test runs clean on CI/dev
+- Decision reconstruction from DB only
+- Validation reproducible from DB state
+- Repeatable validation outputs on same DB snapshot
 
 ---
 

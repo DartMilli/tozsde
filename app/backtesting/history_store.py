@@ -27,7 +27,6 @@ class HistoryStore:
     Responsibility:
         - Persist finalized daily decisions
         - Append-only storage
-        - Monthly JSON partitioning
         - NO business logic
         - NO calculations
         - NO interpretation
@@ -50,6 +49,10 @@ class HistoryStore:
         decision: Dict,
         explanation: Dict,
         audit: Dict,
+        model_votes: list = None,
+        safety_overrides: Dict = None,
+        model_id=None,
+        timestamp=None,
     ) -> None:
         """
         Persist one finalized decision.
@@ -63,15 +66,19 @@ class HistoryStore:
         explanation : Dict
             Human-readable explanation (HU / EN)
         """
-        self.dm.save_history_record(
+        return self.dm.save_history_record(
             ticker=payload.get("ticker"),
+            model_id=model_id,
             action_code=decision.get("action_code"),
             label=decision.get("action"),
             confidence=decision.get("confidence"),
             wf_score=decision.get("wf_score"),
             d_blob=json.dumps(decision, default=str),
             a_blob=json.dumps(audit, default=str),
-            e_blob=json.dumps(explanation, default=str),
+            explanation_json=json.dumps(explanation, default=str),
+            model_votes_json=json.dumps(model_votes or [], default=str),
+            safety_overrides_json=json.dumps(safety_overrides or {}, default=str),
+            timestamp=timestamp or payload.get("timestamp"),
         )
         # record = {
         #    "timestamp": datetime.utcnow().isoformat(),

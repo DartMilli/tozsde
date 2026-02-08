@@ -108,6 +108,18 @@ A pipeline célja, hogy **friss piaci adatokból stabil, auditált ajánlásokat
    - Backup.
    - Régi mentések törlése.
 
+### 4.4 Validációs pipeline (Phase 5)
+- **Döntési minőség**: confidence bucket alapú hit rate és hozam metrikák.
+- **Kalibráció**: confidence → valószínűség (isotonic) + ECE/Brier.
+- **WF stabilitás**: paraméter variancia és konzisztencia.
+- **Safety stress**: extrém szcenáriók (volatilítás, gap, drawdown).
+- **Riport**: egyesített validációs jelentés a teszt riportban.
+
+Futtatás:
+```
+python scripts/run_tests_with_report.py --with-validation --skip-tests --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
+```
+
 ### 4.2 Heti pipeline
 - **Model reliability**: döntések és outcome-ok alapján megbízhatósági score.
 - **Drift detection**: romló teljesítmény észlelése.

@@ -327,27 +327,46 @@ class DecisionHistoryAnalyzer:
             cutoff_date = datetime.now() - timedelta(days=days)
 
             query = """
-                SELECT timestamp, ticker, audit_data 
-                FROM decision_history 
-                WHERE timestamp >= ? AND action_code = 1
+                SELECT dh.timestamp, dh.ticker, dh.audit_blob, o.pnl_pct
+                FROM decision_history dh
+                LEFT JOIN outcomes o ON o.decision_id = dh.id
+                WHERE dh.timestamp >= ? AND dh.action_code = 1
             """
-            cur.execute(query, (cutoff_date.isoformat(),))
-            rows = cur.fetchall()
+            try:
+                cur.execute(query, (cutoff_date.isoformat(),))
+                rows = cur.fetchall()
+            except sqlite3.OperationalError:
+                fallback_query = """
+                    SELECT dh.timestamp, dh.ticker, dh.audit_data, NULL as pnl_pct
+                    FROM decision_history dh
+                    WHERE dh.timestamp >= ? AND dh.action_code = 1
+                """
+                cur.execute(fallback_query, (cutoff_date.isoformat(),))
+                rows = cur.fetchall()
 
             conn.close()
 
             decisions = []
-            for timestamp, ticker, audit_blob in rows:
+            for timestamp, ticker, audit_blob, pnl_pct in rows:
                 try:
                     audit = json.loads(audit_blob) if audit_blob else {}
                     # Filter by strategy name (if stored in audit data)
                     if audit.get("strategy") == strategy_name or strategy_name == "ALL":
+                        outcome = None
+                        if pnl_pct is not None:
+                            outcome = {"pnl_pct": pnl_pct}
+                        else:
+                            audit_outcome = audit.get("outcome")
+                            if isinstance(audit_outcome, dict):
+                                pnl_val = audit_outcome.get("pnl_pct")
+                                if pnl_val is not None:
+                                    outcome = {"pnl_pct": pnl_val}
                         decisions.append(
                             {
                                 "timestamp": timestamp,
                                 "ticker": ticker,
                                 "strategy": audit.get("strategy", "UNKNOWN"),
-                                "outcome": audit.get("outcome"),
+                                "outcome": outcome,
                             }
                         )
                 except json.JSONDecodeError:
@@ -368,25 +387,46 @@ class DecisionHistoryAnalyzer:
             cutoff_date = datetime.now() - timedelta(days=days)
 
             query = """
-                SELECT timestamp, audit_data 
-                FROM decision_history 
-                WHERE ticker = ? AND timestamp >= ? AND action_code = 1
+                SELECT dh.timestamp, dh.audit_blob, dh.confidence, o.pnl_pct
+                FROM decision_history dh
+                LEFT JOIN outcomes o ON o.decision_id = dh.id
+                WHERE dh.ticker = ? AND dh.timestamp >= ? AND dh.action_code = 1
             """
-            cur.execute(query, (ticker, cutoff_date.isoformat()))
-            rows = cur.fetchall()
+            try:
+                cur.execute(query, (ticker, cutoff_date.isoformat()))
+                rows = cur.fetchall()
+            except sqlite3.OperationalError:
+                fallback_query = """
+                    SELECT dh.timestamp, dh.audit_data, NULL as confidence, NULL as pnl_pct
+                    FROM decision_history dh
+                    WHERE dh.ticker = ? AND dh.timestamp >= ? AND dh.action_code = 1
+                """
+                cur.execute(fallback_query, (ticker, cutoff_date.isoformat()))
+                rows = cur.fetchall()
 
             conn.close()
 
             decisions = []
-            for timestamp, audit_blob in rows:
+            for timestamp, audit_blob, confidence, pnl_pct in rows:
                 try:
                     audit = json.loads(audit_blob) if audit_blob else {}
+                    outcome = None
+                    if pnl_pct is not None:
+                        outcome = {"pnl_pct": pnl_pct}
+                    else:
+                        audit_outcome = audit.get("outcome")
+                        if isinstance(audit_outcome, dict):
+                            pnl_val = audit_outcome.get("pnl_pct")
+                            if pnl_val is not None:
+                                outcome = {"pnl_pct": pnl_val}
+                    if confidence is None:
+                        confidence = audit.get("confidence", 0.5)
                     decisions.append(
                         {
                             "timestamp": timestamp,
                             "ticker": ticker,
-                            "outcome": audit.get("outcome"),
-                            "confidence": audit.get("confidence", 0.5),
+                            "outcome": outcome,
+                            "confidence": confidence if confidence is not None else 0.5,
                         }
                     )
                 except json.JSONDecodeError:
@@ -407,24 +447,43 @@ class DecisionHistoryAnalyzer:
             cutoff_date = datetime.now() - timedelta(days=days)
 
             query = """
-                SELECT timestamp, ticker, audit_data 
-                FROM decision_history 
-                WHERE timestamp >= ? AND action_code = 1
+                SELECT dh.timestamp, dh.ticker, dh.audit_blob, o.pnl_pct
+                FROM decision_history dh
+                LEFT JOIN outcomes o ON o.decision_id = dh.id
+                WHERE dh.timestamp >= ? AND dh.action_code = 1
             """
-            cur.execute(query, (cutoff_date.isoformat(),))
-            rows = cur.fetchall()
+            try:
+                cur.execute(query, (cutoff_date.isoformat(),))
+                rows = cur.fetchall()
+            except sqlite3.OperationalError:
+                fallback_query = """
+                    SELECT dh.timestamp, dh.ticker, dh.audit_data, NULL as pnl_pct
+                    FROM decision_history dh
+                    WHERE dh.timestamp >= ? AND dh.action_code = 1
+                """
+                cur.execute(fallback_query, (cutoff_date.isoformat(),))
+                rows = cur.fetchall()
 
             conn.close()
 
             decisions = []
-            for timestamp, ticker, audit_blob in rows:
+            for timestamp, ticker, audit_blob, pnl_pct in rows:
                 try:
                     audit = json.loads(audit_blob) if audit_blob else {}
+                    outcome = None
+                    if pnl_pct is not None:
+                        outcome = {"pnl_pct": pnl_pct}
+                    else:
+                        audit_outcome = audit.get("outcome")
+                        if isinstance(audit_outcome, dict):
+                            pnl_val = audit_outcome.get("pnl_pct")
+                            if pnl_val is not None:
+                                outcome = {"pnl_pct": pnl_val}
                     decisions.append(
                         {
                             "timestamp": timestamp,
                             "ticker": ticker,
-                            "outcome": audit.get("outcome"),
+                            "outcome": outcome,
                         }
                     )
                 except json.JSONDecodeError:

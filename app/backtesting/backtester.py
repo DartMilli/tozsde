@@ -84,6 +84,9 @@ class Backtester:
         if hasattr(signals, "tolist"):
             signals = signals.tolist()
 
+        buy_flags = [s == "BUY" for s in signals]
+        sell_flags = [s == "SELL" for s in signals]
+
         cash = self.initial_capital
         shares = 0
         portfolio_values = []
@@ -92,26 +95,27 @@ class Backtester:
         open_trade = None  # aktuális nyitott pozíció
         total_cost = 0.0
 
+        fee_pct = self.fee_pct
+        slippage_pct = self.slippage_pct
+        spread_pct = self.spread_pct
+
         closes = self.df["Close"].values
         dates = self.df.index
 
         # --- A TE EREDETI LOGIKÁD OPTIMALIZÁLVA ---
         for i in range(len(self.df)):
             price = closes[i]
-            # Mai jel
-            signal_today = signals[i]
-
             # Portfólió érték rögzítése (tranzakció előtt)
             current_val = cash + (shares * price)
             portfolio_values.append(current_val)
 
             # VÉTEL
-            if "BUY" in signal_today and cash > price:
-                buy_price = price * (1 + self.slippage_pct + self.spread_pct / 2)
+            if buy_flags[i] and cash > price:
+                buy_price = price * (1 + slippage_pct + spread_pct / 2)
                 max_shares = int(cash / buy_price)
                 if max_shares > 0:
                     cost = max_shares * buy_price
-                    commission = cost * self.fee_pct
+                    commission = cost * fee_pct
                     if cash >= (cost + commission):
                         cash -= cost + commission
                         shares += max_shares
@@ -123,10 +127,10 @@ class Backtester:
                         }
 
             # ELADÁS
-            elif "SELL" in signal_today and shares > 0:
-                sell_price = price * (1 - self.slippage_pct - self.spread_pct / 2)
+            elif sell_flags[i] and shares > 0:
+                sell_price = price * (1 - slippage_pct - spread_pct / 2)
                 revenue = shares * sell_price
-                commission = revenue * self.fee_pct
+                commission = revenue * fee_pct
                 cash += revenue - commission
                 shares = 0
                 trade_count += 1

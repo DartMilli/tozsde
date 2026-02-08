@@ -18,8 +18,15 @@ class Config:
     ENABLE_RL = os.getenv("ENABLE_RL", "false").lower() == "true"
     RL_TRAINING_MODE = os.getenv("RL_TRAINING_MODE", "false").lower() == "true"
     ENABLE_RELIABILITY = False
+    ENABLE_CONFIDENCE_CALIBRATION = (
+        os.getenv("ENABLE_CONFIDENCE_CALIBRATION", "false").lower() == "true"
+    )
+    EXECUTION_MODE = os.getenv("EXECUTION_MODE", "paper").lower()
     ENABLE_DRIFT_DETECTION = (
         os.getenv("ENABLE_DRIFT_DETECTION", "true").lower() == "true"
+    )
+    ENABLE_DRAWDOWN_GUARD = (
+        os.getenv("ENABLE_DRAWDOWN_GUARD", "false").lower() == "true"
     )
 
     LOGGING_LEVEL = os.getenv("LOGGING_LEVEL")

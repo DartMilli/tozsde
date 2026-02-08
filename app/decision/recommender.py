@@ -1,11 +1,11 @@
 import datetime
 from collections import Counter
 
-from app.data_access.data_loader import load_data
 from app.data_access.data_cleaner import prepare_df
 from app.config.config import Config
-from app.models.rl_inference import RLModelEnsembleRunner
 from app.models.model_trainer import TradingEnv  # ← env itt marad
+from app.services.dependencies import MarketDataFetcher
+from app.models.rl_inference import RLModelEnsembleRunner
 from app.decision.decision_engine import DecisionEngine
 from app.decision.safety_rules import SafetyRuleEngine
 from app.backtesting.history_store import HistoryStore
@@ -20,24 +20,49 @@ from app.decision.recommendation_builder import (
 )
 
 
+def load_data(ticker: str, start: str, end: str):
+    """Compatibility shim for tests that monkeypatch module-level load_data."""
+    return MarketDataFetcher().load_data(ticker, start=start, end=end)
+
+
 def generate_daily_recommendation_payload(
-    ticker: str, history_store: HistoryStore, top_n: int = 3, debug=True
+    ticker: str,
+    history_store: HistoryStore,
+    top_n: int = 3,
+    debug=True,
+    data_fetcher=None,
+    model_runner=None,
+    as_of_date=None,
 ) -> dict:
-    today = datetime.date.today()
+    today = as_of_date or datetime.date.today()
     start = today - datetime.timedelta(days=180)
 
-    df_full = load_data(ticker, start=start.strftime("%Y-%m-%d"))
-    if df_full.empty:
-        return {"error": "NO_DATA"}
-
-    df = prepare_df(df_full.copy(), ticker)
-
-    runner = RLModelEnsembleRunner(
+    model_runner = model_runner or RLModelEnsembleRunner(
         model_dir=Config.MODEL_DIR,
         env_class=TradingEnv,
     )
 
-    votes, confidences, wf_scores, model_votes, debug_rows = runner.run_ensemble(
+    if data_fetcher is None:
+        df_full = load_data(
+            ticker,
+            start=start.strftime("%Y-%m-%d"),
+            end=today.strftime("%Y-%m-%d"),
+        )
+    else:
+        df_full = data_fetcher.load_data(
+            ticker,
+            start=start.strftime("%Y-%m-%d"),
+            end=today.strftime("%Y-%m-%d"),
+        )
+    if df_full.empty:
+        return {"error": "NO_DATA"}
+
+    df = prepare_df(df_full.copy(), ticker)
+    latest_price = None
+    if not df.empty and "Close" in df.columns:
+        latest_price = float(df["Close"].iloc[-1])
+
+    votes, confidences, wf_scores, model_votes, debug_rows = model_runner.run_ensemble(
         df=df,
         ticker=ticker,
         top_n=top_n,
@@ -108,11 +133,21 @@ def generate_daily_recommendation_payload(
         decision=decision,
         explanation=explanation,
         audit={},  # integrate audit_builder here if/when needed
+        model_votes=model_votes,
+        safety_overrides={
+            "safety_override": decision.get("safety_override"),
+            "no_trade_reason": decision.get("no_trade_reason"),
+            "reasons": decision.get("reasons", []),
+            "warnings": decision.get("warnings", []),
+        },
+        model_id=None,
     )
 
     return {
         "ticker": ticker,
         "date": today.isoformat(),
+        "timestamp": today.isoformat(),
+        "latest_price": latest_price,
         "decision": decision,
         "explanation": explanation,
         "votes": votes,

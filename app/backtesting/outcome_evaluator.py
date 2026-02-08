@@ -14,7 +14,7 @@ class OutcomeEvaluator:
     def __init__(self):
         self.dm = DataManager()
 
-    def evaluate_past_decisions(self, lookback_days=30):
+    def evaluate_past_decisions(self, lookback_days=30, hold_period=10):
         """
         Frissíti a history-t az eredményekkel.
         Csak a VÉTELI (action_code=1) döntéseket vizsgálja.
@@ -36,22 +36,31 @@ class OutcomeEvaluator:
         for row in pending_decisions:
             row_id, timestamp_str, ticker, audit_blob_str = row
 
-            # Ha nincs outcome, kiszámoljuk
-            audit_data = json.loads(audit_blob_str)
-            if "outcome" in audit_data:
-                continue  # Már értékeltük
-
-            pnl = self._calculate_trade_result(ticker, timestamp_str)
+            pnl = self._calculate_trade_result(
+                ticker,
+                timestamp_str,
+                hold_period=hold_period,
+            )
 
             if pnl is not None:
-                # Eredmény mentése
-                audit_data["outcome"] = {
+                outcome = {
                     "pnl_pct": round(pnl, 4),
                     "evaluated_at": datetime.now().isoformat(),
+                    "exit_reason": "FIXED_HOLD",
+                    "horizon_days": hold_period,
                 }
 
-                # Visszaírás a DB-be
-                self.dm.update_history_audit(row_id, json.dumps(audit_data))
+                self.dm.save_outcome(
+                    decision_id=row_id,
+                    ticker=ticker,
+                    decision_timestamp=timestamp_str,
+                    pnl_pct=outcome["pnl_pct"],
+                    success=outcome["pnl_pct"] > 0,
+                    future_return=outcome["pnl_pct"],
+                    exit_reason=outcome["exit_reason"],
+                    horizon_days=outcome["horizon_days"],
+                    outcome_json=json.dumps(outcome),
+                )
                 print(f" -> {ticker} ({timestamp_str}) eredmény: {pnl*100:.2f}%")
 
     def _calculate_trade_result(self, ticker, entry_date_str, hold_period=10):

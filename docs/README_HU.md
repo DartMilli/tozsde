@@ -1,6 +1,6 @@
 # ToZsDE Trading System - Dokumentáció
 
-**Státusz:** ✅ Sprint 11c Maintenance Complete | 1070 passing teszt | 98% coverage
+**Státusz:** ✅ Sprint 12 Stabilizáció + Validáció Complete | 1070 passing teszt | 98% coverage
 
 ---
 
@@ -9,6 +9,8 @@
 **Új vagy itt?** Olvass [INDEX.md](./INDEX.md)-et a teljes navigációért.
 
 **Meg akarod érteni a projektet?** Kezd az [SPRINTS.md](./SPRINTS.md)-el.
+
+**Architektúra review:** [ARCH_REVIEW.md](./ARCH_REVIEW.md)
 
 **Teljes funkcionalitás (felhasználói + fejlesztői):** [SZOFTVER_FUNKCIONALITAS_HU.md](./SZOFTVER_FUNKCIONALITAS_HU.md)
 
@@ -50,7 +52,7 @@ docs/
 - ✅ **1070 passing teszt** (legutóbbi futás)
 - ✅ **98% kód lefedettség**
 - ✅ **Production-ready**
-- ✅ **Sprint 1-10 kész + Sprint 11c maintenance**
+- ✅ **Sprint 1-10 kész + Sprint 11c maintenance + Sprint 12 validáció**
 
 **Cleanup elvégezve (2026-02-02):**
 - ✅ Eltávolítva: START_HERE.txt, CLEANUP_SUMMARY.md, 04_infrastructure/ (üres)
@@ -64,6 +66,12 @@ docs/
 - ✅ AdminDashboard bővítés (12 REST API endpoint)
 - ✅ 1070 passing teszt (legutóbbi futás)
 - Health monitoring
+
+**Sprint 12 Stabilizáció + Validáció (2026-02-08):**
+- ✅ Decision history egységesítése + outcomes
+- ✅ TradingPipelineService + DI
+- ✅ Paper execution és validációs modulok
+- ✅ `python scripts/run_tests_with_report.py --with-validation` (minőség és stabilitás riportok a teszt jelentésben)
 
 ---
 
