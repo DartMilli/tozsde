@@ -22,6 +22,7 @@ class ValidationReportBuilder:
             "confidence_calibration": self._latest("confidence_calibration"),
             "wf_stability": self._latest("wf_stability_metrics"),
             "safety_stress": self._latest("safety_stress_results"),
+            "decision_effectiveness": self._latest("decision_effectiveness_rolling"),
         }
 
         self.dm.save_validation_report(json.dumps(report))
@@ -51,6 +52,7 @@ class ValidationReportBuilder:
             lines.append("")
 
         section("Decision Quality", report.get("decision_quality"))
+        section("Decision Effectiveness", report.get("decision_effectiveness"))
         section("Confidence Calibration", report.get("confidence_calibration"))
         section("WF Stability", report.get("wf_stability"))
         section("Safety Stress", report.get("safety_stress"))
@@ -75,5 +77,7 @@ class ValidationReportBuilder:
             as_dict = {"metrics": json.loads(row[3])}
         elif table == "safety_stress_results":
             as_dict = {"results": json.loads(row[6])}
+        elif table == "decision_effectiveness_rolling":
+            as_dict = {"metrics": json.loads(row[4])}
 
         return as_dict

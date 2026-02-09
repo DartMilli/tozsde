@@ -1,55 +1,49 @@
-# 📚 Documentation Index
+# Documentation Index (EN + HU)
 
-**Status:** ✅ Sprint 12 Stabilization + Validation Complete | 1070 tests passing | 98% coverage
+## English
 
----
+### Entry Points
+- README.md: full project overview, CLI usage, validation and ops notes (Windows IDE quick start).
+- README_HU.md: Hungarian overview with English summary.
 
-## 🚀 Quick Navigation
-
-### Entry Point
-- **[README.md](README.md)** - Project overview (start here)
-- **[README_HU.md](README_HU.md)** - Magyar verzió
-
-### Main References
-- **[SPRINTS.md](SPRINTS.md)** - Complete Sprint 1-10 history & architecture
-- **[FAQ.md](FAQ.md)** - 40 frequently asked questions
-- **[TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)** - Problem solving
-- **[SZOFTVER_FUNKCIONALITAS_HU.md](SZOFTVER_FUNKCIONALITAS_HU.md)** - Teljes funkcionalitás (HU)
-- **[ARCH_REVIEW.md](ARCH_REVIEW.md)** - Architecture review (living)
+### Core References
+- SPRINTS.md: sprint history and historical delivery timeline.
+- ARCH_REVIEW.md: architecture review with current addendum.
+- FAQ.md: common questions and operational guidance.
+- TROUBLESHOOTING_GUIDE.md: diagnosis and fixes.
 
 ### Deployment
-- **[deployment/RASPBERRY_PI_SETUP_GUIDE.md](deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Pi setup guide
-- **[deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md](deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** - Magyar útmutató
-- **[deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Post-deployment verification
+- deployment/RASPBERRY_PI_SETUP_GUIDE.md
+- deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md
+- deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md
 
-### Testing
-- **[testing/TEST_STATUS_REPORT.md](./testing/TEST_STATUS_REPORT.md)** - Test metrics & coverage (includes validation snapshot)
+### Testing and Validation
+- testing/TEST_STATUS_REPORT.md (includes validation snapshot)
+- testing/go_live_checklist.md (pre-hardware go-live validation)
 
-### Development
-- **[SPRINTS.md](SPRINTS.md)** - Sprint history (single source)
-- **Validation:** Run `python main.py validate` for Phase 5 reports
+### Key Metrics
+See testing/TEST_STATUS_REPORT.md for the latest test counts and coverage.
 
----
+## Magyar
 
-## 📊 Key Metrics
+### Belepes
+- README.md: teljes attekintes, CLI, validacio, ops (Windows IDE quick start).
+- README_HU.md: magyar attekintes + angol osszefoglalas.
 
-| Metric | Value |
-|--------|-------|
-| Tests | 1070 passing |
-| Coverage | 98% |
-| Status | ✅ Production Ready |
-| Sprints | 1-10 complete + Sprint 11c maintenance + Sprint 12 validation |
+### Fo dokumentumok
+- SPRINTS.md: sprint tortenet, historikus attekintes.
+- ARCH_REVIEW.md: architektura review, aktualis addendum.
+- FAQ.md: gyakori kerdesek es uzemeltetesi tippek.
+- TROUBLESHOOTING_GUIDE.md: hibakereses es javitas.
 
----
+### Telepites
+- deployment/RASPBERRY_PI_SETUP_GUIDE.md
+- deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md
+- deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md
 
-## 🎯 Start Here
+### Teszt es validacio
+- testing/TEST_STATUS_REPORT.md (validacios snapshot-tal)
+- testing/go_live_checklist.md (go-live ellenorzes)
 
-**New to the project?** → [README.md](README.md)
-
-**Need answers?** → [FAQ.md](FAQ.md)
-
-**Running into problems?** → [TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)
-
-**Want full history?** → [SPRINTS.md](SPRINTS.md)
-
-**Deploying to RPi?** → [deployment/RASPBERRY_PI_SETUP_GUIDE.md](deployment/RASPBERRY_PI_SETUP_GUIDE.md)
+### Metrikak
+Az aktualis tesztszamok es lefedettseg a testing/TEST_STATUS_REPORT.md fajlban van.

@@ -1,5 +1,7 @@
 # Raspberry Pi Setup Guide - Complete Walkthrough
 
+Magyar rovid attekintes: a telepites lepesrol lepesre szerepel ebben a dokumentumban, a CLI parancsok es ellenorzesek az aktualis deploy_rpi.sh viselkedesehez igazodnak.
+
 **Target Hardware:** Raspberry Pi 4B or 5 (64-bit ARM)  
 **Operating System:** Raspberry Pi OS Lite (64-bit, Debian-based)  
 **Estimated Time:** 1.5-2 hours total (mostly waiting for downloads/reboots)  
@@ -187,11 +189,13 @@ bash deploy_rpi.sh
 
 ```bash
 # From Pi or your laptop
-curl http://tozsde-pi.local:5000/api/health
+curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"
 
 # Expected response:
 # {"status": "healthy", "timestamp": "2026-01-23T10:30:45", ...}
 ```
+
+Note: The default health_check.sh script uses /api/health. Update its URL and headers to match /admin/health.
 
 ### 4.2 View Scheduled Tasks
 
@@ -230,7 +234,7 @@ ls -lh ~/tozsde_webapp/logs/
 # Try running today's pipeline manually (dry run)
 source ~/tozsde_webapp/venv/bin/activate
 cd ~/tozsde_webapp
-python -m app.daily_pipeline --dry-run 2>&1 | head -20
+python -m app.infrastructure.cron_tasks --daily --dry-run 2>&1 | head -20
 
 # Check if it logged
 cat ~/tozsde_webapp/logs/cron_daily.log | tail -10
@@ -244,7 +248,7 @@ cat ~/tozsde_webapp/logs/cron_daily.log | tail -10
 
 ```bash
 # Check system health every morning
-curl http://tozsde-pi.local:5000/api/health
+curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"
 
 # Monitor disk usage (Pi 5 runs hot)
 df -h /home

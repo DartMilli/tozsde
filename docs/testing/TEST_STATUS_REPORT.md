@@ -1,16 +1,21 @@
 # Test & Code Quality Status Report
 
-## ✅ Current Status (2026-02-08)
+EN: This report is updated by scripts and includes the latest validation snapshot.
+HU: Ez a riport szkriptek altal frissul, es tartalmazza az aktualis validacios snapshotot.
+
+## ✅ Current Status (2026-02-09)
 
 - **Sprint:** 12 Stabilization + Validation
 - **Tests:** **1070 passed, 0 failed**
 - **Coverage:** **Not measured in latest run** (last full suite: 98%)
 - **Status:** ✅ Clean suite
-- **Notes:** Full pytest rerun on Windows (venv) after fixes. If venv issues occur, use scripts/rebuild_venv.ps1
+- **Notes:** Historical paper run + validation refresh on Windows (venv). Full pytest rerun was done previously; use scripts/rebuild_venv.ps1 if venv issues occur.
 
 ### Latest Commands
 
 ```
+python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 python -m pytest
 ```
 
@@ -19,9 +24,15 @@ python -m pytest
 
 ## Validation Snapshot
 - **Ticker:** VOO
-- **Date range:** 2020-01-01 → 2024-01-01
+- **Date range:** 2022-01-01 → 2023-12-31
 - **Scenario:** elevated_volatility
 
+## Validation Snapshot Summary
+- Decision Quality: no_data
+- Decision Effectiveness: unknown
+- Confidence Calibration: no_data
+- WF Stability: no_data
+- Safety Stress: no_data
 ## Decision Quality
 ```json
 {
@@ -29,12 +40,17 @@ python -m pytest
     "status": "no_data",
     "scope": {
       "ticker": "VOO",
-      "start_date": "2020-01-01",
-      "end_date": "2024-01-01",
+      "start_date": "2022-01-01",
+      "end_date": "2023-12-31",
       "rows": 0
     }
   }
 }
+```
+
+## Decision Effectiveness
+```json
+null
 ```
 
 ## Confidence Calibration
@@ -63,6 +79,36 @@ python -m pytest
   "results": {
     "status": "no_data",
     "scenario": "elevated_volatility"
+  }
+}
+```
+
+## Phase 6 Validation Checklist
+```json
+{
+  "p6_1_effectiveness": {
+    "status": "no_data"
+  },
+  "p6_2_position_sizing": {
+    "status": "ok",
+    "low_conf_size": 100.0,
+    "high_conf_size": 720.0,
+    "monotonic": true,
+    "cap_enforced": true
+  },
+  "p6_3_model_trust": {
+    "status": "no_data",
+    "weights": {}
+  },
+  "p6_4_reward_shaping": {
+    "status": "ok",
+    "strategy": "profit_stability_shaped",
+    "components_logged": true
+  },
+  "p6_5_promotion_gate": {
+    "status": "ok",
+    "allow": true,
+    "reasons": []
   }
 }
 ```

@@ -2,6 +2,9 @@
 
 **Status:** Hardware pending
 
+## Magyar megjegyzes
+Az admin health endpoint az /admin/health, es X-Admin-Key header szukseges. Ha a health_check.sh scriptet hasznalod, allitsd at az URL-t es a headert.
+
 ## 1) Pre-Deployment (Hardware + OS)
 - [ ] Raspberry Pi 4/5 available and powered
 - [ ] Raspberry Pi OS Lite 64-bit flashed to SD card
@@ -22,7 +25,7 @@
 - [ ] Daily, weekly, monthly cron entries present
 
 ## 4) Post-Deployment Verification
-- [ ] API responds: `curl http://localhost:5000/api/health`
+- [ ] API responds: `curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"`
 - [ ] Systemd logs show clean startup
 - [ ] Log rotation configured (`/etc/logrotate.d/tozsde`)
 - [ ] `logs/` directory is writable

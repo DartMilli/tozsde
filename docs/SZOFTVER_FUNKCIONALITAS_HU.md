@@ -1,5 +1,15 @@
 # ToZsDE Trading System – Teljes funkcionalitás (HU)
 
+## English Summary (Current)
+Tozsde is a Python trading system that runs a daily decision pipeline, persists auditable decisions and outcomes in SQLite, and provides backtesting, historical paper runs, and Phase 5/6 validation. Historical paper runs use a deterministic fallback HOLD decision when no RL models are available. CLI entry point is main.py.
+
+Key CLI examples:
+```bash
+python main.py daily
+python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+```
+
 **Cél:** Ez a dokumentum a rendszer teljes működését írja le **felhasználói** és **fejlesztői** szemszögből, különös tekintettel a funkcionalitásra, a teljes pipeline-ra és az UI-ra.
 
 ---
@@ -119,6 +129,13 @@ Futtatás:
 ```
 python scripts/run_tests_with_report.py --with-validation --skip-tests --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
 ```
+
+### 4.5 Phase 6 ellenorzesek (P6)
+- **Effectiveness**: outcome alapu hatasossag.
+- **Position sizing**: monotonitas es cap ellenorzes.
+- **Model trust**: model vote-ok es outcome-ok alapu sulyok.
+- **Reward shaping**: reward komponensek logolasa.
+- **Promotion gate**: baseline vs candidate ellenorzes.
 
 ### 4.2 Heti pipeline
 - **Model reliability**: döntések és outcome-ok alapján megbízhatósági score.

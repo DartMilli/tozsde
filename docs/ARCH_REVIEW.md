@@ -1,6 +1,20 @@
 # Tozsde Trading System – Átfogó architektúra review
 
-> **Update (2026-02-08):** Stabilization + Validation completed (Sprint 12). See [SPRINTS.md](SPRINTS.md) for Phase 0–5 changes and validation tooling.
+> **Update (2026-02-09):** Stabilization + Validation completed (Sprint 12). See [SPRINTS.md](SPRINTS.md) for Phase 0–5 changes and validation tooling.
+
+## Addendum (EN)
+This review is historical. The current system includes:
+- Paper execution with portfolio state tracking (PaperExecutionEngine).
+- Historical paper runner with deterministic fallback when no RL models exist.
+- Decision history with outcomes and position sizing persistence.
+- Phase 5 and Phase 6 validation tooling with report integration.
+
+## Addendum (HU)
+Ez a review historikus. A jelenlegi rendszerben:
+- Paper execution portfolio state mentessel (PaperExecutionEngine).
+- Historikus paper runner determinisztikus fallback-kel, ha nincs RL modell.
+- Döntesek es outcome-ok SQLite-ban, pozicio meretezessel.
+- Phase 5 es Phase 6 validacios tooling, riport integracioval.
 
 ## 0. Kontextus
 - Áttekintett fő belépési pontok és modulok: main.py, app/config/config.py, app/data_access/*, app/analysis/*, app/indicators/*, app/decision/*, app/backtesting/*, app/models/*, app/optimization/*, app/reporting/*, app/notifications/*, app/infrastructure/*, app/ui/*, app/scripts/*, run_dev.py.

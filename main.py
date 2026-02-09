@@ -57,6 +57,7 @@ from app.analysis.confidence_calibrator import ConfidenceCalibrator
 from app.analysis.wf_stability_analyzer import WalkForwardStabilityAnalyzer
 from app.analysis.safety_stress_tester import SafetyStressTester
 from app.analysis.validation_report_builder import ValidationReportBuilder
+from app.backtesting.historical_paper_runner import HistoricalPaperRunner
 from app.decision.recommender import generate_daily_recommendation_payload
 from app.decision.recommendation_builder import build_explanation, build_recommendation
 from app.reporting.audit_builder import build_audit_metadata, build_audit_summary
@@ -472,6 +473,22 @@ def run_validation(
     logger.info("=" * 80)
 
 
+def run_paper_history(ticker: str, start_date: str, end_date: str):
+    """
+    Run deterministic historical paper trading over a date range.
+    """
+    logger.info("=" * 80)
+    logger.info(f"HISTORICAL paper run: {ticker} {start_date} -> {end_date}")
+    logger.info("=" * 80)
+
+    runner = HistoricalPaperRunner(logger=logger)
+    runner.run(ticker=ticker, start_date=start_date, end_date=end_date)
+
+    logger.info("=" * 80)
+    logger.info("HISTORICAL paper run completed")
+    logger.info("=" * 80)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # CLI ARGUMENT PARSER
 # ═════════════════════════════════════════════════════════════════════════════
@@ -492,6 +509,7 @@ Examples:
   python main.py monthly                  # Monthly retraining
   python main.py walk-forward VOO         # Manual WF optimization
   python main.py train-rl VOO             # Manual RL training
+    python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
         """,
     )
 
@@ -577,6 +595,13 @@ Examples:
         help="Compare last two runs for repeatability",
     )
 
+    history_parser = subparsers.add_parser(
+        "run-paper-history", help="Run historical paper trading"
+    )
+    history_parser.add_argument("--ticker", type=str, required=True)
+    history_parser.add_argument("--start-date", type=str, required=True)
+    history_parser.add_argument("--end-date", type=str, required=True)
+
     # Global options
     parser.add_argument(
         "--loglevel",
@@ -633,6 +658,13 @@ def main():
                 include_calibration=not args.no_calibration,
                 repeat=args.repeat,
                 compare_repeat=args.compare_repeat,
+            )
+
+        elif args.command == "run-paper-history":
+            run_paper_history(
+                ticker=args.ticker,
+                start_date=args.start_date,
+                end_date=args.end_date,
             )
 
     except KeyboardInterrupt:

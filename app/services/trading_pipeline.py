@@ -17,6 +17,8 @@ from app.services.dependencies import (
     ModelEnsembleRunner,
 )
 from app.notifications.email_formatter import format_email_line
+from app.decision.position_sizer import apply_position_sizing
+from app.data_access.data_manager import DataManager
 
 
 class TradingPipelineService:
@@ -88,6 +90,8 @@ class TradingPipelineService:
         decision: Dict,
         explanation: Dict,
         audit: Dict,
+        position_sizing: Dict = None,
+        decision_source: str = None,
     ) -> int:
         return self.history_store.save_decision(
             payload=payload,
@@ -101,6 +105,8 @@ class TradingPipelineService:
                 "reasons": decision.get("reasons", []),
                 "warnings": decision.get("warnings", []),
             },
+            position_sizing=position_sizing,
+            decision_source=decision_source,
             model_id=payload.get("model_id"),
             timestamp=payload.get("timestamp"),
         )
@@ -200,6 +206,15 @@ class TradingPipelineService:
 
         finalized_decisions = self.allocate_capital(allocatable)
 
+        if Config.ENABLE_POSITION_SIZING and finalized_decisions:
+            dm = DataManager()
+            latest = dm.fetch_latest_portfolio_state(source="paper")
+            equity = latest.get("equity", Config.INITIAL_CAPITAL)
+            finalized_decisions = [
+                apply_position_sizing(item, equity=equity)
+                for item in finalized_decisions
+            ]
+
         email_lines = []
 
         for item in finalized_decisions:
@@ -218,6 +233,7 @@ class TradingPipelineService:
                 decision=decision,
                 explanation=explanation,
                 audit=audit,
+                position_sizing=item.get("position_sizing"),
             )
             item["decision_id"] = decision_id
 

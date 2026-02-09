@@ -1,7 +1,27 @@
 # DEVELOPMENT SPRINTS SUMMARY
 **Project:** ToZsDE Trading System  
 **Status:** Sprint 1-10 Complete (historical) + Sprint 11 closed (maintenance + deprecation cleanup) + Sprint 12 complete (stabilization + validation)  
-**Updated:** 2026-02-08
+**Updated:** 2026-02-09
+
+---
+
+## Current Snapshot (EN)
+This document is a historical sprint record. For current usage and CLI flows, see docs/README.md and docs/INDEX.md.
+
+Current system highlights:
+- Daily pipeline in main.py (daily/weekly/monthly, walk-forward, train-rl).
+- Historical paper runner with deterministic fallback when no models exist.
+- SQLite persistence for decisions, outcomes, portfolio state, and validation metrics.
+- Phase 5 and Phase 6 validation tooling with report integration.
+
+## Aktualis attekintes (HU)
+Ez a dokumentum historikus sprint tortenet. A jelenlegi hasznalathoz lasd docs/README.md es docs/INDEX.md.
+
+Aktualis fo pontok:
+- Napi pipeline a main.py-ban (daily/weekly/monthly, walk-forward, train-rl).
+- Historikus paper runner determinisztikus fallback-kel, ha nincs modell.
+- SQLite perzisztencia (döntesek, outcome-ok, portfolio state, validáció).
+- Phase 5 es Phase 6 validacios tooling, riport integracioval.
 
 ---
 
@@ -196,7 +216,6 @@
 
 7. **Deployment Scripts**
    - `deploy_rpi.sh` - One-click deployment
-   - `initialize.sh` - Environment setup
    - SystemD service configuration
 
 ---

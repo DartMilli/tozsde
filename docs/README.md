@@ -1,238 +1,165 @@
-# ToZsDE Trading System - Documentation
+# Tozsde Trading System
 
-**Status:** ✅ Sprint 12 Stabilization + Validation Complete | 1070 tests passing | 98% coverage
+## English
 
----
+### Overview
+Tozsde is a Python trading system that runs a daily decision pipeline, records auditable decisions and outcomes in SQLite, and provides backtesting, historical paper runs, and validation tooling (Phase 5 and Phase 6). It supports paper execution, model ensembles, position sizing, and reliability analysis, with reporting and operational tooling for monitoring and maintenance.
 
-## 🚀 Quick Start
+### Feature Map (Detailed)
+- Daily pipeline: data load, signals, decision policy, allocation, persistence, notifications.
+- Paper execution: portfolio state tracking and outcome evaluation.
+- Historical paper runner: deterministic backfills for a date range; fallback HOLD decisions if no RL models are present.
+- Validation: decision quality, confidence calibration, walk-forward stability, safety stress, and Phase 6 checks.
+- Backtesting and audit: replay, audit trails, reward shaping analysis, and reporting outputs.
+- Ops tooling: health checks, backups, error reporting, cron scheduling, and log management.
 
-**New here?** Read [INDEX.md](./INDEX.md) for complete navigation.
-
-**Want to understand the project?** Start with [SPRINTS.md](./SPRINTS.md).
-
-**Looking for architecture review?** See [ARCH_REVIEW.md](./ARCH_REVIEW.md).
-
-**Need help?** Check [FAQ.md](./FAQ.md) or [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md).
-
-**Deploying to Raspberry Pi?** Follow [deployment/RASPBERRY_PI_SETUP_GUIDE.md](./deployment/RASPBERRY_PI_SETUP_GUIDE.md).
-
-**Running a quick health check?** Run the smoke test:
-
-```
-python -m app.scripts.smoke_test
+### Quick Start (Windows IDE)
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
----
+Note: initialize.sh is not used on Windows. Use the commands above in your IDE terminal.
 
-## 📂 Documentation Structure
-
-```
-docs/
-├── INDEX.md                             ◄──── Navigation hub
-├── README.md, README_HU.md              ◄──── Project overview
-├── SPRINTS.md                           ◄──── Sprint history (single source)
-├── FAQ.md                               ◄──── Q&A
-├── TROUBLESHOOTING_GUIDE.md             ◄──── Problem solving
-│
-├── deployment/                          ◄──── Raspberry Pi setup
-│   ├── RASPBERRY_PI_SETUP_GUIDE.md
-│   ├── RASPBERRY_PI_SETUP_GUIDE_HU.md
-│   └── DEPLOYMENT_VERIFICATION_CHECKLIST.md
-│
-└── testing/                             ◄──── Test results
-    └── TEST_STATUS_REPORT.md
+### CLI Usage (Project Root)
+```bash
+python main.py daily
+python main.py daily --ticker VOO
+python main.py weekly
+python main.py monthly
+python main.py walk-forward VOO
+python main.py train-rl VOO
+python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
 
----
+### Data and Storage
+- SQLite persists decisions, outcomes, portfolio state, and validation metrics.
+- Market data is loaded via the data loader and stored as OHLCV.
+- Decision history captures model votes, audits, and position sizing for traceability.
 
-## 📊 Project Status
-
-- ✅ **1070 tests passing** (latest run)
-- ✅ **98% code coverage**
-- ✅ **Production-ready**
-- ✅ **Sprints 1-10 complete + Sprint 11c maintenance + Sprint 12 validation**
-
-**Cleanup completed (2026-02-02):**
-- ✅ Removed: START_HERE.txt, CLEANUP_SUMMARY.md, 04_infrastructure/ (empty)
-- ✅ Consolidated: All sprint plans → SPRINTS.md
-- ✅ Removed: 02_implementation/*.md (6 files consolidated)
-- ✅ Result: **4 essential documentation files** (down from 15+)
-
-### SPRINT 1-5 Teszt Implementáció Status
-
-```
-SPRINT 1 (Core Infrastructure):
-✅ test_indicators.py:        6/6 tests (100%)
-✅ test_fitness.py:           9/9 tests (100%)
-✅ test_backtester.py:       11/11 tests (100%)
-✅ test_walk_forward.py:      7/7 tests (100%)
-✅ test_data_manager.py:     10/10 tests (100%)
-✅ test_allocation.py:       10/10 tests (100%)
-✅ test_daily_pipeline.py:   10/10 tests (100%)
-                    SPRINT 1 TOTAL: 63/63 tests ✅
-
-SPRINT 2 (RL & Drift Detection):
-✅ RL Module Safe Activation
-✅ Performance Drift Detection (SQLite-based)
-✅ RL Strategy Selection (integrated)
-              SPRINT 2 TOTAL: Integrated (no new tests)
-
-SPRINT 3 (Portfolio Optimization):
-✅ test_risk_parity.py:      13/13 tests (100%)
-✅ test_correlation_limits.py: 10/10 tests (100%)
-✅ test_rebalancer.py:       28/28 tests (100%)
-                    SPRINT 3 TOTAL: 51/51 tests ✅
-
-═════════════════════════════════════════════════
-🎉 CUMULATIVE TOTAL: 1070 PASSED ✅
-    (latest run; 98% coverage)
-```
-
----
-
-## 🚀 Quick Navigation
-
-### What Are You Working On?
-
-- **🏗️ Deployment?** → [deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](./deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)
-- **💻 Development?** → [SPRINTS.md](./SPRINTS.md)
-- **🧪 Testing?** → [testing/TEST_STATUS_REPORT.md](./testing/TEST_STATUS_REPORT.md) **← START HERE**
-
-### Sprint Progress
-
-- **SPRINT 1:** ✅ **COMPLETE** (63/63 tests) - Core Infrastructure
-- **SPRINT 2:** ✅ **COMPLETE** (integrated) - Enhanced Decision Making
-- **SPRINT 3:** ✅ **COMPLETE** (51/51 tests) - Portfolio Optimization
-- **SPRINT 4:** ✅ **COMPLETE** (25/25 tests) - Hardening & Monitoring
-- **SPRINT 5:** ✅ **COMPLETE** (64/64 tests) - Raspberry Pi Deployment
-- **SPRINT 6:** ✅ **COMPLETE** (40/40 tests) - Learning System with Thompson Sampling
-- **SPRINT 7:** ✅ **COMPLETE** (21/21 tests) - Portfolio Optimization with ETF Support
-- **SPRINT 8:** ✅ **COMPLETE** (78/78 tests) - Capital Efficiency Optimization
-- **SPRINT 9:** ✅ **COMPLETE** (17/17 tests) - Product Hardening & Analytics
-- **SPRINT 12:** ✅ **COMPLETE** - Stabilization + Validation Tooling
-- **TOTAL:** ✅ **1070 PASSED (98% COVERAGE)**
-
----
-
-## ✅ Validation (Phase 5)
-
-Run full validation (decision quality, calibration, WF stability, safety stress):
-
-```
-python main.py validate --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
-```
-
-Repeatability check (same DB snapshot):
-
-```
-python main.py validate --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01 --repeat 2 --compare-repeat
-```
-
-## 🧪 Tests + Validation Report
-
-Append validation snapshot into the test status report:
-
-```
-python scripts/run_tests_with_report.py --with-validation --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
-```
-
----
-
-## 📝 File Convention
-
-### Directory Structure
-
-```
-docs/
-├── SPRINTS.md                          [Sprint 1-10 Development History] ⭐
-├── README.md                           [English Documentation]
-├── README_HU.md                        [Hungarian Documentation]
-├── deployment/                         [Deployment & Infrastructure]
-│   ├── RASPBERRY_PI_SETUP_GUIDE.md
-│   ├── RASPBERRY_PI_SETUP_GUIDE_HU.md
-│   ├── DEPLOYMENT_VERIFICATION_CHECKLIST.md
-│   └── ...other deployment files
-├── testing/                            [Testing & QA]
-│   ├── TEST_STATUS_REPORT.md
-│   └── ...other test reports
-└── ...                                 [Other docs]
-```
-
-### Status Indicators
-
-- ✅ = Complete, actively used
-- 🔄 = In Progress (active development)
-- ⭐ = Recommended starting point
-- 📝 = New file, under documentation
-- ⏳ = Waiting for resolution
-- ❌ = Outdated, not recommended
-
----
-
-## 📈 Latest Updates
-
-| Category | Files | Last Modified | Status |
-|----------|-------|---------------|--------|
-| Deployment | 4 | **2026-02-02** | ✅ Active |
-| Documentation | 3 | **2026-02-02** | ✅ Active |
-| Testing | 1 | **2026-02-02** | ✅ **COMPLETE** |
-
----
-
-## 🎯 Fejlesztési Mérföldkövek
-
-```
-SPRINT 1 (Weeks 1-2):     ✅ COMPLETE - 63 tests, Core Infrastructure
-SPRINT 2 (Weeks 3-4):     ✅ COMPLETE - RL Module, Drift Detection
-SPRINT 3 (Weeks 5-6):     ✅ COMPLETE - 51 tests, Portfolio Optimization
-SPRINT 4 (Weeks 7-8):     ✅ COMPLETE - 25 tests, Admin Dashboard & Monitoring
-SPRINT 5 (Weeks 9-10):    ✅ COMPLETE (Software) - 82 tests, Pi Deployment
-────────────────────────────────────────────────────────────
-CUMULATIVE PROGRESS:       ✅ 1070 PASSED (98% COVERAGE)
-
-🚀 Raspberry Pi Deployment: Hardware pending (run deploy_rpi.sh when ready)
-```
-
----
-
-## 🚀 QUICK START: Raspberry Pi Deploy
-
-**Everything in ONE command:**
+### Validation and Reporting
+- Phase 5 aggregates decision quality, calibration, walk-forward stability, and safety stress.
+- Phase 6 checks effectiveness, position sizing monotonicity, model trust, reward shaping, and promotion gates.
+- Append validation results to the test report:
 
 ```bash
-# 1. Clone repository
-git clone <repo> ~/tozsde_webapp
-
-# 2. Navigate
-cd ~/tozsde_webapp
-
-# 3. Deploy (does everything - 10 minutes)
-bash deploy_rpi.sh
-
-# 4. Verify
-curl http://tozsde-pi.local:5000/api/health
+python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
 
-**What gets installed:**
-- ✅ Python 3.11 virtual environment
-- ✅ All dependencies from requirements.txt
-- ✅ Flask API service (systemd, auto-restart)
-- ✅ 3 cron jobs (daily pipeline, weekly audit, monthly optimization)
-- ✅ Health checks (every 5 minutes)
-- ✅ Log rotation (7 days retention)
+### Admin API (Selected Endpoints)
+Admin endpoints require the X-Admin-Key header (see Config.ADMIN_API_KEY).
 
-**For complete step-by-step guide:** See [deployment/RASPBERRY_PI_SETUP_GUIDE.md](./deployment/RASPBERRY_PI_SETUP_GUIDE.md)
+- GET /admin/health
+- GET /admin/performance/summary?days=30
+- GET /admin/performance/drawdown?days=90
+- GET /admin/performance/rolling?days=90&window=30
+- GET /admin/errors/summary
+- GET /admin/capital/status
 
----
+### Tests
+- Latest test status and coverage: docs/testing/TEST_STATUS_REPORT.md
+- Run locally:
 
-**Készítve:** 2026-02-02
-**Szervezési Szint:** 📊 Hierarchikus (04 kategória)
-**Deploy Target:** 🍓 Raspberry Pi 4/5
-**Status:** ✅ Software Complete (98% Coverage, Hardware Pending)
+```bash
+pytest
+```
 
-### ✨ Latest Updates
+### Project Layout (Current)
+- app/: application modules (decision, backtesting, analysis, data access, services)
+- scripts/: developer utilities and reporting helpers
+- tests/: pytest suite
+- docs/: documentation and test reports
 
-- **[SPRINTS.md](./SPRINTS.md)** - Complete Sprint 1-10 history
-- **[deployment/RASPBERRY_PI_SETUP_GUIDE.md](./deployment/RASPBERRY_PI_SETUP_GUIDE.md)** - Raspberry Pi setup guide
-- **[deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](./deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Post-deploy checklist
-- **[testing/TEST_STATUS_REPORT.md](./testing/TEST_STATUS_REPORT.md)** - Latest test status
+### Documentation
+- docs/INDEX.md for navigation
+- docs/SPRINTS.md for sprint history and architecture narrative
+- docs/TROUBLESHOOTING_GUIDE.md for operational issues
+- docs/deployment for Raspberry Pi setup
+
+### Notes
+- Historical paper runner uses a fallback HOLD decision if no RL model files are present.
+- Validation depends on outcomes being recorded; without outcomes, effectiveness and trust metrics report no_data.
+
+## Magyar
+
+### Attekintes
+A Tozsde egy Python alapú kereskedési rendszer, amely napi döntési pipeline-t futtat, auditálható döntéseket és outcome-okat ment SQLite-ba, valamint backtestinget, historikus paper futtatást és validációs toolingot ad (Phase 5 és Phase 6). Támogatja a paper végrehajtást, model ensemble-t, pozícióméretezést és megbízhatóság-elemzést, monitorozási és karbantartási eszközökkel.
+
+### Funkciotérkép (részletes)
+- Napi pipeline: adatbetöltés, jelgenerálás, policy, allokáció, mentés, értesítés.
+- Paper execution: portfolio state és outcome számítás.
+- Historikus paper runner: determinisztikus visszatöltés; fallback HOLD döntés, ha nincs RL modell.
+- Validáció: döntési minőség, kalibráció, walk-forward stabilitás, safety stress, Phase 6 ellenőrzések.
+- Backtesting és audit: replay, audit nyomvonalak, reward shaping elemzés, riportok.
+- Ops tooling: health check, backup, error reporting, cron ütemezés, log menedzsment.
+
+### Gyors Start (Windows IDE)
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Megjegyzes: initialize.sh nem szukseges Windows alatt. Hasznald a fenti parancsokat az IDE terminalban.
+
+### CLI Hasznalat (projekttoba)
+```bash
+python main.py daily
+python main.py daily --ticker VOO
+python main.py weekly
+python main.py monthly
+python main.py walk-forward VOO
+python main.py train-rl VOO
+python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+```
+
+### Adat es tarolas
+- SQLite tarolja a döntéseket, outcome-okat, portfolio state-et és validációs metrikákat.
+- Piaci adatok a data loaderen keresztül jönnek, OHLCV-kent mentve.
+- Decision history tartalmazza a model vote-okat, auditot és pozícióméretezést.
+
+### Validacio es riport
+- Phase 5: döntési minőség, kalibráció, WF stabilitás, safety stress.
+- Phase 6: hatékonyság, pozícióméretezés monotonitás, model trust, reward shaping, promotion gate.
+- Validáció beírása a teszt riportba:
+
+```bash
+python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+```
+
+### Admin API (kiemelt endpointok)
+Az admin endpointokhoz X-Admin-Key header szükséges (Config.ADMIN_API_KEY).
+
+- GET /admin/health
+- GET /admin/performance/summary?days=30
+- GET /admin/performance/drawdown?days=90
+- GET /admin/performance/rolling?days=90&window=30
+- GET /admin/errors/summary
+- GET /admin/capital/status
+
+### Tesztek
+- Legfrissebb teszt statusz: docs/testing/TEST_STATUS_REPORT.md
+- Lokalis futtatas:
+
+```bash
+pytest
+```
+
+### Projekt szerkezet (jelenlegi)
+- app/: alkalmazas modulok (decision, backtesting, analysis, data access, services)
+- scripts/: fejlesztoi segedeszkozok
+- tests/: pytest suite
+- docs/: dokumentacio es teszt riportok
+
+### Dokumentacio
+- docs/INDEX.md navigacio
+- docs/SPRINTS.md sprint tortenet es architektura
+- docs/TROUBLESHOOTING_GUIDE.md hibakereses
+- docs/deployment Raspberry Pi telepites
+
+### Megjegyzesek
+- A historikus paper runner fallback HOLD döntest ad, ha nincs RL modell.
+- Validáció outcome-ok nélkül no_data-t ad az effectiveness/trust metrikákra.

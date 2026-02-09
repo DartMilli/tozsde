@@ -1,263 +1,128 @@
-# Frequently Asked Questions (FAQ)
+# Frequently Asked Questions (FAQ) - EN + HU
 
-## 📚 Table of Contents
-- [Installation & Setup](#installation--setup)
-- [Testing & Development](#testing--development)
-- [Deployment](#deployment)
-- [API Usage](#api-usage)
-- [Trading & Strategies](#trading--strategies)
-- [Troubleshooting](#troubleshooting)
+## Installation and Setup
 
----
+### Q1 (EN): What do I need to run the project?
+**Answer (EN):** A Python 3.x environment, a working virtual environment, and internet access for market data. Use requirements.txt and the project venv.
+**Valasz (HU):** Python 3.x, mukodo virtualis kornyezet, valamint internetkapcsolat a piaci adatokhoz. Hasznald a requirements.txt-t es a projekt venv-et.
 
-## Installation & Setup
+### Q2 (EN): Do I need a Raspberry Pi?
+**Answer (EN):** No. Raspberry Pi is optional for always-on deployment.
+**Valasz (HU):** Nem. A Raspberry Pi csak opcionális 0-24 uzemhez.
 
-### Q1: What are the minimum system requirements?
-**A:** 
-- **Python:** 3.6 or higher
-- **RAM:** 2GB minimum (4GB recommended)
-- **Disk:** 5GB free space
-- **OS:** Windows 10+, Linux (Ubuntu 18.04+), macOS 10.14+
-- **Internet:** Stable connection for data fetching
-
-### Q2: Do I need a Raspberry Pi to run this?
-**A:** No. The system works on any computer. Raspberry Pi is optional for 24/7 deployment:
-- **Development:** Use Windows/Mac/Linux desktop
-- **Production (optional):** Deploy to Raspberry Pi for always-on trading
-
-### Q3: How do I install dependencies?
-**A:**
+### Q3 (EN): How do I install dependencies?
+**Answer (EN):**
 ```bash
-# Create virtual environment
 python -m venv .venv
-
-# Activate (Windows PowerShell)
 .venv\Scripts\Activate.ps1
-
-# Install all requirements
 pip install -r requirements.txt
 ```
+**Valasz (HU):** A fenti parancsokkal hozd letre es aktiváld a venv-et, majd telepitsd a fuggosegeket.
 
-### Q4: What Python version should I use?
-**A:** Python 3.6 - 3.9 recommended. Tested with:
-- ✅ Python 3.6.6
-- ✅ Python 3.7.x
-- ✅ Python 3.8.x
-- ⚠️ Python 3.10+ (some dependencies may need updates)
+## Running the System
 
-### Q5: Can I run this on macOS with M1/M2 chip?
-**A:** Yes, but use Rosetta 2 for compatibility:
+### Q4 (EN): What is the primary CLI entry point?
+**Answer (EN):** main.py in the project root.
+**Valasz (HU):** A fo CLI belépesi pont a main.py.
+
+### Q5 (EN): How do I run the daily pipeline?
+**Answer (EN):**
 ```bash
-arch -x86_64 python3 -m venv .venv
-arch -x86_64 .venv/bin/pip install -r requirements.txt
+python main.py daily
+python main.py daily --ticker VOO
 ```
+**Valasz (HU):** A fenti parancsokkal futtasd a napi pipeline-t.
 
----
-
-## Testing & Development
-
-### Q6: How do I run all tests?
-**A:**
+### Q6 (EN): How do I run a historical paper backfill?
+**Answer (EN):**
 ```bash
-# Run all tests
-pytest tests/ -v
-
-# Run specific test file
-pytest tests/test_backtester.py -v
-
-# Run with coverage
-pytest tests/ --cov=app --cov-report=html
+python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
+**Valasz (HU):** A fenti parancsokkal futtasd a historikus paper runner-t.
 
-### Q7: Tests are failing. What should I do?
-**A:**
-1. **Check virtual environment:** Ensure `.venv` is activated
-2. **Update dependencies:** `pip install -r requirements.txt --upgrade`
-3. **Check database:** Some tests need SQLite files
-4. **See troubleshooting:** Check [TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)
+### Q7 (EN): What happens if there are no RL model files?
+**Answer (EN):** Historical paper runs generate fallback HOLD decisions and mark decision_source as fallback. No trade is executed.
+**Valasz (HU):** Historikus futasnal fallback HOLD döntes keszul, decision_source= fallback, nincs trade.
 
-### Q8: How do I add a new test?
-**A:**
-```python
-# In tests/test_my_module.py
-import pytest
-from app.my_module import MyClass
+## Validation and Reporting
 
-def test_my_function():
-    obj = MyClass()
-    result = obj.my_function(param=123)
-    assert result == expected_value
-```
-
-### Q9: What's the current test coverage?
-**A:** **59%** (as of Sprint 9). Coverage report:
-- Run: `pytest --cov=app --cov-report=html`
-- View: Open `htmlcov/index.html`
-
-### Q10: How do I debug a failing test?
-**A:**
+### Q8 (EN): How do I run Phase 5 validation?
+**Answer (EN):**
 ```bash
-# Run single test with verbose output
-pytest tests/test_file.py::test_function -vv
-
-# Drop into debugger on failure
-pytest tests/test_file.py --pdb
-
-# Print all output
-pytest tests/test_file.py -s
+python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
+**Valasz (HU):** A fenti parancs futtatja a Phase 5 validaciot.
 
-### Q10b: How do I run the Phase 5 validation suite?
-**A:**
+### Q9 (EN): How do I append validation results to the test report?
+**Answer (EN):**
 ```bash
-# Run validation and embed results into the test status report
-python scripts/run_tests_with_report.py --with-validation --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
+python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+```
+**Valasz (HU):** A fenti parancs a validaciot a teszt riportba irja.
 
-# Repeatability check
-python main.py validate --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01 --repeat 2 --compare-repeat
+### Q10 (EN): Why do effectiveness or model trust show no_data?
+**Answer (EN):** Those metrics require outcomes and model_votes. If no outcomes are recorded or decisions have no model votes, the analyzers return no_data.
+**Valasz (HU):** Outcome-ok es model vote-ok szuksegesek. Ha hianyoznak, no_data jelenik meg.
+
+## Admin API
+
+### Q11 (EN): How do I call admin endpoints?
+**Answer (EN):** Use X-Admin-Key header and /admin paths.
+**Valasz (HU):** X-Admin-Key header es /admin endpointok szuksegesek.
+
+```bash
+curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 ```
 
----
+### Q12 (EN): Where is the list of endpoints?
+**Answer (EN):** See docs/README.md or app/ui/admin_dashboard.py.
+**Valasz (HU):** Lásd docs/README.md vagy app/ui/admin_dashboard.py.
+
+## Data and Storage
+
+### Q13 (EN): Where is data stored?
+**Answer (EN):** SQLite database at the configured path (Config.DB_PATH).
+**Valasz (HU):** SQLite adatbazisban (Config.DB_PATH).
+
+### Q14 (EN): What is stored in decision_history?
+**Answer (EN):** Decisions, audit metadata, model votes, position sizing, and decision_source for traceability.
+**Valasz (HU):** Döntesek, audit meta, model vote-ok, pozicio meretezes es decision_source.
+
+## Tests
+
+### Q15 (EN): How do I run tests?
+**Answer (EN):**
+```bash
+pytest
+```
+**Valasz (HU):**
+```bash
+pytest
+```
+
+### Q16 (EN): Where do I see coverage and the latest test snapshot?
+**Answer (EN):** docs/testing/TEST_STATUS_REPORT.md.
+**Valasz (HU):** docs/testing/TEST_STATUS_REPORT.md.
 
 ## Deployment
 
-### Q11: How do I deploy to Raspberry Pi?
-**A:** Follow [RASPBERRY_PI_SETUP_GUIDE.md](deployment/RASPBERRY_PI_SETUP_GUIDE.md):
-```bash
-# On Raspberry Pi
-bash deploy_rpi.sh
-```
+### Q17 (EN): How do I deploy on Raspberry Pi?
+**Answer (EN):** Follow docs/deployment/RASPBERRY_PI_SETUP_GUIDE.md and run deploy_rpi.sh.
+**Valasz (HU):** Kövesd a docs/deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md leirast es futtasd a deploy_rpi.sh-t.
 
-### Q12: Can I run this without Flask/web UI?
-**A:** Yes! Use standalone mode:
-```python
-# In main.py
-from app.scripts.daily_pipeline import DailyPipeline
+### Q18 (EN): What about health checks on Pi?
+**Answer (EN):** Admin health endpoint is /admin/health and requires X-Admin-Key. If you use health_check.sh, update its URL or headers accordingly.
+**Valasz (HU):** /admin/health endpoint X-Admin-Key headerrel hasznalhato. A health_check.sh scriptet ehhez igazitsd.
 
-pipeline = DailyPipeline()
-pipeline.run_full_pipeline()
-```
+## Troubleshooting
 
-### Q13: How do I set up the cron job?
-**A:**
-```bash
-# Edit crontab
-crontab -e
+### Q19 (EN): I see ModuleNotFoundError: app
+**Answer (EN):** Run from the project root and use the venv python.
+**Valasz (HU):** Futass a projekt gyokerbol es a venv python-t hasznald.
 
-# Add daily pipeline (runs at 6 AM)
-0 6 * * * cd /opt/tozsde_webapp && .venv/bin/python -m app.scripts.daily_pipeline
-```
-
-### Q14: How do I monitor the system?
-**A:** Use health check endpoint:
-```bash
-# Check system health
-curl http://localhost:5000/admin/health
-
-# Or via Python
-from app.infrastructure.health_check import HealthChecker
-checker = HealthChecker()
-status = checker.check_all()
-```
-
-### Q15: Can I deploy to cloud (AWS/Azure/GCP)?
-**A:** Yes! System requirements:
-- **VM:** 2 CPU, 4GB RAM minimum
-- **Storage:** 20GB SSD
-- **Python:** 3.6+ pre-installed
-- **Firewall:** Allow port 5000 (or use nginx proxy)
-- **Process manager:** Use systemd or supervisord
-
----
-
-## API Usage
-
-### Q16: How do I access the Admin Dashboard?
-**A:**
-```bash
-# Start Flask app
-python run_dev.py
-
-# Open browser
-http://localhost:5000/admin/health
-```
-
-### Q17: What API endpoints are available?
-**A:** Sprint 9 endpoints:
-
-**Health:**
-- `GET /admin/health` - System health check
-
-**Performance:**
-- `GET /admin/performance/summary?days=30` - Performance metrics
-- `GET /admin/performance/detailed?days=90` - Detailed analytics
-- `GET /admin/performance/chart-data?days=180` - Chart data
-
-**Errors:**
-- `GET /admin/errors/summary` - Error statistics
-- `GET /admin/errors/recent?limit=50` - Recent errors
-- `GET /admin/errors/critical` - Critical errors only
-- `POST /admin/errors/export` - Export error log
-
-**Capital:**
-- `GET /admin/capital/status` - Current capital status
-- `GET /admin/capital/history?days=30` - Capital history
-- `GET /admin/capital/allocation` - Current allocation
-- `GET /admin/capital/projection` - Future projection
-
-### Q18: How do I authenticate API requests?
-**A:** Currently no authentication (localhost only). For production:
-```python
-# Add authentication in app/ui/admin_dashboard.py
-from flask_httpauth import HTTPBasicAuth
-
-auth = HTTPBasicAuth()
-
-@auth.verify_password
-def verify_password(username, password):
-    # Check credentials
-    return username == "admin" and password == "secret"
-
-@dashboard_bp.route('/admin/health')
-@auth.login_required
-def health():
-    # ...
-```
-
-### Q19: Can I use the API from JavaScript?
-**A:** Yes:
-```javascript
-// Fetch performance data
-fetch('http://localhost:5000/admin/performance/summary?days=30')
-  .then(response => response.json())
-  .then(data => {
-    console.log('Total Return:', data.total_return);
-    console.log('Sharpe Ratio:', data.sharpe_ratio);
-  });
-```
-
-### Q20: How do I export data via API?
-**A:**
-```bash
-# Export error log
-curl -X POST http://localhost:5000/admin/errors/export \
-  -H "Content-Type: application/json" \
-  -d '{"format": "csv", "severity": "CRITICAL"}' \
-  -o errors.csv
-```
-
----
-
-## Trading & Strategies
-
-### Q21: What trading strategies are supported?
-**A:** Multiple strategies (Sprint 5):
-- **Trend Following:** Momentum, breakout detection
-- **Mean Reversion:** Buy dips, sell rallies
-- **Risk Parity:** Equal risk allocation
-- **Adaptive:** Market regime-based switching
-
-### Q22: How does the system decide what to buy/sell?
+### Q20 (EN): Validation report is not updating
+**Answer (EN):** Use the run_tests_with_report.py script with --with-validation and ensure you are in the repo root.
+**Valasz (HU):** A run_tests_with_report.py szkriptet hasznald, es ellenorizd a munkakonyvtarat.
 **A:** Decision pipeline:
 1. **Data Loading:** Fetch OHLCV from Yahoo Finance
 2. **Indicator Calculation:** RSI, MACD, Bollinger Bands, etc.

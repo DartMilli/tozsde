@@ -18,117 +18,94 @@
 
 **Raspberry Pi-ra telepítesz?** Kövesd az [deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md](./deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md).
 
-**Gyors egészség‑ellenőrzés?** Futtasd a smoke tesztet:
+# Tozsde Trading System - Dokumentacio (HU + EN)
 
-```
-python -m app.scripts.smoke_test
-```
+## Magyar
 
----
+### Attekintes
+A Tozsde egy Python alapú kereskedési rendszer, amely napi döntési pipeline-t futtat, auditálható döntéseket és outcome-okat ment SQLite-ba, valamint backtestinget, historikus paper futtatást és validációs toolingot ad (Phase 5 és Phase 6). Támogatja a paper végrehajtást, model ensemble-t, pozícióméretezést és megbízhatóság-elemzést, monitorozási és karbantartási eszközökkel.
 
-## 📂 Dokumentáció Szerkezete
+### Funkciok es modulok
+- Napi pipeline: adatbetöltés, jelgenerálás, policy, allokáció, mentés, értesítés.
+- Paper execution: portfolio state és outcome számítás.
+- Historikus paper runner: determinisztikus visszatöltés; fallback HOLD döntés, ha nincs RL modell.
+- Validáció: döntési minőség, kalibráció, walk-forward stabilitás, safety stress, Phase 6 ellenőrzések.
+- Backtesting és audit: replay, audit nyomvonalak, reward shaping elemzés, riportok.
+- Ops tooling: health check, backup, error reporting, cron ütemezés, log menedzsment.
 
-```
-docs/
-├── INDEX.md                             ◄──── Navigációs hub
-├── README.md, README_HU.md              ◄──── Projekt áttekintés
-├── SPRINTS.md                           ◄──── Sprint történet (egy helyen)
-├── FAQ.md                               ◄──── GYIK
-├── TROUBLESHOOTING_GUIDE.md             ◄──── Hibaelhárítás
-│
-├── deployment/                          ◄──── Raspberry Pi telepítés
-│   ├── RASPBERRY_PI_SETUP_GUIDE_HU.md
-│   ├── RASPBERRY_PI_SETUP_GUIDE.md
-│   └── DEPLOYMENT_VERIFICATION_CHECKLIST.md
-│
-└── testing/                             ◄──── Teszt eredmények
-    └── TEST_STATUS_REPORT.md
+### Gyors Start
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
----
-
-## 📊 Projekt Státusza
-
-- ✅ **1070 passing teszt** (legutóbbi futás)
-- ✅ **98% kód lefedettség**
-- ✅ **Production-ready**
-- ✅ **Sprint 1-10 kész + Sprint 11c maintenance + Sprint 12 validáció**
-
-**Cleanup elvégezve (2026-02-02):**
-- ✅ Eltávolítva: START_HERE.txt, CLEANUP_SUMMARY.md, 04_infrastructure/ (üres)
-- ✅ Összevonva: Összes sprint terv → SPRINTS.md
-- ✅ Eltávolítva: 02_implementation/*.md (6 fájl összevonva)
-- ✅ Eredmény: **4 alapvető dokumentációs fájl** (15+-ről lecsökkentve)
-
-**Sprint 11c Maintenance (2026-02-03):**
-- ✅ PerformanceAnalytics modul (500+ sor)
-- ✅ ErrorReporter komponens (580+ sor)
-- ✅ AdminDashboard bővítés (12 REST API endpoint)
-- ✅ 1070 passing teszt (legutóbbi futás)
-- Health monitoring
-
-**Sprint 12 Stabilizáció + Validáció (2026-02-08):**
-- ✅ Decision history egységesítése + outcomes
-- ✅ TradingPipelineService + DI
-- ✅ Paper execution és validációs modulok
-- ✅ `python scripts/run_tests_with_report.py --with-validation` (minőség és stabilitás riportok a teszt jelentésben)
-
----
-
-## 📁 Projekt Szerkezete
-
-```
-tozsde_webapp/
-├── app/                          [Alkalmazás Kód]
-│   ├── data_access/             [SQLite adatszint]
-│   ├── decision/                [Kereskedési Logika]
-│   ├── backtesting/             [Walk-Forward Tesztelés]
-│   ├── optimization/            [GA Optimizer]
-│   ├── ui/                      [Flask API]
-│   └── ... (további modulok)
-├── tests/                        [1070 passing]
-├── docs/                         [Dokumentáció]
-├── deploy_rpi.sh                 [ONE-CLICK Telepítő Script]
-├── requirements.txt              [Python Függőségek]
-└── pytest.ini                    [Teszt Konfiguráció]
+### CLI Hasznalat (projekttoba)
+```bash
+python main.py daily
+python main.py daily --ticker VOO
+python main.py weekly
+python main.py monthly
+python main.py walk-forward VOO
+python main.py train-rl VOO
+python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
 
----
+### Validacio es tesztek
+- A validációs snapshot a teszt riportban jelenik meg.
+- Futtatás:
 
-## 🎯 Következő Lépések
+```bash
+python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+```
 
-1. **Olvasd:** [deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md](./deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)
-2. **Készítsd el:** Raspberry Pi 4/5 + SD-kártya + USB tápegység
-3. **Telepítsd:** `bash deploy_rpi.sh`
-4. **Ellenőrizd:** `curl http://raspberrypi.local:5000/api/health`
-5. **Futtasd:** [deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md](./deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)
-6. **Monitorozz:** Naplók 6:00 AM után (első napi futás)
+- Tesztek futtatasa:
 
-System LIVE lesz és kereskedni fog! 🚀
+```bash
+pytest
+```
 
----
+### Admin API (kiemelt endpointok)
+Az admin endpointokhoz X-Admin-Key header szukseges (Config.ADMIN_API_KEY).
 
+- GET /admin/health
+- GET /admin/performance/summary?days=30
+- GET /admin/performance/drawdown?days=90
+- GET /admin/performance/rolling?days=90&window=30
+- GET /admin/errors/summary
+- GET /admin/capital/status
+
+### Dokumentacio navigacio
+- docs/INDEX.md navigacio
+- docs/SPRINTS.md sprint tortenet es architektura
+- docs/TROUBLESHOOTING_GUIDE.md hibakereses
+- docs/deployment Raspberry Pi telepites
+- docs/testing/TEST_STATUS_REPORT.md teszt statusz
+
+## English
+
+### Overview
+Tozsde is a Python trading system with a daily decision pipeline, auditable SQLite persistence, backtesting, historical paper runs, and Phase 5/6 validation. It supports paper execution, model ensembles, position sizing, and operational tooling.
+
+### Quick Start
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### CLI Usage (Project Root)
+```bash
+python main.py daily
+python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+```
+
+### Docs Map
+- docs/README.md for the full bilingual overview
+- docs/INDEX.md for navigation
+- docs/SPRINTS.md for sprint history
+- docs/TROUBLESHOOTING_GUIDE.md for operational fixes
+- docs/deployment for Raspberry Pi setup
 ## 📚 Dokumentáció Mappa Index
-
-| Mappa | Fájlok | Leírás |
-|-------|--------|--------|
-| **deployment/** | 4 | Raspberry Pi telepítési útmutatók + ellenőrzőlista |
-| **testing/** | 1 | Teszt státusz | 
-| **archive/** | - | Történeti dokumentumok |
-
----
-
-## ✨ Legutóbbi Frissítések
-
-- **[SPRINTS.md](./SPRINTS.md)** - Sprint 1-9 teljes történet (Sprint 9 Product Hardening hozzáadva)
-- **[TEST_STATUS_REPORT.md](./testing/TEST_STATUS_REPORT.md)** - legfrissebb státusz
-- **[RASPBERRY_PI_SETUP_GUIDE_HU.md](./deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md)** - Magyar Teljes Telepítési Útmutató
-- **[DEPLOYMENT_VERIFICATION_CHECKLIST.md](./deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md)** - Telepítés utáni ellenőrzőlista
-
----
-
-**Státusz:** ✅ Sprint 11c Maintenance kész | ⏳ Hardver telepítés pending
-**Cél Platform:** 🍓 Raspberry Pi 4/5 (64-bit ARM)
-**Teszt Lefedettség:** ✅ 98% (legutóbbi futás)
-
-Jó kereskedést! 🎉

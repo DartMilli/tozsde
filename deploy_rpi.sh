@@ -84,6 +84,23 @@ fi
 
 print_status "requirements.txt found"
 
+# Ensure admin key exists for admin endpoints
+ENV_FILE="$APP_DIR/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    if command -v openssl >/dev/null 2>&1; then
+        ADMIN_API_KEY=$(openssl rand -hex 16)
+    else
+        ADMIN_API_KEY=$(date +%s%N)
+    fi
+    cat > "$ENV_FILE" << EOF
+ADMIN_API_KEY=$ADMIN_API_KEY
+EOF
+    chmod 600 "$ENV_FILE"
+    print_status "Created .env with ADMIN_API_KEY"
+else
+    print_info ".env already exists; keeping existing ADMIN_API_KEY"
+fi
+
 # ==============================================================================
 # STEP 1: SYSTEM DEPENDENCIES
 # ==============================================================================
@@ -252,10 +269,23 @@ cat > "$SCRIPTS_DIR/health_check.sh" << 'EOF'
 # Health check for Flask API
 # Runs every 5 minutes via cron
 
-HEALTH_URL="http://localhost:5000/api/health"
+HEALTH_URL="http://localhost:5000/admin/health"
 TIMEOUT=5
 LOG_FILE="/home/pi/tozsde_webapp/logs/health_check.log"
 MAX_LOG_SIZE=10485760  # 10MB
+ENV_FILE="/home/pi/tozsde_webapp/.env"
+ADMIN_API_KEY=""
+HEADER=()
+
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    . "$ENV_FILE"
+    set +a
+fi
+
+if [ -n "$ADMIN_API_KEY" ]; then
+    HEADER=(-H "X-Admin-Key: $ADMIN_API_KEY")
+fi
 
 # Create log file if it doesn't exist
 touch "$LOG_FILE"
@@ -267,7 +297,7 @@ if [ -f "$LOG_FILE" ] && [ $(stat -f%z "$LOG_FILE" 2>/dev/null || stat -c%s "$LO
 fi
 
 # Check if API is responding
-if timeout $TIMEOUT curl -f -s "$HEALTH_URL" > /dev/null 2>&1; then
+if timeout $TIMEOUT curl -f -s "${HEADER[@]}" "$HEALTH_URL" > /dev/null 2>&1; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ OK" >> "$LOG_FILE"
 else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✗ FAILED - attempting restart" >> "$LOG_FILE"
@@ -277,7 +307,7 @@ else
     sleep 3
     
     # Verify recovery
-    if timeout $TIMEOUT curl -f -s "$HEALTH_URL" > /dev/null 2>&1; then
+    if timeout $TIMEOUT curl -f -s "${HEADER[@]}" "$HEALTH_URL" > /dev/null 2>&1; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ Service recovered" >> "$LOG_FILE"
     else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✗ Service still down - see logs" >> "$LOG_FILE"
@@ -347,9 +377,19 @@ fi
 print_header "STEP 9: Verification & Testing"
 
 print_info "Waiting for API to be ready..."
+ADMIN_API_KEY=""
+HEALTH_HEADER=()
+if [ -f "$APP_DIR/.env" ]; then
+    set -a
+    . "$APP_DIR/.env"
+    set +a
+fi
+if [ -n "$ADMIN_API_KEY" ]; then
+    HEALTH_HEADER=(-H "X-Admin-Key: $ADMIN_API_KEY")
+fi
 API_READY=0
 for i in {1..20}; do
-    if curl -f -s http://localhost:5000/api/health > /dev/null 2>&1; then
+    if curl -f -s "${HEALTH_HEADER[@]}" http://localhost:5000/admin/health > /dev/null 2>&1; then
         API_READY=1
         break
     fi

@@ -96,7 +96,6 @@ def run_pipeline_dev(dry_run: bool = False, ticker: str = None):
         dry_run: If True, simulate without sending emails
         ticker: If provided, run only for this ticker (dev mode)
     """
-    # TODO: Implement
     logger.info("Starting daily pipeline in DEV mode")
 
     if dry_run:
@@ -110,7 +109,7 @@ def run_pipeline_dev(dry_run: bool = False, ticker: str = None):
     try:
         import main
 
-        main.run_daily()
+        main.run_daily(dry_run=dry_run, ticker=ticker)
         logger.info("Pipeline completed successfully")
     except Exception as e:
         logger.error(f"Pipeline error: {e}", exc_info=True)
@@ -129,14 +128,13 @@ def run_walk_forward_dev(ticker: str):
     Args:
         ticker: Asset ticker symbol
     """
-    # TODO: Implement
     logger.info(f"Starting walk-forward optimization for {ticker}")
 
     try:
         import main
 
-        result = main.run_walk_forward(ticker)
-        logger.info(f"Walk-forward completed: {result}")
+        main.run_walk_forward_manual(ticker=ticker)
+        logger.info("Walk-forward completed")
     except Exception as e:
         logger.error(f"Walk-forward error: {e}", exc_info=True)
         sys.exit(1)
@@ -154,14 +152,13 @@ def run_train_rl_dev(ticker: str):
     Args:
         ticker: Asset ticker symbol
     """
-    # TODO: Implement
     logger.info(f"Starting RL agent training for {ticker}")
     logger.info(f"Steps: {Config.RL_TIMESTEPS:,}")
 
     try:
         import main
 
-        main.train_rl_agent(ticker)
+        main.run_train_rl_manual(ticker=ticker)
         logger.info(f"RL training completed for {ticker}")
     except Exception as e:
         logger.error(f"RL training error: {e}", exc_info=True)
@@ -180,7 +177,6 @@ def run_both_dev(port: int = 5000):
     Args:
         port: Flask port (default: 5000)
     """
-    # TODO: Implement
     import threading
 
     logger.info("Starting both Flask API and Pipeline in separate threads")
@@ -334,12 +330,14 @@ def main():
 
         elif args.mode == "walk-forward":
             if not args.ticker:
-                parser.error("walk-forward mode requires TICKER argument")
+                logger.error("walk-forward mode requires TICKER argument")
+                sys.exit(2)
             run_walk_forward_dev(args.ticker)
 
         elif args.mode == "train-rl":
             if not args.ticker:
-                parser.error("train-rl mode requires TICKER argument")
+                logger.error("train-rl mode requires TICKER argument")
+                sys.exit(2)
             run_train_rl_dev(args.ticker)
 
         elif args.mode == "both":

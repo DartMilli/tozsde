@@ -1,262 +1,152 @@
-# Troubleshooting Guide - ToZsDE Trading System
+# Troubleshooting Guide - EN + HU
 
-## 📋 Quick Reference
+## English
 
-This guide helps diagnose and fix common issues with the ToZsDE trading system.
+### 1) Test Failures
+**Symptom:** pytest exits with errors.
 
----
-
-## 🚨 Common Issues & Solutions
-
-### 1. **Test Failures**
-
-#### Symptom: `pytest` exits with errors
+**Fix:**
 ```bash
-FAILED tests/test_xyz.py::test_function
+pytest tests/test_xyz.py::test_function -v
+.venv\Scripts\python.exe -m pytest
 ```
 
-**Solutions:**
-1. **Run specific test to see full error:**
-   ```bash
-   pytest tests/test_xyz.py::test_function -v
-   ```
+### 2) Module Import Errors
+**Symptom:** ModuleNotFoundError: No module named app.
 
-2. **Check Python environment:**
-   ```bash
-   .venv/Scripts/python.exe --version  # Should be 3.6+
-   ```
+**Fix:**
+```bash
+cd c:\tozsde
+$env:PYTHONPATH = "$(Get-Location)"
+.venv\Scripts\python.exe -m pytest
+```
 
-3. **Reinstall dependencies:**
-   ```bash
-   .venv/Scripts/pip.exe install -r requirements.txt
-   ```
+### 3) Validation Report Not Updating
+**Fix:**
+```bash
+python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+```
 
-4. **Database issues:** Some tests require SQLite database. Check temp file permissions.
+### 4) Effectiveness or Model Trust Shows no_data
+**Cause:** outcomes or model_votes are missing.
 
----
+**Fix:**
+- Ensure paper execution produced outcomes.
+- Ensure decisions include model_votes when models exist.
 
-### 2. **Module Import Errors**
+### 5) Admin API Returns 401
+**Cause:** Missing X-Admin-Key header.
 
-#### Symptom: `ModuleNotFoundError: No module named 'app'`
+**Fix:**
+```bash
+curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
+```
 
-**Solutions:**
-1. **Ensure you're in project root:**
-   ```bash
-   pwd  # Should show: .../tozsde_webapp
-   ```
+### 6) Health Check Script Uses /api/health
+**Cause:** Default health_check.sh points to /api/health.
 
-2. **Check PYTHONPATH:**
-   ```bash
-   # Run from project root
-   export PYTHONPATH="${PYTHONPATH}:$(pwd)"  # Linux/Mac
-   $env:PYTHONPATH = "$(Get-Location)"      # Windows PowerShell
-   ```
+**Fix:**
+- Update the script to use /admin/health and add X-Admin-Key.
+- Or provide a compatible endpoint in your deployment (if you choose).
 
-3. **Use virtual environment:**
-   ```bash
-   .venv/Scripts/python.exe -m pytest  # Always use this
-   ```
+### 7) SQLite Database Locked
+**Fix:**
+- Close other connections.
+- Remove stale journal/wal files if they exist.
 
-#### Symptom: Validation report not updating
+### 8) Data Loading Failures
+**Fix:**
+- Verify ticker symbol.
+- Confirm network connectivity.
+- Use cached data when offline.
 
-**Solutions:**
-1. **Run validation with report integration:**
-   ```bash
-   python scripts/run_tests_with_report.py --with-validation --skip-tests --ticker VOO --start-date 2020-01-01 --end-date 2024-01-01
-   ```
-2. **Ensure you are in repo root:**
-   ```bash
-   cd c:\tozsde
-   ```
+### 9) Cron Jobs Not Running (Pi)
+**Fix:**
+```bash
+crontab -l
+sudo systemctl status cron
+```
 
----
+### 10) Flask API Port Conflict
+**Fix:**
+```bash
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+```
 
-### 3. **Database Errors**
+## Magyar
 
-#### Symptom: `sqlite3.OperationalError: database is locked`
+### 1) Teszthibak
+**Tunet:** pytest hibat dob.
 
-**Solutions:**
-1. **Close other connections:**
-   ```python
-   # In code: always use context managers
-   with sqlite3.connect(db_path) as conn:
-       # Your code here
-       pass  # Connection auto-closes
-   ```
+**Megoldas:**
+```bash
+pytest tests/test_xyz.py::test_function -v
+.venv\Scripts\python.exe -m pytest
+```
 
-2. **Check file permissions:**
-   ```bash
-   # Linux/Mac
-   ls -la market_data.db
-   chmod 644 market_data.db
-   
-   # Windows
-   icacls market_data.db
-   ```
+### 2) Modul import hiba
+**Tunet:** ModuleNotFoundError: No module named app.
 
-3. **Clear lock files:**
-   ```bash
-   rm market_data.db-journal  # If exists
-   rm market_data.db-wal      # If exists
-   ```
+**Megoldas:**
+```bash
+cd c:\tozsde
+$env:PYTHONPATH = "$(Get-Location)"
+.venv\Scripts\python.exe -m pytest
+```
 
----
+### 3) Validacios riport nem frissul
+**Megoldas:**
+```bash
+python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
+```
 
-### 4. **Flask API Not Starting**
+### 4) Effectiveness vagy Model Trust no_data
+**Ok:** nincs outcome vagy model_votes adat.
 
-#### Symptom: `Address already in use: Port 5000`
+**Megoldas:**
+- Ellenorizd, hogy a paper execution outcome-okat irt-e.
+- Ellenorizd, hogy vannak model vote-ok.
 
-**Solutions:**
-1. **Find process using port:**
-   ```bash
-   # Windows
-   netstat -ano | findstr :5000
-   taskkill /PID <PID> /F
-   
-   # Linux/Mac
-   lsof -ti:5000 | xargs kill -9
-   ```
+### 5) Admin API 401
+**Ok:** hianyzik az X-Admin-Key.
 
-2. **Use different port:**
-   ```python
-   # In main.py or config
-   app.run(host='0.0.0.0', port=5001)
-   ```
+**Megoldas:**
+```bash
+curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
+```
 
-3. **Check systemd service:**
-   ```bash
-   # On Raspberry Pi
-   sudo systemctl status tozsde
-   sudo systemctl restart tozsde
-   ```
+### 6) Health check script /api/health-et hasznal
+**Ok:** a health_check.sh alapertelmezetten /api/health-et hiv.
 
----
+**Megoldas:**
+- Modositsd /admin/health-re es adj hozza X-Admin-Key-t.
+- Vagy tegyel kompatibilis endpointot a deployba (ha ezt valasztod).
 
-### 5. **Cron Jobs Not Running**
+### 7) SQLite locked
+**Megoldas:**
+- Zarj be mas kapcsolatokat.
+- Torold a beragadt journal/wal fajlokat, ha vannak.
 
-#### Symptom: Daily pipeline doesn't execute
+### 8) Adatbetoltesi hiba
+**Megoldas:**
+- Ellenorizd a ticker nevét.
+- Ellenorizd a halozatot.
+- Offline modban csak cache-t hasznalj.
 
-**Solutions:**
-1. **Check cron status:**
-   ```bash
-   # Linux/Raspberry Pi
-   crontab -l  # List cron jobs
-   systemctl status cron
-   ```
+### 9) Cron nem fut (Pi)
+**Megoldas:**
+```bash
+crontab -l
+sudo systemctl status cron
+```
 
-2. **Check logs:**
-   ```bash
-   # Daily pipeline log
-   tail -f logs/daily_pipeline.log
-   
-   # System cron log
-   grep CRON /var/log/syslog
-   ```
-
-3. **Test manually:**
-   ```bash
-   cd /opt/tozsde_webapp
-   .venv/bin/python -m app.scripts.daily_pipeline
-   ```
-
-4. **Verify cron syntax:**
-   ```cron
-   # Daily at 6:00 AM
-   0 6 * * * cd /opt/tozsde_webapp && .venv/bin/python -m app.scripts.daily_pipeline
-   ```
-
----
-
-### 6. **Data Loading Failures**
-
-#### Symptom: `No data available for ticker XYZ`
-
-**Solutions:**
-1. **Check internet connection:**
-   ```bash
-   ping yahoo.com
-   curl -I https://query1.finance.yahoo.com
-   ```
-
-2. **Verify ticker symbol:**
-   ```python
-   # Correct: "AAPL", "MSFT", "SPY"
-   # Wrong: "Apple", "Microsoft", "S&P500"
-   ```
-
-3. **Check rate limiting:**
-   - Yahoo Finance limits: ~2000 requests/hour
-   - Add delays: `time.sleep(1)` between requests
-
-4. **Use cache:**
-   ```python
-   # DataManager caches recent data automatically
-   # Check: market_data.db
-   ```
-
----
-
-### 7. **Performance Issues**
-
-#### Symptom: System running slow
-
-**Solutions:**
-1. **Check disk space:**
-   ```bash
-   df -h  # Linux/Mac
-   Get-PSDrive C  # Windows
-   ```
-
-2. **Monitor memory:**
-   ```bash
-   free -h  # Linux/Mac
-   Get-Process python  # Windows
-   ```
-
-3. **Optimize database:**
-   ```bash
-   sqlite3 market_data.db "VACUUM;"
-   sqlite3 market_data.db "ANALYZE;"
-   ```
-
-4. **Clear old logs:**
-   ```bash
-   find logs/ -type f -mtime +30 -delete  # >30 days
-   ```
-
----
-
-### 8. **Backtesting Errors**
-
-#### Symptom: Backtester returns empty results
-
-**Solutions:**
-1. **Check date range:**
-   ```python
-   # Ensure sufficient history
-   start_date = "2020-01-01"  # Not too recent
-   end_date = "2023-12-31"
-   ```
-
-2. **Verify data availability:**
-   ```python
-   from app.data_access.data_manager import DataManager
-   dm = DataManager()
-   data = dm.get_ohlcv("AAPL", start_date, end_date)
-   print(len(data))  # Should be > 0
-   ```
-
-3. **Check strategy configuration:**
-   ```python
-   # Ensure strategy is properly configured
-   strategy_config = {...}  # Must have all required keys
-   ```
-
----
-
-### 9. **Deployment Issues (Raspberry Pi)**
-
-#### Symptom: `deploy_rpi.sh` fails
+### 10) Flask port ures
+**Megoldas:**
+```bash
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+```
 
 **Solutions:**
 1. **Check sudo permissions:**

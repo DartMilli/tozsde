@@ -51,6 +51,8 @@ class HistoryStore:
         audit: Dict,
         model_votes: list = None,
         safety_overrides: Dict = None,
+        position_sizing: Dict = None,
+        decision_source: str = None,
         model_id=None,
         timestamp=None,
     ) -> None:
@@ -78,6 +80,8 @@ class HistoryStore:
             explanation_json=json.dumps(explanation, default=str),
             model_votes_json=json.dumps(model_votes or [], default=str),
             safety_overrides_json=json.dumps(safety_overrides or {}, default=str),
+            position_sizing_json=json.dumps(position_sizing or {}, default=str),
+            decision_source=decision_source,
             timestamp=timestamp or payload.get("timestamp"),
         )
         # record = {

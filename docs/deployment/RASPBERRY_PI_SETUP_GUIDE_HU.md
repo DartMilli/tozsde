@@ -1,5 +1,7 @@
 # Raspberry Pi Setup Útmutató - Teljes Lépésről-Lépésre
 
+English summary: this guide follows the current deploy_rpi.sh workflow and uses the admin health endpoint with X-Admin-Key.
+
 **Cél Hardver:** Raspberry Pi 4B vagy 5 (64-bites ARM)  
 **Operációs Rendszer:** Raspberry Pi OS Lite (64-bites, Debian alapú)  
 **Becsült Idő:** 1,5-2 óra összesen (nagyobb része: letöltések/indítások várakozása)  
@@ -184,11 +186,13 @@ bash deploy_rpi.sh
 
 ```bash
 # A Pi-ből vagy a laptopodról
-curl http://tozsde-pi.local:5000/api/health
+curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"
 
 # Várható válasz:
 # {"status": "healthy", "timestamp": "2026-01-23T10:30:45", ...}
 ```
+
+Megjegyzes: a health_check.sh script alapertelmezetten /api/health-et hasznal. Allitsd at /admin/health-re es add hozza az X-Admin-Key headert.
 
 ### 4.2 Ütemezett Feladatok Megtekintése
 
@@ -227,7 +231,7 @@ ls -lh ~/tozsde_webapp/logs/
 # Ma pipeline-jét próbáld ki (száraz futás)
 source ~/tozsde_webapp/venv/bin/activate
 cd ~/tozsde_webapp
-python -m app.daily_pipeline --dry-run 2>&1 | head -20
+python -m app.infrastructure.cron_tasks --daily --dry-run 2>&1 | head -20
 
 # Ellenőrizd a naplót
 cat ~/tozsde_webapp/logs/cron_daily.log | tail -10
@@ -241,7 +245,7 @@ cat ~/tozsde_webapp/logs/cron_daily.log | tail -10
 
 ```bash
 # Minden reggel ellenőrizd az egészségét
-curl http://tozsde-pi.local:5000/api/health
+curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"
 
 # Figyeld a rendszer erőforrásokat (Pi 5 meleg lehet)
 df -h /home

@@ -2,6 +2,7 @@
 import argparse
 import subprocess
 import sys
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +14,8 @@ from app.analysis.confidence_calibrator import ConfidenceCalibrator
 from app.analysis.wf_stability_analyzer import WalkForwardStabilityAnalyzer
 from app.analysis.safety_stress_tester import SafetyStressTester
 from app.analysis.validation_report_builder import ValidationReportBuilder
+from app.analysis.decision_effectiveness import DecisionEffectivenessAnalyzer
+from app.analysis.phase6_validator import Phase6Validator
 from app.data_access.data_manager import DataManager
 
 REPORT_PATH = Path("docs/testing/TEST_STATUS_REPORT.md")
@@ -70,8 +73,18 @@ def run_validation(args) -> None:
                 scenario=args.scenario,
             )
 
+        DecisionEffectivenessAnalyzer().compute_for_range(
+            ticker=args.ticker,
+            start_date=args.start_date,
+            end_date=args.end_date,
+        )
+
     report = ValidationReportBuilder().build()
     markdown = build_validation_markdown(args, report)
+    phase6 = Phase6Validator().run(args.ticker or "ALL")
+    markdown += "\n## Phase 6 Validation Checklist\n```json\n"
+    markdown += json.dumps(phase6, indent=2, default=str)
+    markdown += "\n```\n"
     update_report_with_validation(markdown)
 
 
@@ -85,6 +98,7 @@ def build_validation_markdown(args, report) -> str:
     summary = [
         "## Validation Snapshot Summary",
         f"- Decision Quality: {_get_status('decision_quality')}",
+        f"- Decision Effectiveness: {_get_status('decision_effectiveness')}",
         f"- Confidence Calibration: {_get_status('confidence_calibration')}",
         f"- WF Stability: {_get_status('wf_stability')}",
         f"- Safety Stress: {_get_status('safety_stress', key='results')}",

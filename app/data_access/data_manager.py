@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 import logging
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from typing import List, Dict
 from app.config.config import Config
 from contextlib import contextmanager
@@ -97,7 +97,9 @@ class DataManager:
                     audit_blob TEXT,
                     explanation_json TEXT,
                     model_votes_json TEXT,
-                    safety_overrides_json TEXT
+                    safety_overrides_json TEXT,
+                    position_sizing_json TEXT,
+                    decision_source TEXT
                 )
             """
             )
@@ -111,6 +113,8 @@ class DataManager:
                 "explanation_json",
                 "model_votes_json",
                 "safety_overrides_json",
+                "position_sizing_json",
+                "decision_source",
             }
             for col in required_cols - existing_cols:
                 cur.execute(f"ALTER TABLE decision_history ADD COLUMN {col} TEXT")
@@ -151,6 +155,64 @@ class DataManager:
                 cur.execute("ALTER TABLE outcomes ADD COLUMN exit_reason TEXT")
             if "horizon_days" not in existing_outcome_cols:
                 cur.execute("ALTER TABLE outcomes ADD COLUMN horizon_days INTEGER")
+
+            # Decision effectiveness (P6.1)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS decision_effectiveness (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    decision_id INTEGER UNIQUE,
+                    ticker TEXT,
+                    effectiveness_score REAL,
+                    components_json TEXT,
+                    computed_at TEXT,
+                    FOREIGN KEY(decision_id) REFERENCES decision_history(id)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS decision_effectiveness_rolling (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT,
+                    window_days INTEGER,
+                    as_of_date TEXT,
+                    metrics_json TEXT,
+                    computed_at TEXT
+                )
+                """
+            )
+
+            # Model trust metrics (P6.3)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS model_trust_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    model_path TEXT,
+                    ticker TEXT,
+                    trust_weight REAL,
+                    metrics_json TEXT,
+                    computed_at TEXT
+                )
+                """
+            )
+
+            # Model registry (P6.5)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS model_registry (
+                    model_id TEXT PRIMARY KEY,
+                    ticker TEXT,
+                    model_type TEXT,
+                    wf_score REAL,
+                    model_path TEXT,
+                    status TEXT,
+                    created_at TEXT,
+                    updated_at TEXT,
+                    metadata_json TEXT
+                )
+                """
+            )
 
             # Portfolio state snapshots (paper/live/backtest)
             cur.execute(
@@ -313,7 +375,13 @@ class DataManager:
 
         # Reset index, hogy a dátum is oszlop legyen a mentéshez
         df_to_save = df_to_save.reset_index()
-        df_to_save.columns = [c.lower() for c in df_to_save.columns]
+
+        def _norm_col(col):
+            if isinstance(col, tuple):
+                col = col[0]
+            return str(col).lower()
+
+        df_to_save.columns = [_norm_col(c) for c in df_to_save.columns]
 
         with self._get_conn() as conn:
             # Ideiglenes tábla a gyors upserthez
@@ -412,14 +480,16 @@ class DataManager:
         explanation_json=None,
         model_votes_json=None,
         safety_overrides_json=None,
+        position_sizing_json=None,
+        decision_source=None,
         timestamp: str = None,
     ):
         """Enkapszulált mentés a history táblába."""
         query = """
             INSERT INTO decision_history 
             (timestamp, ticker, model_id, action_code, action_label, confidence, wf_score, decision_blob, audit_blob,
-             explanation_json, model_votes_json, safety_overrides_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             explanation_json, model_votes_json, safety_overrides_json, position_sizing_json, decision_source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         with self._get_conn() as conn:
             cursor = conn.execute(
@@ -437,6 +507,8 @@ class DataManager:
                     explanation_json or "{}",
                     model_votes_json or "[]",
                     safety_overrides_json or "{}",
+                    position_sizing_json or "{}",
+                    decision_source,
                 ),
             )
             conn.commit()
@@ -581,7 +653,8 @@ class DataManager:
                 """
                 SELECT timestamp, ticker, action_code, action_label,
                        model_id, confidence, wf_score, decision_blob, audit_blob,
-                       explanation_json, model_votes_json, safety_overrides_json
+                       explanation_json, model_votes_json, safety_overrides_json,
+                      position_sizing_json, decision_source
                 FROM decision_history
                 WHERE ticker = ?
                 ORDER BY timestamp ASC
@@ -602,6 +675,8 @@ class DataManager:
             explanation_json,
             model_votes_json,
             safety_overrides_json,
+            position_sizing_json,
+            decision_source,
         ) in rows:
             out.append(
                 {
@@ -621,9 +696,24 @@ class DataManager:
                         if safety_overrides_json
                         else {}
                     ),
+                    "position_sizing": (
+                        json.loads(position_sizing_json) if position_sizing_json else {}
+                    ),
+                    "decision_source": decision_source,
                 }
             )
         return out
+
+    def has_decision_for_date(self, ticker: str, as_of_date: date) -> bool:
+        query = """
+            SELECT 1
+            FROM decision_history
+            WHERE ticker = ? AND date(timestamp) = date(?)
+            LIMIT 1
+        """
+        with self._get_conn() as conn:
+            row = conn.execute(query, (ticker, as_of_date.isoformat())).fetchone()
+        return row is not None
 
     def fetch_history_range(
         self, ticker: str, start_iso: str, end_iso: str
@@ -708,6 +798,189 @@ class DataManager:
                 ),
             )
             conn.commit()
+
+        try:
+            from app.analysis.decision_effectiveness import (
+                DecisionEffectivenessAnalyzer,
+            )
+
+            DecisionEffectivenessAnalyzer().compute_for_decision(decision_id)
+        except Exception as e:
+            logger.error(
+                f"Failed to compute effectiveness for decision {decision_id}: {e}"
+            )
+
+    # --- P6.1 Decision Effectiveness ---
+
+    def save_decision_effectiveness(
+        self,
+        decision_id: int,
+        ticker: str,
+        effectiveness_score: float,
+        components_json: str,
+    ) -> None:
+        query = """
+            INSERT OR REPLACE INTO decision_effectiveness
+            (decision_id, ticker, effectiveness_score, components_json, computed_at)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    decision_id,
+                    ticker,
+                    effectiveness_score,
+                    components_json,
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            conn.commit()
+
+    def save_decision_effectiveness_rolling(
+        self,
+        ticker: str,
+        window_days: int,
+        as_of_date: str,
+        metrics_json: str,
+    ) -> None:
+        query = """
+            INSERT INTO decision_effectiveness_rolling
+            (ticker, window_days, as_of_date, metrics_json, computed_at)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    ticker,
+                    window_days,
+                    as_of_date,
+                    metrics_json,
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            conn.commit()
+
+    # --- P6.3 Model Trust ---
+
+    def save_model_trust_metrics(
+        self,
+        model_path: str,
+        ticker: str,
+        trust_weight: float,
+        metrics_json: str,
+    ) -> None:
+        query = """
+            INSERT INTO model_trust_metrics
+            (model_path, ticker, trust_weight, metrics_json, computed_at)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    model_path,
+                    ticker,
+                    trust_weight,
+                    metrics_json,
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            conn.commit()
+
+    def fetch_latest_model_trust_weights(self, ticker: str) -> Dict[str, float]:
+        query = """
+            SELECT model_path, trust_weight, MAX(computed_at)
+            FROM model_trust_metrics
+            WHERE ticker = ?
+            GROUP BY model_path
+        """
+        with self._get_conn() as conn:
+            rows = conn.execute(query, (ticker,)).fetchall()
+        return {model_path: (tw or 0.0) for model_path, tw, _ in rows}
+
+    # --- P6.5 Model Registry ---
+
+    def register_model(
+        self,
+        model_id: str,
+        ticker: str,
+        model_type: str,
+        wf_score: float,
+        model_path: str,
+        status: str = "candidate",
+        metadata_json: str = None,
+    ) -> None:
+        query = """
+            INSERT OR REPLACE INTO model_registry
+            (model_id, ticker, model_type, wf_score, model_path, status, created_at, updated_at, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (
+                    model_id,
+                    ticker,
+                    model_type,
+                    wf_score,
+                    model_path,
+                    status,
+                    now,
+                    now,
+                    metadata_json or "{}",
+                ),
+            )
+            conn.commit()
+
+    def update_model_status(self, model_id: str, status: str) -> None:
+        query = """
+            UPDATE model_registry
+            SET status = ?, updated_at = ?
+            WHERE model_id = ?
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                query,
+                (status, datetime.now(timezone.utc).isoformat(), model_id),
+            )
+            conn.commit()
+
+    def fetch_active_models(self, ticker: str, limit: int = 3) -> List[Dict]:
+        query = """
+            SELECT model_id, model_path, wf_score, model_type
+            FROM model_registry
+            WHERE ticker = ? AND status = 'active'
+            ORDER BY updated_at DESC
+            LIMIT ?
+        """
+        with self._get_conn() as conn:
+            rows = conn.execute(query, (ticker, limit)).fetchall()
+        return [
+            {
+                "model_id": model_id,
+                "model_path": model_path,
+                "wf_score": wf_score,
+                "model_type": model_type,
+            }
+            for model_id, model_path, wf_score, model_type in rows
+        ]
+
+    def fetch_latest_decision_quality_metrics(self, ticker: str) -> Dict:
+        query = """
+            SELECT metrics_json
+            FROM decision_quality_metrics
+            WHERE ticker = ?
+            ORDER BY computed_at DESC
+            LIMIT 1
+        """
+        with self._get_conn() as conn:
+            row = conn.execute(query, (ticker,)).fetchone()
+        if not row:
+            return {}
+        return json.loads(row[0]) if row[0] else {}
 
     def save_portfolio_state(
         self,
@@ -957,8 +1230,23 @@ class DataManager:
             return conn.execute(query, (limit,)).fetchall()
 
     def get_top_models(self, ticker: str, limit: int = 3):
-        """Compatibility stub for RL model discovery (DB-driven implementations can override)."""
-        return []
+        """Return active models ordered by trust weight when available."""
+        try:
+            models = self.fetch_active_models(ticker=ticker, limit=limit)
+            if not models:
+                return []
+
+            trust = self.fetch_latest_model_trust_weights(ticker=ticker)
+            ranked = []
+            for m in models:
+                model_path = m.get("model_path")
+                weight = trust.get(model_path, 0.0)
+                ranked.append((model_path, weight))
+
+            ranked.sort(key=lambda x: x[1], reverse=True)
+            return ranked[:limit]
+        except sqlite3.OperationalError:
+            return []
 
     def update_history_audit(self, row_id, new_audit_blob):
         """P8: Frissíti egy korábbi döntés audit logját (pl. eredménnyel)."""
