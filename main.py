@@ -139,7 +139,7 @@ def run_daily(dry_run: bool = False, ticker: str = None):
                 )
             except Exception as e:
                 logger.error(
-                    f"✗ DAILY analysis failed for {ticker_symbol}: {e}",
+                    f"ERR DAILY analysis failed for {ticker_symbol}: {e}",
                     exc_info=True,
                 )
                 if not dry_run:
@@ -213,9 +213,9 @@ def run_daily(dry_run: bool = False, ticker: str = None):
             else:
                 try:
                     send_email(subject, body, Config.NOTIFY_EMAIL)
-                    logger.info(f"✓ Email sent to {Config.NOTIFY_EMAIL}")
+                    logger.info(f"OK Email sent to {Config.NOTIFY_EMAIL}")
                 except Exception as e:
-                    logger.error(f"✗ Failed to send email: {e}")
+                    logger.error(f"ERR Failed to send email: {e}")
                     ErrorAlerter.alert(
                         error_code="AUTHENTICATION_FAILED",
                         message=f"Failed to send notification email: {e}",
@@ -281,17 +281,19 @@ def run_weekly(dry_run: bool = False):
 
                 if not dry_run:
                     save_reliability_scores(ticker_symbol, end.isoformat(), scores)
-                    logger.info(f"✓ {ticker_symbol}: {len(scores)} model scores saved")
+                    logger.info(f"OK {ticker_symbol}: {len(scores)} model scores saved")
                 else:
                     logger.info(
                         f"[DRY-RUN] {ticker_symbol}: {len(scores)} model scores (not saved)"
                     )
 
             except Exception as e:
-                logger.error(f"✗ Reliability analysis failed for {ticker_symbol}: {e}")
+                logger.error(
+                    f"ERR Reliability analysis failed for {ticker_symbol}: {e}"
+                )
 
     except Exception as e:
-        logger.error(f"✗ WEEKLY analysis failed: {e}", exc_info=True)
+        logger.error(f"ERR WEEKLY analysis failed: {e}", exc_info=True)
 
     logger.info("=" * 80)
     logger.info("WEEKLY reliability analysis completed")
@@ -326,7 +328,9 @@ def run_monthly(dry_run: bool = False):
             # 1. Walk-forward optimization
             logger.info(f"  Running walk-forward optimization for {ticker_symbol}...")
             wf_summary = run_walk_forward(ticker_symbol)
-            logger.info(f"  ✓ Walk-forward score: {wf_summary['normalized_score']:.4f}")
+            logger.info(
+                f"  OK Walk-forward score: {wf_summary['normalized_score']:.4f}"
+            )
 
             # 2. RL training
             if Config.ENABLE_RL:
@@ -336,13 +340,13 @@ def run_monthly(dry_run: bool = False):
                     wf_score=wf_summary["normalized_score"],
                     wf_summary=wf_summary,
                 )
-                logger.info(f"  ✓ RL agent trained")
+                logger.info("  OK RL agent trained")
             else:
                 logger.info(f"  ⊘ RL training disabled (ENABLE_RL=False)")
 
         except Exception as e:
             logger.error(
-                f"✗ MONTHLY cycle failed for {ticker_symbol}: {e}", exc_info=True
+                f"ERR MONTHLY cycle failed for {ticker_symbol}: {e}", exc_info=True
             )
 
     logger.info("=" * 80)

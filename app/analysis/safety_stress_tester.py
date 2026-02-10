@@ -65,17 +65,18 @@ class SafetyStressTester:
         self, decisions: pd.DataFrame, ohlcv: pd.DataFrame, scenario: str
     ) -> Dict:
         decisions = decisions.copy()
-        decisions["date"] = pd.to_datetime(decisions["timestamp"]).dt.date
+        decisions["date"] = pd.to_datetime(decisions["timestamp"]).dt.normalize()
 
         ohlcv = ohlcv.copy()
         ohlcv.index = pd.to_datetime(ohlcv.index)
+        ohlcv = ohlcv.reset_index().rename(columns={"index": "date"})
+        ohlcv["date"] = pd.to_datetime(ohlcv["date"]).dt.normalize()
         ohlcv["ret"] = ohlcv["Close"].pct_change()
         ohlcv["vol_20"] = ohlcv["ret"].rolling(20).std()
 
         merged = decisions.merge(
-            ohlcv[["ret", "vol_20"]],
-            left_on="date",
-            right_index=True,
+            ohlcv[["date", "ret", "vol_20"]],
+            on="date",
             how="left",
         )
 

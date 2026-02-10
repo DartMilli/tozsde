@@ -28,6 +28,9 @@ class Config:
     ENABLE_DRAWDOWN_GUARD = (
         os.getenv("ENABLE_DRAWDOWN_GUARD", "false").lower() == "true"
     )
+    ALLOW_NO_MODEL_FALLBACK = (
+        os.getenv("ALLOW_NO_MODEL_FALLBACK", "true").lower() == "true"
+    )
 
     LOGGING_LEVEL = os.getenv("LOGGING_LEVEL")
 
@@ -72,6 +75,9 @@ class Config:
     }
 
     LANG = "en"
+
+    EMAIL_MAX_BODY_CHARS = int(os.getenv("EMAIL_MAX_BODY_CHARS", "5000"))
+    EMAIL_MAX_DETAIL_LINES = int(os.getenv("EMAIL_MAX_DETAIL_LINES", "20"))
 
     # Kereskedési beállítások (P2 - Tranzakciós költségek)
     INITIAL_CAPITAL = 10000

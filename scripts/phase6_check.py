@@ -15,6 +15,8 @@ def main():
     conn = sqlite3.connect(str(Config.DB_PATH))
     cur = conn.cursor()
 
+    validation_equal = None
+
     cur.execute(
         "SELECT report_json, computed_at FROM validation_reports ORDER BY computed_at DESC LIMIT 2"
     )
@@ -22,7 +24,11 @@ def main():
     if len(rows) == 2:
         r1 = json.loads(rows[0][0]) if rows[0][0] else {}
         r2 = json.loads(rows[1][0]) if rows[1][0] else {}
-        print("validation_reports_equal:", r1 == r2)
+        for key in ("generated_at", "git_commit"):
+            r1.pop(key, None)
+            r2.pop(key, None)
+        validation_equal = r1 == r2
+        print("validation_reports_equal:", validation_equal)
     else:
         print("validation_reports_equal: insufficient data")
 
@@ -51,10 +57,17 @@ def main():
     validator = Phase6Validator()
     run1 = validator.run("VOO")
     run2 = validator.run("VOO")
-    print("phase6_validator_equal:", run1 == run2)
+    phase6_equal = run1 == run2
+    print("phase6_validator_equal:", phase6_equal)
     print("phase6_validator_run:", run1)
 
     conn.close()
+
+    determinism_ok = validation_equal is True and phase6_equal is True
+    if not determinism_ok:
+        print("determinism_ok: False")
+        sys.exit(1)
+    print("determinism_ok: True")
 
 
 if __name__ == "__main__":

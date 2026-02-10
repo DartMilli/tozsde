@@ -4,6 +4,7 @@ from typing import Dict
 
 from app.data_access.data_manager import DataManager
 from app.infrastructure.logger import setup_logger
+from app.infrastructure.git_utils import get_git_commit
 
 logger = setup_logger(__name__)
 
@@ -18,6 +19,8 @@ class ValidationReportBuilder:
 
     def build(self) -> Dict:
         report = {
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "git_commit": get_git_commit(),
             "decision_quality": self._latest("decision_quality_metrics"),
             "confidence_calibration": self._latest("confidence_calibration"),
             "wf_stability": self._latest("wf_stability_metrics"),
@@ -44,6 +47,18 @@ class ValidationReportBuilder:
     def to_markdown(self, report: Dict) -> str:
         lines = []
 
+        lines.append("# Validation Report")
+        lines.append(f"Generated: {report.get('generated_at', 'unknown')}")
+        lines.append(f"Git commit: {report.get('git_commit', 'unknown')}")
+        lines.append("")
+
+        summary = self._build_summary(report)
+        lines.append("## Summary")
+        lines.append("```json")
+        lines.append(json.dumps(summary, indent=2, default=str))
+        lines.append("```")
+        lines.append("")
+
         def section(title, data):
             lines.append(f"## {title}")
             lines.append("```json")
@@ -58,6 +73,29 @@ class ValidationReportBuilder:
         section("Safety Stress", report.get("safety_stress"))
 
         return "\n".join(lines)
+
+    def _build_summary(self, report: Dict) -> Dict:
+        sections = {
+            "decision_quality": report.get("decision_quality"),
+            "decision_effectiveness": report.get("decision_effectiveness"),
+            "confidence_calibration": report.get("confidence_calibration"),
+            "wf_stability": report.get("wf_stability"),
+            "safety_stress": report.get("safety_stress"),
+        }
+
+        def _status(value: Dict) -> str:
+            if value is None:
+                return "no_data"
+            if isinstance(value, dict):
+                metrics = value.get("metrics")
+                results = value.get("results")
+                if isinstance(metrics, dict) and metrics.get("status") == "no_data":
+                    return "no_data"
+                if isinstance(results, dict) and results.get("status") == "no_data":
+                    return "no_data"
+            return "ok"
+
+        return {k: _status(v) for k, v in sections.items()}
 
     def _latest(self, table: str):
         query = f"SELECT * FROM {table} ORDER BY computed_at DESC LIMIT 1"

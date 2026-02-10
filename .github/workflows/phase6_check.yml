@@ -1,0 +1,30 @@
+name: phase6-check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  phase6:
+    runs-on: ubuntu-latest
+    env:
+      TICKER: VOO
+      START_DATE: 2022-01-01
+      END_DATE: 2023-12-31
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Phase 5 + Phase 6 checks
+        run: bash scripts/ci_phase6_check.sh

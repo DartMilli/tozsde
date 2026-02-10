@@ -84,11 +84,27 @@ class HistoricalPaperRunner:
                 continue
 
             daily_candidates = [candidate]
+            no_trade_candidates = [
+                c for c in daily_candidates if c["decision"].get("no_trade", False)
+            ]
             allocatable = [
                 c for c in daily_candidates if not c["decision"].get("no_trade", False)
             ]
 
             finalized = pipeline.allocate_capital(allocatable)
+
+            for item in no_trade_candidates:
+                decision_source = item.get("decision_source")
+                if decision_source == "fallback":
+                    decision_id = pipeline.persist_decision(
+                        payload=item["payload"],
+                        decision=item["decision"],
+                        explanation=item["explanation"],
+                        audit=item["audit"],
+                        position_sizing=item.get("position_sizing"),
+                        decision_source=decision_source,
+                    )
+                    item["decision_id"] = decision_id
 
             if Config.ENABLE_POSITION_SIZING and finalized:
                 latest = self.dm.fetch_latest_portfolio_state(source="paper")
