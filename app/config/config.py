@@ -128,6 +128,7 @@ class Config:
     TRAIN_WINDOW_MONTHS = 24  # 2 év tanulás
     TEST_WINDOW_MONTHS = 6  # 6 hónap tesztelés
     WINDOW_STEP_MONTHS = 3  # 3 havonta lépünk előre
+    WF_STABILITY_CONSTANT = 10
 
     # tanulási adatok és optimalizációs paraméterek
     START_DATE = "2020-01-01"

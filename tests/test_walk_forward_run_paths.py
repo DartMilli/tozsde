@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 
 from app.backtesting.walk_forward import WalkForwardOptimizer, run_walk_forward
+from app.optimization.fitness import WalkForwardResult
 from app.optimization.fitness import NEG_INF
 
 
@@ -18,10 +19,13 @@ def _make_df(rows=10):
 def test_run_returns_summary_when_valid():
     df = _make_df(10)
 
-    with patch("app.backtesting.walk_forward.optimize_params") as mock_opt, \
-        patch("app.backtesting.walk_forward.Backtester") as mock_bt, \
-        patch("app.backtesting.walk_forward.fitness_single") as mock_fs, \
-        patch("app.backtesting.walk_forward.fitness_walk_forward") as mock_fw:
+    with patch("app.backtesting.walk_forward.optimize_params") as mock_opt, patch(
+        "app.backtesting.walk_forward.Backtester"
+    ) as mock_bt, patch(
+        "app.backtesting.walk_forward.fitness_single"
+    ) as mock_fs, patch(
+        "app.backtesting.walk_forward.compute_walk_forward_metrics"
+    ) as mock_wf:
 
         mock_opt.return_value = {"p": 1}
         report = MagicMock()
@@ -32,7 +36,15 @@ def test_run_returns_summary_when_valid():
         }
         mock_bt.return_value.run.return_value = report
         mock_fs.return_value = 1.23
-        mock_fw.return_value = 0.5
+        mock_wf.return_value = WalkForwardResult(
+            avg_profit=1.0,
+            avg_drawdown=-0.1,
+            profit_std=0.1,
+            dd_std=0.05,
+            negative_fold_ratio=0.0,
+            raw_fitness=0.5,
+            normalized_score=0.2,
+        )
 
         wf = WalkForwardOptimizer(
             ticker="TEST",
@@ -55,10 +67,13 @@ def test_run_returns_summary_when_valid():
 def test_run_returns_none_on_neg_inf():
     df = _make_df(10)
 
-    with patch("app.backtesting.walk_forward.optimize_params") as mock_opt, \
-        patch("app.backtesting.walk_forward.Backtester") as mock_bt, \
-        patch("app.backtesting.walk_forward.fitness_single") as mock_fs, \
-        patch("app.backtesting.walk_forward.fitness_walk_forward") as mock_fw:
+    with patch("app.backtesting.walk_forward.optimize_params") as mock_opt, patch(
+        "app.backtesting.walk_forward.Backtester"
+    ) as mock_bt, patch(
+        "app.backtesting.walk_forward.fitness_single"
+    ) as mock_fs, patch(
+        "app.backtesting.walk_forward.compute_walk_forward_metrics"
+    ) as mock_wf:
 
         mock_opt.return_value = {"p": 1}
         report = MagicMock()
@@ -69,7 +84,15 @@ def test_run_returns_none_on_neg_inf():
         }
         mock_bt.return_value.run.return_value = report
         mock_fs.return_value = -1.0
-        mock_fw.return_value = NEG_INF
+        mock_wf.return_value = WalkForwardResult(
+            avg_profit=-1.0,
+            avg_drawdown=-0.2,
+            profit_std=0.2,
+            dd_std=0.1,
+            negative_fold_ratio=1.0,
+            raw_fitness=NEG_INF,
+            normalized_score=0.0,
+        )
 
         wf = WalkForwardOptimizer(
             ticker="TEST",
@@ -87,10 +110,13 @@ def test_run_returns_none_on_neg_inf():
 def test_run_returns_none_when_too_few_windows():
     df = _make_df(8)
 
-    with patch("app.backtesting.walk_forward.optimize_params") as mock_opt, \
-        patch("app.backtesting.walk_forward.Backtester") as mock_bt, \
-        patch("app.backtesting.walk_forward.fitness_single") as mock_fs, \
-        patch("app.backtesting.walk_forward.fitness_walk_forward") as mock_fw:
+    with patch("app.backtesting.walk_forward.optimize_params") as mock_opt, patch(
+        "app.backtesting.walk_forward.Backtester"
+    ) as mock_bt, patch(
+        "app.backtesting.walk_forward.fitness_single"
+    ) as mock_fs, patch(
+        "app.backtesting.walk_forward.compute_walk_forward_metrics"
+    ) as mock_wf:
 
         mock_opt.return_value = {"p": 1}
         report = MagicMock()
@@ -101,7 +127,15 @@ def test_run_returns_none_when_too_few_windows():
         }
         mock_bt.return_value.run.return_value = report
         mock_fs.return_value = 0.2
-        mock_fw.return_value = 0.3
+        mock_wf.return_value = WalkForwardResult(
+            avg_profit=0.5,
+            avg_drawdown=-0.05,
+            profit_std=0.1,
+            dd_std=0.05,
+            negative_fold_ratio=0.0,
+            raw_fitness=0.3,
+            normalized_score=0.2,
+        )
 
         wf = WalkForwardOptimizer(
             ticker="TEST",
@@ -119,9 +153,13 @@ def test_run_returns_none_when_too_few_windows():
 def test_run_walk_forward_uses_config_windows():
     df = _make_df(30)
 
-    with patch("app.backtesting.walk_forward.load_data") as mock_load, \
-        patch("app.backtesting.walk_forward.WalkForwardOptimizer") as mock_wf, \
-        patch("app.backtesting.walk_forward.Config") as mock_cfg:
+    with patch("app.backtesting.walk_forward.load_data") as mock_load, patch(
+        "app.backtesting.walk_forward.WalkForwardOptimizer"
+    ) as mock_wf, patch(
+        "app.backtesting.walk_forward.ensure_data_cached"
+    ) as mock_cache, patch(
+        "app.backtesting.walk_forward.Config"
+    ) as mock_cfg:
 
         mock_load.return_value = df
         mock_cfg.START_DATE = "2025-01-01"
@@ -133,6 +171,7 @@ def test_run_walk_forward_uses_config_windows():
         mock_cfg.OPTIMIZER_GENERATIONS = 5
 
         mock_wf.return_value.run.return_value = {"ok": True}
+        mock_cache.return_value = True
 
         result = run_walk_forward("TEST")
 

@@ -30,6 +30,16 @@ SCRIPTS_DIR="$APP_DIR/app/scripts"
 USER="pi"
 GROUP="pi"
 
+# Optional RL training/cron configuration (opt-in)
+TRAIN_RL_ON_DEPLOY="${TRAIN_RL_ON_DEPLOY:-true}"
+TRAIN_RL_FORCE="${TRAIN_RL_FORCE:-false}"
+TRAIN_RL_TICKER="${TRAIN_RL_TICKER:-VOO}"
+TRAIN_RL_REWARD_STRATEGY="${TRAIN_RL_REWARD_STRATEGY:-portfolio_value}"
+ENABLE_RL_CRON="${ENABLE_RL_CRON:-false}"
+RL_CRON_MODE="${RL_CRON_MODE:-minimal}"
+RL_CRON_TICKER="${RL_CRON_TICKER:-VOO}"
+RL_CRON_REWARD_STRATEGY="${RL_CRON_REWARD_STRATEGY:-portfolio_value}"
+
 # ANSI color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -183,6 +193,50 @@ else
 fi
 
 # ==============================================================================
+# STEP 3B: OPTIONAL RL TRAINING (ON DEPLOY)
+# ==============================================================================
+if [ "$TRAIN_RL_ON_DEPLOY" = "true" ]; then
+    print_header "STEP 3B: Optional RL Training"
+    print_info "RL training check enabled (ticker=${TRAIN_RL_TICKER}, reward=${TRAIN_RL_REWARD_STRATEGY})"
+
+    TRAIN_REQUIRED="true"
+    if [ "$TRAIN_RL_FORCE" != "true" ]; then
+        set +e
+        python "$APP_DIR/scripts/training_fingerprint.py" --check > /tmp/training_check.log 2>&1
+        CHECK_EXIT=$?
+        set -e
+        if [ $CHECK_EXIT -eq 0 ]; then
+            TRAIN_REQUIRED="false"
+            print_info "Training fingerprint OK; skipping RL training"
+        else
+            print_info "Training required (fingerprint exit=$CHECK_EXIT)"
+        fi
+    else
+        print_info "TRAIN_RL_FORCE=true; training will run regardless of fingerprint"
+    fi
+
+    if [ "$TRAIN_REQUIRED" = "true" ]; then
+        print_info "Running walk-forward (GA) before RL training..."
+        ENABLE_RL=true python "$APP_DIR/main.py" walk-forward "$TRAIN_RL_TICKER"
+
+        print_info "Training DQN..."
+        ENABLE_RL=true python "$APP_DIR/scripts/train_rl.py" \
+            --ticker "$TRAIN_RL_TICKER" \
+            --model-type DQN \
+            --reward-strategy "$TRAIN_RL_REWARD_STRATEGY"
+
+        print_info "Training PPO..."
+        ENABLE_RL=true python "$APP_DIR/scripts/train_rl.py" \
+            --ticker "$TRAIN_RL_TICKER" \
+            --model-type PPO \
+            --reward-strategy "$TRAIN_RL_REWARD_STRATEGY"
+
+        python "$APP_DIR/scripts/training_fingerprint.py" --write
+        print_status "Optional RL training completed"
+    fi
+fi
+
+# ==============================================================================
 # STEP 4: SYSTEMD SERVICE (Flask API)
 # ==============================================================================
 print_header "STEP 4: Creating systemd Service (Flask API)"
@@ -248,6 +302,17 @@ add_cron_entry "0 4 * * 1" "$WEEKLY_CMD"
 # Monthly optimization - 1st of month 1:00 AM
 MONTHLY_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && python -m app.infrastructure.cron_tasks --monthly >> /home/pi/tozsde_webapp/logs/cron_monthly.log 2>&1"
 add_cron_entry "0 1 1 * *" "$MONTHLY_CMD"
+
+# Optional RL training cron (opt-in)
+if [ "$ENABLE_RL_CRON" = "true" ]; then
+    if [ "$RL_CRON_MODE" = "full" ]; then
+        RL_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && ENABLE_RL=true python main.py monthly >> /home/pi/tozsde_webapp/logs/cron_monthly_rl.log 2>&1"
+    else
+        RL_CMD="source /home/pi/tozsde_webapp/venv/bin/activate && cd /home/pi/tozsde_webapp && ENABLE_RL=true python main.py walk-forward $RL_CRON_TICKER && ENABLE_RL=true python scripts/train_rl.py --ticker $RL_CRON_TICKER --model-type DQN --reward-strategy $RL_CRON_REWARD_STRATEGY && ENABLE_RL=true python scripts/train_rl.py --ticker $RL_CRON_TICKER --model-type PPO --reward-strategy $RL_CRON_REWARD_STRATEGY >> /home/pi/tozsde_webapp/logs/cron_monthly_rl.log 2>&1"
+    fi
+    add_cron_entry "0 2 1 * *" "$RL_CMD"
+    print_status "Optional RL training cron configured: 1st of month, 2:00 AM"
+fi
 
 # Health check - every 5 minutes
 HEALTH_CHECK="$SCRIPTS_DIR/health_check.sh"

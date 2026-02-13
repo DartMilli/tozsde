@@ -9,6 +9,7 @@
 ```bash
 pytest tests/test_xyz.py::test_function -v
 .venv\Scripts\python.exe -m pytest
+python scripts/run_all_tests.py
 ```
 
 ### 2) Module Import Errors
@@ -83,6 +84,7 @@ taskkill /PID <PID> /F
 ```bash
 pytest tests/test_xyz.py::test_function -v
 .venv\Scripts\python.exe -m pytest
+python scripts/run_all_tests.py
 ```
 
 ### 2) Modul import hiba

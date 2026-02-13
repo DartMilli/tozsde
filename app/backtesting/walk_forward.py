@@ -26,11 +26,14 @@ import numpy as np
 from typing import Optional
 
 from app.optimization.genetic_optimizer import optimize_params
-from app.optimization.fitness import fitness_walk_forward, fitness_single, NEG_INF
-from app.reporting.metrics import WalkForwardMetrics
+from app.optimization.fitness import (
+    compute_walk_forward_metrics,
+    fitness_single,
+    NEG_INF,
+)
 from app.backtesting.backtester import Backtester
-from app.data_access.data_loader import load_data
-from app.analysis.analyzer import param_bounds
+from app.data_access.data_loader import ensure_data_cached, load_data
+from app.analysis.analyzer import param_bounds, save_params_for_ticker
 from app.config.config import Config
 from app.infrastructure.logger import setup_logger
 
@@ -114,19 +117,15 @@ class WalkForwardOptimizer:
 
             start += self.step_size
 
-        wf_metrics = WalkForwardMetrics(
-            avg_profit=np.mean(oos_profits),
-            avg_dd=np.mean(oos_drawdowns),
-            profit_std=np.std(oos_profits),
-            dd_std=np.std(oos_drawdowns),
-            negative_fold_ratio=np.mean([p < 0 for p in oos_profits]),
+        wf_result = compute_walk_forward_metrics(oos_profits, oos_drawdowns)
+
+        logger.info(
+            "Walk Forward done, raw_fitness=%.4f normalized_score=%.4f",
+            wf_result.raw_fitness,
+            wf_result.normalized_score,
         )
 
-        wf_fitness = fitness_walk_forward(wf_metrics)
-
-        logger.info(f"Walk Forward done, fitness = {wf_fitness:.2f}")
-
-        if wf_fitness == NEG_INF:
+        if wf_result.raw_fitness == NEG_INF:
             logger.warning("Invalid WF fitness – unstable strategy")
             return None
 
@@ -147,7 +146,9 @@ class WalkForwardOptimizer:
 
         return {
             "best_params": best_window["params"],
-            "wf_fitness": wf_fitness,
+            "raw_fitness": wf_result.raw_fitness,
+            "wf_fitness": wf_result.raw_fitness,
+            "normalized_score": wf_result.normalized_score,
             "wf_summary": {
                 "windows": total_windows,
                 "win_rate": win_rate,
@@ -164,6 +165,12 @@ def run_walk_forward(ticker: str):
     - Config hónap-alapú ablakait ~21 trading day/hó közelítéssel bar-számra váltja
     - Meghívja a WalkForwardOptimizer-t és visszaadja a WF összefoglalót
     """
+
+    if not ensure_data_cached(ticker, start=Config.START_DATE, end=Config.END_DATE):
+        logger.error(
+            f"{ticker}: data cache incomplete for {Config.START_DATE} -> {Config.END_DATE}"
+        )
+        return None
 
     df = load_data(ticker, start=Config.START_DATE, end=Config.END_DATE)
 
@@ -197,6 +204,12 @@ def run_walk_forward(ticker: str):
                 ticker=ticker,
                 result_json=json.dumps(result, default=str),
             )
+        except Exception:
+            pass
+        try:
+            best_params = result.get("best_params")
+            if best_params:
+                save_params_for_ticker(ticker, best_params)
         except Exception:
             pass
     return result

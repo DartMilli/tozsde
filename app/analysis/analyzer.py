@@ -103,6 +103,42 @@ def get_params(ticker):
         return get_default_params()
 
 
+def _load_params_file():
+    params_path = Config.PARAMS_FILE_PATH
+    try:
+        with open(params_path, "r") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_params_for_ticker(ticker, params):
+    if not isinstance(params, dict):
+        logging.warning("Optimized params must be a dict; skipping save")
+        return False
+
+    params_path = Config.PARAMS_FILE_PATH
+    params_path.parent.mkdir(parents=True, exist_ok=True)
+
+    params_all = _load_params_file()
+    params_all[ticker] = params
+
+    tmp_path = params_path.with_suffix(".tmp")
+    with open(tmp_path, "w") as f:
+        json.dump(params_all, f, indent=2, sort_keys=True)
+    tmp_path.replace(params_path)
+
+    try:
+        _PARAMS_CACHE["data"] = params_all
+        _PARAMS_CACHE["mtime"] = params_path.stat().st_mtime
+    except Exception:
+        _PARAMS_CACHE["data"] = params_all
+        _PARAMS_CACHE["mtime"] = None
+
+    return True
+
+
 def get_default_params():
     return default_params
 

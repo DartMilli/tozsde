@@ -59,6 +59,8 @@ python main.py daily --ticker VOO
 
 **Acceptance:** decision_history row, position_sizing_json set, portfolio state updated, notifications sent (if enabled).
 
+Status (2026-02-11): Completed (daily run executed for VOO).
+
 **1.2 Idempotency**
 Run twice on the same day.
 
@@ -91,6 +93,8 @@ Status (2026-02-10): Completed (21/21 business days have decisions).
 Status (2026-02-10): No outcomes in range (fallback HOLD only); recheck when trades exist.
 
 Status (2026-02-10): Outcomes linkage check ran (trade_decisions=0, missing_outcomes=0).
+
+Status (2026-02-11): Outcomes linkage check ran (trade_decisions=0, missing_outcomes=0).
 
 ### Section 3 - Validation
 ```bash
@@ -159,6 +163,8 @@ python main.py daily --ticker VOO
 
 **Elfogadas:** decision_history sor, position_sizing_json, portfolio state frissules.
 
+Statusz (2026-02-11): Keszen (VOO napi futas lefutott).
+
 **1.2 Idempotencia**
 Futtasd ugyanazon a napon ketszer.
 
@@ -189,6 +195,8 @@ Statusz (2026-02-10): Keszen (21/21 munkanapra van dontes).
 Statusz (2026-02-10): Nincs outcome a tartomanyban (csak fallback HOLD); trade eseten ellenorizd ujra.
 
 Statusz (2026-02-10): Outcomes linkage ellenorzes lefutott (trade_decisions=0, missing_outcomes=0).
+
+Statusz (2026-02-11): Outcomes linkage ellenorzes lefutott (trade_decisions=0, missing_outcomes=0).
 
 ### 3. Szekcio - Validacio
 ```bash

@@ -66,6 +66,12 @@ python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker 
 pytest
 ```
 
+- Egyparancsos teljes tesztfutas:
+
+```bash
+python scripts/run_all_tests.py
+```
+
 ### Admin API (kiemelt endpointok)
 Az admin endpointokhoz X-Admin-Key header szukseges (Config.ADMIN_API_KEY).
 
@@ -82,6 +88,14 @@ Az admin endpointokhoz X-Admin-Key header szukseges (Config.ADMIN_API_KEY).
 - docs/TROUBLESHOOTING_GUIDE.md hibakereses
 - docs/deployment Raspberry Pi telepites
 - docs/testing/TEST_STATUS_REPORT.md teszt statusz
+
+### CI workflow-k (GitHub Actions)
+- .github/workflows/phase6_check.yml: Phase 5 + Phase 6 validacio futtatasa CI-ben.
+	- Hasznalat: GitHub -> Actions -> "phase6-check" -> Run workflow.
+- .github/workflows/train_models.yml: Model training (minimal / full sweep) csak ha szukseges.
+	- Hasznalat: GitHub -> Actions -> "train-models" -> Run workflow (mode/minimal vagy full).
+
+Megjegyzes: a deploy_rpi.sh nem indit RL traininget; a Raspberry Pi cron csak daily/weekly/GA monthly futasokat kezel.
 
 ## English
 

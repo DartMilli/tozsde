@@ -3,20 +3,21 @@
 EN: This report is updated by scripts and includes the latest validation snapshot.
 HU: Ez a riport szkriptek altal frissul, es tartalmazza az aktualis validacios snapshotot.
 
-## ✅ Current Status (2026-02-09)
+## ✅ Current Status (2026-02-12)
 
 - **Sprint:** 12 Stabilization + Validation
-- **Tests:** **1070 passed, 0 failed**
-- **Coverage:** **Not measured in latest run** (last full suite: 98%)
+- **Tests:** **1077 passed, 0 failed**
+- **Coverage:** **81%** (TOTAL 5471 statements, 1043 missed)
 - **Status:** ✅ Clean suite
-- **Notes:** Historical paper run + validation refresh on Windows (venv). Full pytest rerun was done previously; use scripts/rebuild_venv.ps1 if venv issues occur.
+- **Notes:** Full pytest rerun on Windows (venv). Coverage total: 5471 statements, 1043 missed (81%). Use scripts/rebuild_venv.ps1 if venv issues occur.
 
 ### Latest Commands
 
 ```
 python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
-python -m pytest
+python scripts/run_all_tests.py
+python -m coverage report -m
 ```
 
 <!-- VALIDATION_START -->

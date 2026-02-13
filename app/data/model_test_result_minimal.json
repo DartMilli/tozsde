@@ -1,0 +1,1 @@
+{"ticker":{"0":"VOO"},"reward_strategy":{"0":"price_diff"},"model_type":{"0":"DQN"},"total_reward":{"0":0.0},"final_portfolio_value":{"0":10446.7536767578},"sharpe_ratio":{"0":1.1183245601},"composite_score":{"0":7648.224941767},"steps":{"0":128}}

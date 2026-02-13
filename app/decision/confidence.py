@@ -27,15 +27,10 @@ def clamp(value: float, min_val: float, max_val: float) -> float:
     return max(min_val, min(value, max_val))
 
 
-def normalize_final_confidence(
-    raw_confidence: float,
-    min_conf: float = 0.05,
-    max_conf: float = 0.95,
-) -> float:
+def normalize_final_confidence(raw_confidence: float) -> float:
     """
-    Ensures confidence is usable by the recommender layer.
+    Clamp confidence into [0,1] without implicit floors.
     """
-    if raw_confidence <= 0 or not isinstance(raw_confidence, (int, float)):
-        return min_conf
-
-    return clamp(raw_confidence, min_conf, max_conf)
+    if not isinstance(raw_confidence, (int, float)):
+        return 0.0
+    return clamp(raw_confidence, 0.0, 1.0)

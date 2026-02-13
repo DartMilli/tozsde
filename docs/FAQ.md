@@ -95,9 +95,17 @@ curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 ```bash
 pytest
 ```
+Or one command:
+```bash
+python scripts/run_all_tests.py
+```
 **Valasz (HU):**
 ```bash
 pytest
+```
+Vagy egy parancs:
+```bash
+python scripts/run_all_tests.py
 ```
 
 ### Q16 (EN): Where do I see coverage and the latest test snapshot?

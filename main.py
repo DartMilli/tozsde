@@ -328,16 +328,26 @@ def run_monthly(dry_run: bool = False):
             # 1. Walk-forward optimization
             logger.info(f"  Running walk-forward optimization for {ticker_symbol}...")
             wf_summary = run_walk_forward(ticker_symbol)
-            logger.info(
-                f"  OK Walk-forward score: {wf_summary['normalized_score']:.4f}"
-            )
+            if not wf_summary:
+                logger.warning("  Walk-forward returned no summary; skipping RL")
+                continue
+
+            from app.optimization.fitness import normalize_wf_score
+
+            wf_score = wf_summary.get("normalized_score")
+            if wf_score is None:
+                raw_fitness = wf_summary.get("raw_fitness")
+                if raw_fitness is None:
+                    raw_fitness = wf_summary.get("wf_fitness", 0.0)
+                wf_score = normalize_wf_score(raw_fitness)
+            logger.info(f"  OK Walk-forward score: {wf_score:.4f}")
 
             # 2. RL training
             if Config.ENABLE_RL:
                 logger.info(f"  Training RL agent for {ticker_symbol}...")
                 train_rl_agent(
                     ticker=ticker_symbol,
-                    wf_score=wf_summary["normalized_score"],
+                    wf_score=wf_score,
                     wf_summary=wf_summary,
                 )
                 logger.info("  OK RL agent trained")
@@ -373,8 +383,19 @@ def run_walk_forward_manual(ticker: str, dry_run: bool = False):
 
     try:
         result = run_walk_forward(ticker)
-        logger.info(f"Walk-forward completed")
-        logger.info(f"  Normalized Score: {result['normalized_score']:.4f}")
+        if not result:
+            logger.warning("Walk-forward produced no result")
+            return
+        logger.info("Walk-forward completed")
+        from app.optimization.fitness import normalize_wf_score
+
+        wf_score = result.get("normalized_score")
+        if wf_score is None:
+            raw_fitness = result.get("raw_fitness")
+            if raw_fitness is None:
+                raw_fitness = result.get("wf_fitness", 0.0)
+            wf_score = normalize_wf_score(raw_fitness)
+        logger.info(f"  Normalized Score: {wf_score:.4f}")
         logger.info(f"  Return: {result.get('total_return', 'N/A')}")
         logger.info(f"  Sharpe: {result.get('sharpe_ratio', 'N/A')}")
     except Exception as e:

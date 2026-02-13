@@ -23,6 +23,8 @@ Az admin health endpoint az /admin/health, es X-Admin-Key header szukseges. Ha a
 - [ ] Health check script installed and executable
 - [ ] Cron jobs listed (`crontab -l`)
 - [ ] Daily, weekly, monthly cron entries present
+- [ ] (Optional) RL training cron present if ENABLE_RL_CRON=true was set
+- [ ] (Optional) RL training skipped when fingerprint OK unless TRAIN_RL_FORCE=true
 
 ## 4) Post-Deployment Verification
 - [ ] API responds: `curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"`
@@ -43,3 +45,4 @@ Az admin health endpoint az /admin/health, es X-Admin-Key header szukseges. Ha a
 ## Notes
 - If any step fails, record the exact error and timestamp in logs.
 - Hardware-dependent steps remain pending until the Pi arrives.
+- RL training and full sweep scripts are not wired into deploy/cron; use CI workflows or manual runs when models are needed.

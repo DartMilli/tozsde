@@ -41,7 +41,13 @@ class WalkForwardStabilityAnalyzer:
                 if vals:
                     param_variance[k] = float(np.var(vals))
 
-        wf_scores = [r.get("wf_fitness") for r in results if r.get("wf_fitness")]
+        wf_scores = []
+        for r in results:
+            score = r.get("raw_fitness")
+            if score is None:
+                score = r.get("wf_fitness")
+            if score is not None:
+                wf_scores.append(score)
         consistency = float(np.std(wf_scores)) if wf_scores else None
 
         metrics = {

@@ -59,7 +59,7 @@ def test_confidence_utils():
     assert dummy.confidence == 0.9
 
     assert clamp(2.0, 0.0, 1.0) == 1.0
-    assert normalize_final_confidence(-1) == 0.05
+    assert normalize_final_confidence(-1) == 0.0
 
 
 def test_ensemble_quality_and_volatility_bucket():

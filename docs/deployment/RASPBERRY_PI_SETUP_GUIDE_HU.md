@@ -173,6 +173,7 @@ bash deploy_rpi.sh
 - ✅ requirements.txt függőségek
 - ✅ systemd service (Flask API)
 - ✅ 3 cron job (napi, heti, havi)
+- ✅ Opcionális RL training hook (env varokkal bekapcsolható)
 - ✅ Health check script (5 percenként)
 - ✅ Log rotation (7 nap megőrzés)
 - ✅ Összes service indítása
@@ -193,6 +194,25 @@ curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"
 ```
 
 Megjegyzes: a health_check.sh script alapertelmezetten /api/health-et hasznal. Allitsd at /admin/health-re es add hozza az X-Admin-Key headert.
+
+### Opcionális RL training a deploy alatt (opt-in)
+Allitsd be ezeket az env varokat a `deploy_rpi.sh` futtatasa elott:
+- `TRAIN_RL_ON_DEPLOY=true`
+- `TRAIN_RL_FORCE=true` (kenyszeritett training akkor is, ha van modell es fingerprint OK)
+- `TRAIN_RL_TICKER=VOO`
+- `TRAIN_RL_REWARD_STRATEGY=portfolio_value`
+- A walk-forward (GA) automatikusan fut RL elott.
+
+Viselkedes: a deploy script ugyanazt a logikat koveti, mint a CI. Ha vannak modellek es a fingerprint nem valtozott, a training kimarad (kiveve ha `TRAIN_RL_FORCE=true`).
+Megjegyzes: az RL/GA futas ellenorzi a cache-t a Config.START_DATE/END_DATE idoszakra, es leall, ha a letoltes hianyos.
+
+### Opcionális RL training cron (opt-in)
+Allitsd be ezeket az env varokat a `deploy_rpi.sh` futtatasa elott:
+- `ENABLE_RL_CRON=true`
+- `RL_CRON_MODE=minimal|full` (full: `main.py monthly`)
+- `RL_CRON_TICKER=VOO` (minimal mod)
+- `RL_CRON_REWARD_STRATEGY=portfolio_value` (minimal mod)
+- A walk-forward (GA) automatikusan fut RL elott.
 
 ### 4.2 Ütemezett Feladatok Megtekintése
 

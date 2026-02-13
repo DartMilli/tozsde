@@ -176,6 +176,7 @@ bash deploy_rpi.sh
   - Daily 6:00 AM: Market pipeline
   - Monday 4:00 AM: Weekly backtest audit
   - 1st of month 1:00 AM: Monthly GA optimization
+- ✅ Optional RL training hook (opt-in via env vars)
 - ✅ Sets up 5-minute health checks
 - ✅ Configures log rotation
 - ✅ Starts Flask API on port 5000
@@ -196,6 +197,25 @@ curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"
 ```
 
 Note: The default health_check.sh script uses /api/health. Update its URL and headers to match /admin/health.
+
+### Optional RL training on deploy (opt-in)
+Set these env vars before running `deploy_rpi.sh`:
+- `TRAIN_RL_ON_DEPLOY=true`
+- `TRAIN_RL_FORCE=true` (forces training even if models + fingerprint are OK)
+- `TRAIN_RL_TICKER=VOO`
+- `TRAIN_RL_REWARD_STRATEGY=portfolio_value`
+- Walk-forward (GA) runs automatically before RL training.
+
+Behavior: the deploy script mirrors the CI logic. If models exist and the training fingerprint matches, training is skipped unless `TRAIN_RL_FORCE=true`.
+Note: RL/GA runs enforce cache coverage for Config.START_DATE/END_DATE and will stop if data download is incomplete.
+
+### Optional RL training cron (opt-in)
+Set these env vars before running `deploy_rpi.sh` to add a monthly RL job:
+- `ENABLE_RL_CRON=true`
+- `RL_CRON_MODE=minimal|full` (full runs `main.py monthly`)
+- `RL_CRON_TICKER=VOO` (minimal mode)
+- `RL_CRON_REWARD_STRATEGY=portfolio_value` (minimal mode)
+- Walk-forward (GA) runs automatically before RL training.
 
 ### 4.2 View Scheduled Tasks
 

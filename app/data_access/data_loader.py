@@ -135,6 +135,82 @@ def load_data(ticker, start=None, end=None):
     return df_final
 
 
+def ensure_data_cached(ticker, start=None, end=None) -> bool:
+    """
+    Ensure OHLCV data exists for the full requested interval.
+
+    Returns True when coverage is adequate, otherwise False.
+    """
+    dm = DataManager()
+
+    # Normalize dates
+    if end is None:
+        end = datetime.today().date()
+    if start is None:
+        start = end - timedelta(days=365 * 2)
+
+    if isinstance(end, str):
+        end = datetime.strptime(end, "%Y-%m-%d").date()
+    if isinstance(start, str):
+        start = datetime.strptime(start, "%Y-%m-%d").date()
+
+    load_data(ticker, start=start, end=end)
+
+    df_check = dm.load_ohlcv(ticker=ticker, start_date=start.strftime("%Y-%m-%d"))
+    if df_check.empty:
+        logger.info(f"{ticker}: cache empty, downloading full range")
+        if not download_and_save_data(ticker, start, end):
+            logger.warning(f"{ticker}: cache check failed (no data)")
+            return False
+        df_check = dm.load_ohlcv(ticker=ticker, start_date=start.strftime("%Y-%m-%d"))
+        if df_check.empty:
+            logger.warning(f"{ticker}: cache check failed (no rows in DB)")
+            return False
+
+    min_date = df_check.index.min().date()
+    max_date = df_check.index.max().date()
+
+    start_gap_days = (min_date - start).days
+    if start_gap_days > 3:
+        logger.info(f"{ticker}: backfilling start gap {start} -> {min_date}")
+        if not download_and_save_data(ticker, start, min_date):
+            logger.warning(
+                f"{ticker}: cache start gap (min={min_date}, expected_start={start})"
+            )
+            return False
+
+    if (end - max_date).days > 3:
+        download_start = max_date + timedelta(days=1)
+        if download_start < end:
+            logger.info(f"{ticker}: backfilling end gap {download_start} -> {end}")
+            if not download_and_save_data(ticker, download_start, end):
+                logger.warning(
+                    f"{ticker}: cache end gap (max={max_date}, expected_end={end})"
+                )
+                return False
+
+    df_check = dm.load_ohlcv(ticker=ticker, start_date=start.strftime("%Y-%m-%d"))
+    if df_check.empty:
+        logger.warning(f"{ticker}: cache check failed after backfill")
+        return False
+
+    min_date = df_check.index.min().date()
+    max_date = df_check.index.max().date()
+
+    start_gap_days = (min_date - start).days
+    if start_gap_days > 3:
+        logger.warning(
+            f"{ticker}: cache start gap (min={min_date}, expected_start={start})"
+        )
+        return False
+
+    if (end - max_date).days > 3:
+        logger.warning(f"{ticker}: cache end gap (max={max_date}, expected_end={end})")
+        return False
+
+    return True
+
+
 def download_and_save_data(ticker, start, end):
     try:
         df = yf.download(ticker, start=start, end=end, interval="1d", auto_adjust=True)

@@ -66,6 +66,12 @@ Admin endpoints require the X-Admin-Key header (see Config.ADMIN_API_KEY).
 pytest
 ```
 
+- One-command full suite:
+
+```bash
+python scripts/run_all_tests.py
+```
+
 ### Project Layout (Current)
 - app/: application modules (decision, backtesting, analysis, data access, services)
 - scripts/: developer utilities and reporting helpers
@@ -77,6 +83,14 @@ pytest
 - docs/SPRINTS.md for sprint history and architecture narrative
 - docs/TROUBLESHOOTING_GUIDE.md for operational issues
 - docs/deployment for Raspberry Pi setup
+
+### CI workflows (GitHub Actions)
+- .github/workflows/phase6_check.yml: runs Phase 5 + Phase 6 validation in CI.
+	- Usage: GitHub -> Actions -> "phase6-check" -> Run workflow.
+- .github/workflows/train_models.yml: model training (minimal/full) when required.
+	- Usage: GitHub -> Actions -> "train-models" -> Run workflow (mode minimal or full).
+
+Note: deploy_rpi.sh does not run RL training; Pi cron covers daily/weekly/GA monthly tasks only.
 
 ### Notes
 - Historical paper runner uses a fallback HOLD decision if no RL model files are present.
