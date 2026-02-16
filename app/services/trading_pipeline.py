@@ -1,4 +1,6 @@
+import hashlib
 import logging
+import os
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
@@ -82,6 +84,8 @@ class TradingPipelineService:
         )
 
     def apply_safety_rules(self, decision: Dict, audit: Dict) -> Dict:
+        if os.getenv("VALIDATION_DISABLE_POLICY", "false").lower() == "true":
+            return decision
         return apply_decision_policy(decision, audit)
 
     def allocate_capital(self, candidates: List[Dict]) -> List[Dict]:
@@ -246,13 +250,22 @@ class TradingPipelineService:
         if df_full.empty:
             raise ValueError("NO_DATA")
 
-        df = prepare_df(df_full.copy(), ticker)
-        latest_price = float(df["Close"].iloc[-1]) if not df.empty else None
-        volatility = compute_normalized_volatility(df) if not df.empty else 0.0
+        latest_price = float(df_full["Close"].iloc[-1]) if not df_full.empty else None
+        volatility = (
+            compute_normalized_volatility(df_full) if not df_full.empty else 0.0
+        )
+
+        features_hash = None
+        if not df_full.empty:
+            row = df_full.iloc[-1]
+            pieces = [f"{col}={row[col]}" for col in df_full.columns]
+            base = "|".join(pieces)
+            features_hash = hashlib.sha256(base.encode("utf-8")).hexdigest()
 
         payload = {
             "ticker": ticker,
             "timestamp": today.isoformat(),
+            "as_of_date": today.isoformat(),
             "latest_price": latest_price,
             "volatility": volatility,
             "model_votes": [],
@@ -261,6 +274,7 @@ class TradingPipelineService:
             "ensemble_quality": 0.0,
             "action_code": 0,
             "decision_source": "fallback",
+            "features_hash": features_hash,
         }
 
         decision = build_recommendation(payload)
@@ -314,7 +328,10 @@ class TradingPipelineService:
                         today.isoformat(),
                     )
                     continue
-                candidate = self.build_daily_candidate(ticker_symbol)
+                candidate = self.build_daily_candidate(
+                    ticker_symbol,
+                    as_of_date=today,
+                )
                 daily_candidates.append(candidate)
 
                 decision = candidate["decision"]

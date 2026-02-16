@@ -4,6 +4,7 @@ logs/
 models/
 tensorboard/
 .venv/
+validation_reports/
 
 __pycache__/
 *.py[cod]

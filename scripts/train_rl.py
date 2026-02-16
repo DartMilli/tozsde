@@ -47,6 +47,44 @@ def parse_args():
         default=None,
         help="Optional walk-forward score",
     )
+    parser.add_argument(
+        "--train-end",
+        default=None,
+        help="Train end date (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--val-end",
+        default=None,
+        help="Validation end date (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--test-end",
+        default=None,
+        help="Test end date (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--rolling-cv",
+        action="store_true",
+        help="Enable rolling cross-validation",
+    )
+    parser.add_argument(
+        "--cv-train-days",
+        type=int,
+        default=None,
+        help="Rolling CV train window length in days",
+    )
+    parser.add_argument(
+        "--cv-val-days",
+        type=int,
+        default=None,
+        help="Rolling CV validation window length in days",
+    )
+    parser.add_argument(
+        "--cv-step-days",
+        type=int,
+        default=None,
+        help="Rolling CV step size in days",
+    )
     return parser.parse_args()
 
 
@@ -64,6 +102,13 @@ def main():
         model_path=args.model_path,
         reward_strategy=args.reward_strategy,
         wf_score=args.wf_score,
+        train_end_date=args.train_end,
+        val_end_date=args.val_end,
+        test_end_date=args.test_end,
+        rolling_cv=args.rolling_cv,
+        cv_train_days=args.cv_train_days,
+        cv_val_days=args.cv_val_days,
+        cv_step_days=args.cv_step_days,
     )
     print(
         "trained",

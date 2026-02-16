@@ -1,16 +1,16 @@
 {
   "VOO": {
-    "adx_period": 27,
-    "atr_period": 25,
-    "bbands_period": 14,
-    "bbands_stddev": 1,
-    "ema_period": 14,
-    "macd_fast": 7,
-    "macd_signal": 14,
-    "macd_slow": 34,
+    "adx_period": 11,
+    "atr_period": 28,
+    "bbands_period": 27,
+    "bbands_stddev": 3,
+    "ema_period": 30,
+    "macd_fast": 5,
+    "macd_signal": 10,
+    "macd_slow": 23,
     "rsi_period": 5,
-    "sma_period": 8,
-    "stoch_d": 4,
-    "stoch_k": 11
+    "sma_period": 21,
+    "stoch_d": 9,
+    "stoch_k": 16
   }
 }

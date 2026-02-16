@@ -17,10 +17,14 @@ from app.analysis.validation_report_builder import ValidationReportBuilder
 from app.analysis.decision_effectiveness import DecisionEffectivenessAnalyzer
 from app.analysis.phase6_validator import Phase6Validator
 from app.data_access.data_manager import DataManager
+from app.validation.validation_runner import ValidationRunner
+from app.validation.report_builder import build_markdown_report
 
 REPORT_PATH = Path("docs/testing/TEST_STATUS_REPORT.md")
 VALIDATION_START = "<!-- VALIDATION_START -->"
 VALIDATION_END = "<!-- VALIDATION_END -->"
+QUANT_VALIDATION_START = "<!-- QUANT_VALIDATION_START -->"
+QUANT_VALIDATION_END = "<!-- QUANT_VALIDATION_END -->"
 
 
 def run_pytest(pytest_args: list[str]) -> int:
@@ -39,6 +43,24 @@ def update_report_with_validation(markdown: str) -> None:
     if VALIDATION_START in content and VALIDATION_END in content:
         pre = content.split(VALIDATION_START)[0]
         post = content.split(VALIDATION_END)[1]
+        new_content = pre + block + post
+    else:
+        new_content = content.rstrip() + "\n\n" + block + "\n"
+
+    REPORT_PATH.write_text(new_content, encoding="utf-8")
+
+
+def update_report_with_quant_validation(markdown: str) -> None:
+    if not REPORT_PATH.exists():
+        REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        REPORT_PATH.write_text("# Test & Code Quality Status Report\n\n")
+
+    content = REPORT_PATH.read_text(encoding="utf-8")
+
+    block = f"{QUANT_VALIDATION_START}\n{markdown}\n{QUANT_VALIDATION_END}"
+    if QUANT_VALIDATION_START in content and QUANT_VALIDATION_END in content:
+        pre = content.split(QUANT_VALIDATION_START)[0]
+        post = content.split(QUANT_VALIDATION_END)[1]
         new_content = pre + block + post
     else:
         new_content = content.rstrip() + "\n\n" + block + "\n"
@@ -88,6 +110,15 @@ def run_validation(args) -> None:
     update_report_with_validation(markdown)
 
 
+def run_quant_validation(args) -> None:
+    mode = args.quant_validation_mode
+    runner = ValidationRunner(mode=mode)
+    runner.execute()
+
+    markdown = build_markdown_report(runner.results)
+    update_report_with_quant_validation(markdown)
+
+
 def build_validation_markdown(args, report) -> str:
     def _get_status(section, key="metrics"):
         try:
@@ -126,6 +157,11 @@ def main():
         "--with-validation", action="store_true", help="Run Phase 5 validation"
     )
     parser.add_argument(
+        "--with-quant-validation",
+        action="store_true",
+        help="Run quant validation runner",
+    )
+    parser.add_argument(
         "--skip-tests", action="store_true", help="Skip pytest execution"
     )
     parser.add_argument("--ticker", type=str, help="Ticker for validation")
@@ -133,6 +169,11 @@ def main():
     parser.add_argument("--end-date", type=str, help="End date YYYY-MM-DD")
     parser.add_argument("--scenario", type=str, default="elevated_volatility")
     parser.add_argument("--no-calibration", action="store_true")
+    parser.add_argument(
+        "--quant-validation-mode",
+        choices=["quick", "full", "shadow"],
+        default="quick",
+    )
     parser.add_argument(
         "pytest_args", nargs=argparse.REMAINDER, help="Args passed to pytest"
     )
@@ -144,6 +185,9 @@ def main():
 
     if args.with_validation:
         run_validation(args)
+
+    if args.with_quant_validation:
+        run_quant_validation(args)
 
     sys.exit(exit_code)
 

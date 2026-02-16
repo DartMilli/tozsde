@@ -87,12 +87,17 @@ class DataManager:
                 CREATE TABLE IF NOT EXISTS decision_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT,
+                    as_of_date TEXT,
                     ticker TEXT,
                     model_id TEXT,
+                    model_version TEXT,
                     action_code INTEGER,
                     action_label TEXT,
                     confidence REAL,
                     wf_score REAL,
+                    reliability_score REAL,
+                    execution_price REAL,
+                    features_hash TEXT,
                     decision_blob TEXT,
                     audit_blob TEXT,
                     explanation_json TEXT,
@@ -109,15 +114,29 @@ class DataManager:
                 for row in cur.execute("PRAGMA table_info(decision_history)").fetchall()
             }
             required_cols = {
+                "as_of_date",
                 "model_id",
+                "model_version",
                 "explanation_json",
                 "model_votes_json",
                 "safety_overrides_json",
                 "position_sizing_json",
                 "decision_source",
+                "execution_price",
+                "features_hash",
+                "reliability_score",
             }
             for col in required_cols - existing_cols:
-                cur.execute(f"ALTER TABLE decision_history ADD COLUMN {col} TEXT")
+                if col == "execution_price":
+                    cur.execute(
+                        "ALTER TABLE decision_history ADD COLUMN execution_price REAL"
+                    )
+                elif col == "reliability_score":
+                    cur.execute(
+                        "ALTER TABLE decision_history ADD COLUMN reliability_score REAL"
+                    )
+                else:
+                    cur.execute(f"ALTER TABLE decision_history ADD COLUMN {col} TEXT")
             # Market metadata (e.g., VIX / IRX)
             cur.execute(
                 """
@@ -477,6 +496,11 @@ class DataManager:
         d_blob,
         a_blob,
         model_id=None,
+        model_version=None,
+        as_of_date: str = None,
+        execution_price: float = None,
+        features_hash: str = None,
+        reliability_score: float = None,
         explanation_json=None,
         model_votes_json=None,
         safety_overrides_json=None,
@@ -487,21 +511,27 @@ class DataManager:
         """Enkapszulált mentés a history táblába."""
         query = """
             INSERT INTO decision_history 
-            (timestamp, ticker, model_id, action_code, action_label, confidence, wf_score, decision_blob, audit_blob,
-             explanation_json, model_votes_json, safety_overrides_json, position_sizing_json, decision_source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (timestamp, as_of_date, ticker, model_id, model_version, action_code, action_label, confidence, wf_score,
+             reliability_score, execution_price, features_hash, decision_blob, audit_blob, explanation_json, model_votes_json,
+             safety_overrides_json, position_sizing_json, decision_source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         with self._get_conn() as conn:
             cursor = conn.execute(
                 query,
                 (
                     timestamp or datetime.now(timezone.utc).isoformat(),
+                    as_of_date,
                     ticker,
                     model_id,
+                    model_version,
                     action_code,
                     label,
                     confidence,
                     wf_score,
+                    reliability_score,
+                    execution_price,
+                    features_hash,
                     d_blob,
                     a_blob,
                     explanation_json or "{}",
@@ -652,7 +682,8 @@ class DataManager:
             rows = conn.execute(
                 """
                 SELECT timestamp, ticker, action_code, action_label,
-                       model_id, confidence, wf_score, decision_blob, audit_blob,
+                      model_id, model_version, confidence, wf_score, reliability_score,
+                      execution_price, features_hash, as_of_date, decision_blob, audit_blob,
                        explanation_json, model_votes_json, safety_overrides_json,
                       position_sizing_json, decision_source
                 FROM decision_history
@@ -665,11 +696,16 @@ class DataManager:
         for (
             ts,
             tkr,
-            model_id,
             ac,
             al,
+            model_id,
+            model_version,
             conf,
             wf,
+            reliability_score,
+            execution_price,
+            features_hash,
+            as_of_date,
             d_blob,
             a_blob,
             explanation_json,
@@ -683,6 +719,11 @@ class DataManager:
                     "timestamp": ts,
                     "ticker": tkr,
                     "model_id": model_id,
+                    "model_version": model_version,
+                    "as_of_date": as_of_date,
+                    "reliability_score": reliability_score,
+                    "execution_price": execution_price,
+                    "features_hash": features_hash,
                     "decision": json.loads(d_blob) if d_blob else {},
                     "audit": json.loads(a_blob) if a_blob else {},
                     "explanation": (
@@ -708,11 +749,16 @@ class DataManager:
         query = """
             SELECT 1
             FROM decision_history
-            WHERE ticker = ? AND date(timestamp) = date(?)
+            WHERE ticker = ? AND (
+                as_of_date = ? OR date(timestamp) = date(?)
+            )
             LIMIT 1
         """
         with self._get_conn() as conn:
-            row = conn.execute(query, (ticker, as_of_date.isoformat())).fetchone()
+            row = conn.execute(
+                query,
+                (ticker, as_of_date.isoformat(), as_of_date.isoformat()),
+            ).fetchone()
         return row is not None
 
     def fetch_history_range(
@@ -1104,6 +1150,33 @@ class DataManager:
                 ),
             )
             conn.commit()
+
+    def fetch_latest_confidence_calibration(
+        self, ticker: str, as_of_date: str | None = None
+    ) -> Dict[str, str]:
+        query = """
+            SELECT params_json, metrics_json, computed_at
+            FROM confidence_calibration
+            WHERE ticker = ?
+        """
+        params = [ticker]
+        if as_of_date:
+            query += " AND date(computed_at) <= date(?)"
+            params.append(as_of_date)
+        query += " ORDER BY computed_at DESC LIMIT 1"
+
+        with self._get_conn() as conn:
+            row = conn.execute(query, params).fetchone()
+
+        if not row:
+            return {}
+
+        params_json, metrics_json, computed_at = row
+        return {
+            "params_json": params_json,
+            "metrics_json": metrics_json,
+            "computed_at": computed_at,
+        }
 
     def save_walk_forward_result(self, ticker: str, result_json: str) -> None:
         query = """

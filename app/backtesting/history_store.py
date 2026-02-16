@@ -55,6 +55,11 @@ class HistoryStore:
         decision_source: str = None,
         model_id=None,
         timestamp=None,
+        as_of_date=None,
+        execution_price=None,
+        model_version=None,
+        features_hash=None,
+        reliability_score=None,
     ) -> None:
         """
         Persist one finalized decision.
@@ -68,13 +73,32 @@ class HistoryStore:
         explanation : Dict
             Human-readable explanation (HU / EN)
         """
+        resolved_as_of = as_of_date or payload.get("as_of_date")
+        resolved_execution_price = (
+            execution_price
+            if execution_price is not None
+            else payload.get("execution_price")
+        )
+        if resolved_execution_price is None:
+            resolved_execution_price = payload.get("latest_price")
+
+        resolved_reliability = reliability_score
+        if resolved_reliability is None:
+            resolved_reliability = decision.get("reliability_score")
+        if resolved_reliability is None:
+            resolved_reliability = payload.get("reliability_score")
+
         return self.dm.save_history_record(
             ticker=payload.get("ticker"),
             model_id=model_id,
+            model_version=model_version or payload.get("model_version"),
             action_code=decision.get("action_code"),
             label=decision.get("action"),
             confidence=decision.get("confidence"),
             wf_score=decision.get("wf_score"),
+            reliability_score=resolved_reliability,
+            execution_price=resolved_execution_price,
+            features_hash=features_hash or payload.get("features_hash"),
             d_blob=json.dumps(decision, default=str),
             a_blob=json.dumps(audit, default=str),
             explanation_json=json.dumps(explanation, default=str),
@@ -83,6 +107,7 @@ class HistoryStore:
             position_sizing_json=json.dumps(position_sizing or {}, default=str),
             decision_source=decision_source,
             timestamp=timestamp or payload.get("timestamp"),
+            as_of_date=resolved_as_of,
         )
         # record = {
         #    "timestamp": datetime.utcnow().isoformat(),

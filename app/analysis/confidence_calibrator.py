@@ -34,10 +34,11 @@ class ConfidenceCalibrator:
         ticker: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        as_of_date: Optional[str] = None,
         method: str = "isotonic",
         n_bins: int = 10,
     ) -> CalibrationResult:
-        df = self._load_data(ticker, start_date, end_date)
+        df = self._load_data(ticker, start_date, end_date, as_of_date)
         if df.empty:
             metrics = {"status": "no_data"}
             self.dm.save_confidence_calibration(
@@ -88,11 +89,31 @@ class ConfidenceCalibrator:
 
         return float(np.interp(raw_confidence, x_thresh, y_thresh))
 
+    def load_latest_params(
+        self,
+        ticker: str,
+        as_of_date: Optional[str] = None,
+    ) -> Dict:
+        row = self.dm.fetch_latest_confidence_calibration(
+            ticker=ticker,
+            as_of_date=as_of_date,
+        )
+        if not row:
+            return {}
+        raw = row.get("params_json")
+        if not raw:
+            return {}
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+
     def _load_data(
         self,
         ticker: Optional[str],
         start_date: Optional[str],
         end_date: Optional[str],
+        as_of_date: Optional[str],
     ) -> pd.DataFrame:
         query = """
             SELECT dh.confidence, o.success
@@ -110,6 +131,9 @@ class ConfidenceCalibrator:
         if end_date:
             query += " AND date(dh.timestamp) <= date(?)"
             params.append(end_date)
+        if as_of_date:
+            query += " AND date(dh.timestamp) <= date(?)"
+            params.append(as_of_date)
 
         with self.dm.connection() as conn:
             return pd.read_sql(query, conn, params=params)

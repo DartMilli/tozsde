@@ -20,8 +20,17 @@ OUTPUT METRICS:
     - fitness
 """
 
+import os
 import pandas as pd
 import numpy as np
+
+from app.backtesting.execution_utils import normalize_action
+from app.backtesting.execution_engine import (
+    ExecutionEngine,
+    ExecutionPolicy,
+    TradeIndex,
+)
+from app.backtesting.equity_engine import EquityEngine
 from app.config.config import Config
 from app.analysis.analyzer import compute_signals  # Innen vesszük a jeleket
 from app.reporting.metrics import BacktestReport
@@ -36,7 +45,28 @@ class Backtester:
         self.spread_pct = Config.SPREAD_PCT
         self.ticker = ticker
 
-    def run(self, params: dict) -> dict:
+    def _generate_trade_indices(self, actions: list[int]) -> list[TradeIndex]:
+        trade_list: list[TradeIndex] = []
+        in_position = False
+        entry_idx = None
+        for i, action in enumerate(actions):
+            if action == 1 and not in_position:
+                entry_idx = i
+                in_position = True
+            elif action == 2 and in_position:
+                trade_list.append(TradeIndex(entry_idx=entry_idx, exit_idx=i))
+                entry_idx = None
+                in_position = False
+        return trade_list
+
+    def run(
+        self,
+        params: dict,
+        execution_policy: str = None,
+        debug_trace: bool = False,
+        signals_override: list | None = None,
+        fixed_position_pct: float | None = None,
+    ) -> dict:
         """
         Lefuttatja a szimulációt a megadott paraméterekkel.
         Ez váltja ki a genetic_optimizer 'backtest_signal_strategy' függvényét is!
@@ -78,77 +108,76 @@ class Backtester:
             )
 
         # 1. Jelek generálása (A közös analizer.py-ból)
-        signals, _ = compute_signals(self.df, self.ticker, params, return_series=True)
+        if signals_override is not None:
+            signals = signals_override
+        else:
+            signals, _ = compute_signals(
+                self.df, self.ticker, params, return_series=True
+            )
 
-        # Ha a signals nem lista, hanem Series/DataFrame, konvertáljuk
         if hasattr(signals, "tolist"):
             signals = signals.tolist()
 
-        buy_flags = [s == "BUY" for s in signals]
-        sell_flags = [s == "SELL" for s in signals]
+        action_codes = [normalize_action(s) for s in signals]
+        execution_policy = (
+            execution_policy or Config.EXECUTION_POLICY or "next_open"
+        ).lower()
+        if execution_policy not in {"close_to_close", "next_open"}:
+            execution_policy = "next_open"
 
-        cash = self.initial_capital
-        shares = 0
+        closes = self.df["Close"].values
+        opens = self.df["Open"].values if "Open" in self.df.columns else closes
+
         portfolio_values = []
+        portfolio_dates = []
         trade_count = 0
         trades = []  # minden lezárt trade ide kerül
-        open_trade = None  # aktuális nyitott pozíció
         total_cost = 0.0
 
         fee_pct = self.fee_pct
         slippage_pct = self.slippage_pct
         spread_pct = self.spread_pct
 
-        closes = self.df["Close"].values
         dates = self.df.index
 
-        # --- A TE EREDETI LOGIKÁD OPTIMALIZÁLVA ---
-        for i in range(len(self.df)):
-            price = closes[i]
-            # Portfólió érték rögzítése (tranzakció előtt)
-            current_val = cash + (shares * price)
-            portfolio_values.append(current_val)
+        trade_indices = self._generate_trade_indices(action_codes)
+        if debug_trace:
+            for trade in trade_indices[:5]:
+                print("TRADE_IDX", trade.entry_idx, trade.exit_idx)
 
-            # VÉTEL
-            if buy_flags[i] and cash > price:
-                buy_price = price * (1 + slippage_pct + spread_pct / 2)
-                max_shares = int(cash / buy_price)
-                if max_shares > 0:
-                    cost = max_shares * buy_price
-                    commission = cost * fee_pct
-                    if cash >= (cost + commission):
-                        cash -= cost + commission
-                        shares += max_shares
-                        trade_count += 1
-                        open_trade = {
-                            "entry_price": buy_price,
-                            "shares": max_shares,
-                            "entry_value": cost + commission,
-                        }
+        policy = (
+            ExecutionPolicy.CLOSE
+            if execution_policy == "close_to_close"
+            else ExecutionPolicy.NEXT_OPEN
+        )
+        execution_engine = ExecutionEngine(
+            policy=policy,
+            slippage=slippage_pct,
+            spread=spread_pct,
+            fee_pct=fee_pct,
+        )
+        executions = execution_engine.execute(trade_indices, closes, opens)
 
-            # ELADÁS
-            elif sell_flags[i] and shares > 0:
-                sell_price = price * (1 - slippage_pct - spread_pct / 2)
-                revenue = shares * sell_price
-                commission = revenue * fee_pct
-                cash += revenue - commission
-                shares = 0
-                trade_count += 1
+        if debug_trace:
+            for trade in executions[:20]:
+                print(trade.entry_idx, "BUY", trade.entry_price_raw)
+                print(trade.exit_idx, "SELL", trade.exit_price_raw)
 
-                pnl = revenue - commission - open_trade["entry_value"]
-                pnl_pct = pnl / open_trade["entry_value"] * 100
-
-                trades.append(
-                    {
-                        "pnl": pnl,
-                        "pnl_pct": pnl_pct,
-                    }
-                )
-
-                open_trade = None
+        equity_engine = EquityEngine(self.initial_capital)
+        equity_result = equity_engine.apply(
+            executions, position_size_pct=fixed_position_pct
+        )
+        trades = equity_result.trade_details
+        trade_count = len(executions)
+        portfolio_values = equity_result.equity_curve
+        portfolio_dates = [dates[trade.exit_at] for trade in executions]
+        total_cost = 0.0
 
         # --- Eredmények számítása ---
-        equity_curve = pd.Series(portfolio_values, index=dates)
+        if portfolio_values:
+            equity_curve = pd.Series(portfolio_values, index=portfolio_dates)
+        else:
+            equity_curve = pd.Series([self.initial_capital], index=[dates[-1]])
         final_value = equity_curve.iloc[-1]
 
         # Hozam
@@ -170,7 +199,7 @@ class Backtester:
         if max_drawdown_pct < -20:
             fitness *= 0.5
 
-        total_cost = commission + (max_shares * price * self.spread_pct)
+        # total_cost is accumulated during trades
 
         if trades:
             wins = [t for t in trades if t["pnl"] > 0]
@@ -210,7 +239,40 @@ class Backtester:
                 "ticker": self.ticker,
                 "bars": len(self.df),
                 "params": params,
+                "trade_indices": [
+                    {"entry_idx": t.entry_idx, "exit_idx": t.exit_idx}
+                    for t in trade_indices
+                ],
+                "trade_executions": [
+                    {
+                        "entry_idx": t.entry_idx,
+                        "exit_idx": t.exit_idx,
+                        "entry_at": t.entry_at,
+                        "exit_at": t.exit_at,
+                        "entry_price_raw": t.entry_price_raw,
+                        "exit_price_raw": t.exit_price_raw,
+                        "buy_price": t.buy_price,
+                        "sell_price": t.sell_price,
+                        "trade_return": t.trade_return,
+                        "close_return": t.close_return,
+                        "open_return": t.open_return,
+                        "entry_gap": t.entry_gap,
+                        "exit_gap": t.exit_gap,
+                    }
+                    for t in executions
+                ],
             },
         )
+        if os.getenv("ENABLE_DRIFT_MONITOR", "false").lower() == "true":
+            try:
+                from app.validation.drift_monitor import (
+                    compute_execution_drift,
+                    update_drift_state,
+                )
 
+                drift_metrics = compute_execution_drift(self.df, self.ticker, params)
+                if drift_metrics.get("status") == "ok":
+                    update_drift_state(drift_metrics)
+            except Exception:
+                pass
         return report

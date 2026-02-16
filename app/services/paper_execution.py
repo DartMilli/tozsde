@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, List
 
 from app.config.config import Config
@@ -29,17 +29,35 @@ class PaperExecutionEngine:
         state = self._load_latest_state()
         positions = state.get("positions", {})
         cash = state.get("cash", Config.INITIAL_CAPITAL)
+        execution_policy = (Config.EXECUTION_POLICY or "next_open").lower()
+        if execution_policy not in {"close_to_close", "next_open"}:
+            execution_policy = "next_open"
+
+        exec_prices = {}
+        exec_dates = []
 
         for item in decisions:
             decision = item["decision"]
             payload = item["payload"]
             ticker = item["ticker"]
             action_code = decision.get("action_code")
-            price = payload.get("latest_price")
+            price, exec_date = self._resolve_execution_price(
+                ticker=ticker,
+                payload=payload,
+                as_of=as_of,
+                execution_policy=execution_policy,
+            )
 
             if price is None:
-                self.logger.warning(f"Paper mode: missing price for {ticker}")
+                self.logger.warning(
+                    f"Paper mode: missing execution price for {ticker} ({execution_policy})"
+                )
                 continue
+
+            payload["execution_price"] = price
+            payload["execution_date"] = exec_date.isoformat()
+            exec_prices[ticker] = price
+            exec_dates.append(exec_date)
 
             if action_code == 1:
                 allocation_amount = item.get("allocation_amount", 0.0)
@@ -51,7 +69,9 @@ class PaperExecutionEngine:
                     ticker=ticker,
                     qty=qty,
                     entry_price=price,
-                    entry_timestamp=payload.get("timestamp") or as_of.isoformat(),
+                    entry_timestamp=payload.get("execution_date")
+                    or payload.get("timestamp")
+                    or as_of.isoformat(),
                     decision_id=item.get("decision_id"),
                 )
 
@@ -62,7 +82,7 @@ class PaperExecutionEngine:
 
                 pnl_pct = (price - pos.entry_price) / pos.entry_price
                 entry_date = datetime.fromisoformat(pos.entry_timestamp).date()
-                horizon_days = (as_of - entry_date).days
+                horizon_days = (exec_date - entry_date).days
 
                 outcome = {
                     "pnl_pct": round(pnl_pct, 4),
@@ -92,13 +112,15 @@ class PaperExecutionEngine:
                 positions.pop(ticker, None)
 
         equity = cash + sum(
-            pos.qty * decisions_by_ticker(decisions).get(pos.ticker, pos.entry_price)
+            pos.qty * exec_prices.get(pos.ticker, pos.entry_price)
             for pos in positions.values()
         )
         pnl_pct = (equity - Config.INITIAL_CAPITAL) / Config.INITIAL_CAPITAL
 
+        portfolio_date = max(exec_dates) if exec_dates else as_of
+
         self.dm.save_portfolio_state(
-            timestamp=as_of.isoformat(),
+            timestamp=portfolio_date.isoformat(),
             cash=cash,
             equity=equity,
             pnl_pct=pnl_pct,
@@ -116,6 +138,30 @@ class PaperExecutionEngine:
             source="paper",
         )
 
+    def _resolve_execution_price(
+        self,
+        ticker: str,
+        payload: Dict,
+        as_of: date,
+        execution_policy: str,
+    ) -> tuple[float | None, date]:
+        if execution_policy == "close_to_close":
+            return payload.get("latest_price"), as_of
+
+        start_date = (as_of + timedelta(days=1)).isoformat()
+        df = self.dm.load_ohlcv(ticker=ticker, start_date=start_date)
+        if df is None or df.empty:
+            return None, as_of
+
+        df = df[df.index.date > as_of]
+        if df.empty:
+            return None, as_of
+
+        row = df.iloc[0]
+        exec_date = df.index[0].date()
+        open_price = float(row.get("Open", row.get("Close")))
+        return open_price, exec_date
+
     def _load_latest_state(self) -> Dict:
         latest = self.dm.fetch_latest_portfolio_state(source="paper")
         if not latest:
@@ -129,7 +175,10 @@ class PaperExecutionEngine:
 def decisions_by_ticker(decisions: List[Dict]) -> Dict[str, float]:
     prices = {}
     for item in decisions:
-        price = item.get("payload", {}).get("latest_price")
+        payload = item.get("payload", {})
+        price = payload.get("execution_price")
+        if price is None:
+            price = payload.get("latest_price")
         if price is not None:
             prices[item["ticker"]] = price
     return prices

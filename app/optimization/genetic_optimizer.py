@@ -33,14 +33,26 @@ from typing import Dict, List
 import json
 from typing import Optional
 
-from app.backtesting.backtester import Backtester
-from app.optimization.fitness import fitness_single
-from app.analysis.analyzer import param_bounds
+from app.optimization.fitness import NEG_INF
 from app.infrastructure.logger import setup_logger, is_logger_debug
+from app.validation.execution_stress import evaluate_execution_stress
 
 logger = setup_logger(__name__)
 
 _FITNESS_CACHE = {}
+_FITNESS_META = {}
+_FEATURE_PENALTY = {
+    "sma": 1.0,
+    "ema": 1.0,
+    "rsi": 1.0,
+    "macd": 1.0,
+    "bbands": 1.0,
+    "atr": 1.0,
+    "adx": 1.0,
+    "stoch": 1.0,
+}
+_DROPOUT_FLAGS: set[str] = set()
+_DROPOUT_PROB = 0.2
 
 
 def _params_to_key(params: dict) -> str:
@@ -48,6 +60,30 @@ def _params_to_key(params: dict) -> str:
     Deterministic hashable key from params dict.
     """
     return json.dumps(params, sort_keys=True)
+
+
+def _update_dropout_flags():
+    global _DROPOUT_FLAGS
+    if random.random() < _DROPOUT_PROB:
+        _DROPOUT_FLAGS = {random.choice(list(_FEATURE_PENALTY.keys()))}
+    else:
+        _DROPOUT_FLAGS = set()
+
+
+def _apply_feature_dropout(params: dict) -> dict:
+    for feature in _FEATURE_PENALTY.keys():
+        params.setdefault(f"use_{feature}", True)
+    for feature in _DROPOUT_FLAGS:
+        params[f"use_{feature}"] = False
+    return params
+
+
+def _apply_feature_penalty(params: dict, fitness: float) -> float:
+    adjusted = fitness
+    for feature, penalty in _FEATURE_PENALTY.items():
+        if params.get(f"use_{feature}", True):
+            adjusted *= penalty
+    return adjusted
 
 
 def individual_to_params(
@@ -60,11 +96,12 @@ def individual_to_params(
     return dict(zip(param_keys, individual))
 
 
-def evaluate_individual(individual, dataframes, keys):
+def evaluate_individual(individual, dataframes, keys, param_cv_flags=None):
     """
     Kiértékeli az egyént (paramétercsomagot) a megadott részvények listáján.
     """
     params = individual_to_params(individual, keys)
+    params = _apply_feature_dropout(params)
     total_fitness = 0
     valid_count = 0
 
@@ -91,17 +128,56 @@ def evaluate_individual(individual, dataframes, keys):
             if cache_key in _FITNESS_CACHE:
                 fitness = _FITNESS_CACHE[cache_key]
             else:
-                # Lefuttatjuk a visszatesztelést az adott részvényen
-                bt = Backtester(df, ticker)
-                report = bt.run(params)  # BacktestRiport dataclass
-                base_fitness = fitness_single(report.metrics)
+                stress = evaluate_execution_stress(df, ticker, params)
+                fitness = float(stress.get("fitness", NEG_INF))
 
-                parsimony = parsimony_penalty(
-                    params=params, weight=0.05, param_limits=param_bounds
+                if _DROPOUT_FLAGS:
+                    baseline_params = params.copy()
+                    for feature in _DROPOUT_FLAGS:
+                        baseline_params[f"use_{feature}"] = True
+                    baseline_stress = evaluate_execution_stress(
+                        df,
+                        ticker,
+                        baseline_params,
+                    )
+                    baseline_fitness = float(baseline_stress.get("fitness", NEG_INF))
+                    if baseline_fitness != NEG_INF and fitness > baseline_fitness:
+                        for feature in _DROPOUT_FLAGS:
+                            _FEATURE_PENALTY[feature] *= 0.9
+
+                fitness = _apply_feature_penalty(params, fitness)
+
+                if param_cv_flags:
+                    if any(flag in params for flag in param_cv_flags):
+                        fitness *= 0.9
+
+                _FITNESS_CACHE[cache_key] = fitness
+                _FITNESS_META[cache_key] = {
+                    "params": params,
+                    "baseline_sharpe": stress.get("baseline_sharpe"),
+                    "robustness_score": stress.get("robustness_score"),
+                    "sharpe_std": stress.get("sharpe_std"),
+                    "worst_case_sharpe": stress.get("worst_case_sharpe"),
+                    "relative_gap": stress.get("relative_gap_baseline"),
+                    "constraint_passed": stress.get("constraint_passed"),
+                    "stress_tested": stress.get("stress_tested"),
+                    "fitness": fitness,
+                }
+
+                logger.debug(
+                    "GA fitness | baseline_sharpe=%.4f robustness=%.4f sharpe_std=%.4f worst=%.4f gap=%.4f fitness=%.6f",
+                    float(stress.get("baseline_sharpe", 0.0) or 0.0),
+                    float(stress.get("robustness_score", 0.0) or 0.0),
+                    float(stress.get("sharpe_std", 0.0) or 0.0),
+                    float(stress.get("worst_case_sharpe", 0.0) or 0.0),
+                    float(stress.get("relative_gap_baseline", 0.0) or 0.0),
+                    fitness,
                 )
 
-                fitness = base_fitness * parsimony
-                _FITNESS_CACHE[cache_key] = fitness
+            if fitness == NEG_INF:
+                total_fitness = NEG_INF
+                valid_count = 1
+                break
 
             total_fitness += fitness
             valid_count += 1
@@ -114,17 +190,42 @@ def evaluate_individual(individual, dataframes, keys):
     return total_fitness / valid_count, valid_count
 
 
-def evaluate_individual_with_log(indivdual, dataframes, keys):
-    fitness, valid_count = evaluate_individual(indivdual, dataframes, keys)
+def evaluate_individual_with_log(indivdual, dataframes, keys, param_cv_flags=None):
+    fitness, valid_count = evaluate_individual(
+        indivdual,
+        dataframes,
+        keys,
+        param_cv_flags=param_cv_flags,
+    )
     logger.debug(
         f"(részvények: {valid_count}/{len(dataframes)} | fitnesz: {fitness:.2f}) "
     )
     return (fitness,)
 
 
-def evaluate_individual_without_log(indivdual, dataframes, keys):
-    fitness, _ = evaluate_individual(indivdual, dataframes, keys)
+def evaluate_individual_without_log(indivdual, dataframes, keys, param_cv_flags=None):
+    fitness, _ = evaluate_individual(
+        indivdual,
+        dataframes,
+        keys,
+        param_cv_flags=param_cv_flags,
+    )
     return (fitness,)
+
+
+def _select_best_individual(candidates, param_keys: List[str], ticker: str):
+    best = None
+    best_score = None
+    for ind in candidates:
+        params = individual_to_params(ind, param_keys)
+        cache_key = (ticker, _params_to_key(params))
+        fitness_adjusted = (
+            float(ind.fitness.values[0]) if ind.fitness.values else NEG_INF
+        )
+        if best_score is None or fitness_adjusted > best_score:
+            best = ind
+            best_score = fitness_adjusted
+    return best
 
 
 def parsimony_penalty(
@@ -174,6 +275,7 @@ def custom_ea_simple(
 
     # ➤ Első generáció: értékelés
     logger.info("Generáció 0 értékelése...")
+    _update_dropout_flags()
     start_time = time.time()
 
     fitnesses = []
@@ -203,6 +305,7 @@ def custom_ea_simple(
     # ➤ További generációk
     for gen in range(1, ngen + 1):
         logger.info(f"\nGeneráció {gen}/{ngen}")
+        _update_dropout_flags()
         start_time = time.time()
 
         # ➤ Szelekció és másolatok
@@ -266,6 +369,7 @@ def optimize_params(
     ngen: int = 30,
     cxpb: float = 0.7,
     mutpb: float = 0.2,
+    param_cv_flags: List[str] | None = None,
 ) -> Dict[str, int]:
     """
     bounds:
@@ -313,6 +417,7 @@ def optimize_params(
             evaluate_individual_with_log,
             dataframes=dataframes,
             keys=param_keys,
+            param_cv_flags=param_cv_flags,
         )
     else:
         toolbox.register(
@@ -320,6 +425,7 @@ def optimize_params(
             evaluate_individual_without_log,
             dataframes=dataframes,
             keys=param_keys,
+            param_cv_flags=param_cv_flags,
         )
 
     toolbox.register("mate", tools.cxTwoPoint)
@@ -366,7 +472,10 @@ def optimize_params(
 
     logger.info(log.stream)
 
-    best_individual = halloffame[0]
+    candidates = list(population) + list(halloffame)
+    best_individual = (
+        _select_best_individual(candidates, param_keys, tickers[0]) or halloffame[0]
+    )
     best_params = individual_to_params(best_individual, param_keys)
 
     logger.info(f"GA done | fitness={best_individual.fitness.values[0]:.6f}")

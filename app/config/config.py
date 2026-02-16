@@ -17,17 +17,30 @@ class Config:
     ENABLE_FLASK = False
     ENABLE_RL = os.getenv("ENABLE_RL", "false").lower() == "true"
     RL_TRAINING_MODE = os.getenv("RL_TRAINING_MODE", "false").lower() == "true"
+    RL_TIME_SPLIT_ENABLED = os.getenv("RL_TIME_SPLIT_ENABLED", "true").lower() == "true"
+    RL_TRAIN_END_DATE = os.getenv("RL_TRAIN_END_DATE")
+    RL_VAL_END_DATE = os.getenv("RL_VAL_END_DATE")
+    RL_TEST_END_DATE = os.getenv("RL_TEST_END_DATE")
+    RL_TRAIN_RATIO = float(os.getenv("RL_TRAIN_RATIO", "0.7"))
+    RL_VAL_RATIO = float(os.getenv("RL_VAL_RATIO", "0.15"))
     ENABLE_RELIABILITY = False
+    RELIABILITY_SOURCE = os.getenv("RELIABILITY_SOURCE", "db").lower()
     ENABLE_CONFIDENCE_CALIBRATION = (
         os.getenv("ENABLE_CONFIDENCE_CALIBRATION", "false").lower() == "true"
     )
     EXECUTION_MODE = os.getenv("EXECUTION_MODE", "paper").lower()
+    EXECUTION_POLICY = os.getenv("EXECUTION_POLICY", "next_open").lower()
     ENABLE_DRIFT_DETECTION = (
         os.getenv("ENABLE_DRIFT_DETECTION", "true").lower() == "true"
     )
     ENABLE_DRAWDOWN_GUARD = (
         os.getenv("ENABLE_DRAWDOWN_GUARD", "false").lower() == "true"
     )
+    ENABLE_EXECUTION_STRESS = (
+        os.getenv("ENABLE_EXECUTION_STRESS", "true").lower() == "true"
+    )
+    MIN_OOS_SHARPE = float(os.getenv("MIN_OOS_SHARPE", "0.4"))
+    MAX_RELATIVE_GAP = float(os.getenv("MAX_RELATIVE_GAP", "0.4"))
     ALLOW_NO_MODEL_FALLBACK = (
         os.getenv("ALLOW_NO_MODEL_FALLBACK", "true").lower() == "true"
     )
@@ -125,9 +138,9 @@ class Config:
     MAX_VIX_THRESHOLD = 30.0  # Efelett pánik van a piacon
 
     # Walk-Forward paraméterek (P5)
-    TRAIN_WINDOW_MONTHS = 24  # 2 év tanulás
-    TEST_WINDOW_MONTHS = 6  # 6 hónap tesztelés
-    WINDOW_STEP_MONTHS = 3  # 3 havonta lépünk előre
+    TRAIN_WINDOW_MONTHS = 12  # 1 év tanulás
+    TEST_WINDOW_MONTHS = 3  # 3 hónap tesztelés
+    WINDOW_STEP_MONTHS = 2  # 2 havonta lépünk előre
     WF_STABILITY_CONSTANT = 10
 
     # tanulási adatok és optimalizációs paraméterek

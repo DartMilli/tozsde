@@ -50,6 +50,14 @@ default_params = {
     "adx_period": 14,
     "stoch_k": 14,
     "stoch_d": 3,
+    "use_sma": True,
+    "use_ema": True,
+    "use_rsi": True,
+    "use_macd": True,
+    "use_bbands": True,
+    "use_atr": True,
+    "use_adx": True,
+    "use_stoch": True,
 }
 
 _PARAMS_CACHE = {"mtime": None, "data": None}
@@ -181,80 +189,100 @@ def compute_signals(df, ticker, params, return_series=False):
     def is_valid(arr, n=2):
         return arr is not None and len(arr) >= n and not np.isnan(arr[-n:]).any()
 
+    use_sma = params.get("use_sma", True)
+    use_ema = params.get("use_ema", True)
+    use_rsi = params.get("use_rsi", True)
+    use_macd = params.get("use_macd", True)
+    use_bbands = params.get("use_bbands", True)
+    use_atr = params.get("use_atr", True)
+    use_adx = params.get("use_adx", True)
+    use_stoch = params.get("use_stoch", True)
+
+    sma = ta.sma(df["Close"], period=params["sma_period"]) if use_sma else None
+    ema = ta.ema(df["Close"], period=params["ema_period"]) if use_ema else None
+
     # EMA/SMA crossover
-    sma = ta.sma(df["Close"], period=params["sma_period"])
-    ema = ta.ema(df["Close"], period=params["ema_period"])
-    if is_valid(sma) and is_valid(ema):
+    if use_sma and use_ema and is_valid(sma) and is_valid(ema):
         if ema[-2] < sma[-2] and ema[-1] > sma[-1]:
-            # <<< VÁLTOZTATÁS: Dátum hozzáadása a jelzéshez
             signals.append(f"BUY: EMA crossed above SMA on {signal_date_str}")
         elif ema[-2] > sma[-2] and ema[-1] < sma[-1]:
-            # <<< VÁLTOZTATÁS: Dátum hozzáadása a jelzéshez
             signals.append(f"SELL: EMA crossed below SMA on {signal_date_str}")
 
     # RSI
-    rsi = ta.rsi(df["Close"], period=params["rsi_period"])
-    if is_valid(rsi):
+    rsi = ta.rsi(df["Close"], period=params["rsi_period"]) if use_rsi else None
+    if use_rsi and is_valid(rsi):
         if rsi[-2] < 30 and rsi[-1] > 30:
             signals.append(f"BUY: RSI broke above 30 on {signal_date_str}")
         elif rsi[-2] > 70 and rsi[-1] < 70:
             signals.append(f"SELL: RSI broke below 70 on {signal_date_str}")
 
     # MACD
-    macd, macdsignal = ta.macd(
-        df["Close"], params["macd_fast"], params["macd_slow"], params["macd_signal"]
-    )
-    if is_valid(macd) and is_valid(macdsignal):
-        if macd[-2] < macdsignal[-2] and macd[-1] > macdsignal[-1]:
-            signals.append(f"BUY: MACD crossover on {signal_date_str}")
-        elif macd[-2] > macdsignal[-2] and macd[-1] < macdsignal[-1]:
-            signals.append(f"SELL: MACD crossunder on {signal_date_str}")
+    macd, macdsignal = (None, None)
+    if use_macd:
+        macd, macdsignal = ta.macd(
+            df["Close"], params["macd_fast"], params["macd_slow"], params["macd_signal"]
+        )
+        if is_valid(macd) and is_valid(macdsignal):
+            if macd[-2] < macdsignal[-2] and macd[-1] > macdsignal[-1]:
+                signals.append(f"BUY: MACD crossover on {signal_date_str}")
+            elif macd[-2] > macdsignal[-2] and macd[-1] < macdsignal[-1]:
+                signals.append(f"SELL: MACD crossunder on {signal_date_str}")
 
     # Bollinger Bands
-    upper, middle, lower = ta.bbands(
-        df["Close"], period=params["bbands_period"], std_dev=params["bbands_stddev"]
-    )
-    if is_valid(upper, 1) and is_valid(lower, 1) and len(df["Close"]) > 0:
-        close_val = df["Close"].iloc[-1]
-        if not np.isnan(close_val):
-            if close_val < lower[-1]:
-                signals.append(
-                    f"BUY: Price below Bollinger Lower Band on {signal_date_str}"
-                )
-            elif close_val > upper[-1]:
-                signals.append(
-                    f"SELL: Price above Bollinger Upper Band on {signal_date_str}"
-                )
+    upper, middle, lower = (None, None, None)
+    if use_bbands:
+        upper, middle, lower = ta.bbands(
+            df["Close"], period=params["bbands_period"], std_dev=params["bbands_stddev"]
+        )
+        if is_valid(upper, 1) and is_valid(lower, 1) and len(df["Close"]) > 0:
+            close_val = df["Close"].iloc[-1]
+            if not np.isnan(close_val):
+                if close_val < lower[-1]:
+                    signals.append(
+                        f"BUY: Price below Bollinger Lower Band on {signal_date_str}"
+                    )
+                elif close_val > upper[-1]:
+                    signals.append(
+                        f"SELL: Price above Bollinger Upper Band on {signal_date_str}"
+                    )
 
     # ATR
-    atr = ta.atr(df["High"], df["Low"], df["Close"], period=params["atr_period"])
-    if is_valid(atr):
+    atr = (
+        ta.atr(df["High"], df["Low"], df["Close"], period=params["atr_period"])
+        if use_atr
+        else None
+    )
+    if use_atr and is_valid(atr):
         if atr[-1] > atr[-2] * 1.5:
             signals.append(f"ALERT: ATR volatility spike on {signal_date_str}")
 
     # ADX
-    adx, plus_di_vals, minus_di_vals = ta.adx(
-        df["High"], df["Low"], df["Close"], period=params["adx_period"]
-    )
-    if is_valid(adx, 1):
-        if adx[-1] > 25:
-            signals.append(
-                f"INFO: Strong trend detected (ADX > 25) on {signal_date_str}"
-            )
+    adx, plus_di_vals, minus_di_vals = (None, None, None)
+    if use_adx:
+        adx, plus_di_vals, minus_di_vals = ta.adx(
+            df["High"], df["Low"], df["Close"], period=params["adx_period"]
+        )
+        if is_valid(adx, 1):
+            if adx[-1] > 25:
+                signals.append(
+                    f"INFO: Strong trend detected (ADX > 25) on {signal_date_str}"
+                )
 
     # STOCH
-    slowk, slowd = ta.stoch(
-        df["High"],
-        df["Low"],
-        df["Close"],
-        k_period=params["stoch_k"],
-        d_period=params["stoch_d"],
-    )
-    if is_valid(slowk) and is_valid(slowd):
-        if slowk[-2] < slowd[-2] and slowk[-1] > slowd[-1]:
-            signals.append(f"BUY: Stochastic crossover on {signal_date_str}")
-        elif slowk[-2] > slowd[-2] and slowk[-1] < slowd[-1]:
-            signals.append(f"SELL: Stochastic crossunder on {signal_date_str}")
+    slowk, slowd = (None, None)
+    if use_stoch:
+        slowk, slowd = ta.stoch(
+            df["High"],
+            df["Low"],
+            df["Close"],
+            k_period=params["stoch_k"],
+            d_period=params["stoch_d"],
+        )
+        if is_valid(slowk) and is_valid(slowd):
+            if slowk[-2] < slowd[-2] and slowk[-1] > slowd[-1]:
+                signals.append(f"BUY: Stochastic crossover on {signal_date_str}")
+            elif slowk[-2] > slowd[-2] and slowk[-1] < slowd[-1]:
+                signals.append(f"SELL: Stochastic crossunder on {signal_date_str}")
 
     indicators = {
         "SMA": sma,
@@ -277,13 +305,16 @@ def compute_signals(df, ticker, params, return_series=False):
         # 1:1 signals-per-bar tömb építése - egyszerűsített verzió
         # Indikátorok alapján per-bar jeleket generál
         signals_per_bar = []
+        rolling_std = df["Close"].pct_change().rolling(window=20).std()
 
         for i in range(len(df)):
             signal = "HOLD"  # Default
 
             # EMA/SMA crossover check
             if (
-                i >= 1
+                use_sma
+                and use_ema
+                and i >= 1
                 and sma is not None
                 and len(sma) > i
                 and not np.isnan(sma[i - 1 : i + 1]).any()
@@ -295,6 +326,23 @@ def compute_signals(df, ticker, params, return_series=False):
                     signal = "BUY"
                 elif ema[i - 1] > sma[i - 1] and ema[i] < sma[i]:
                     signal = "SELL"
+
+            # Signal quality filter based on expected edge
+            if use_sma and use_ema and sma is not None and ema is not None:
+                if (
+                    i < len(sma)
+                    and i < len(ema)
+                    and not np.isnan(sma[i])
+                    and sma[i] != 0
+                ):
+                    expected_edge = (ema[i] - sma[i]) / sma[i]
+                else:
+                    expected_edge = 0.0
+                threshold = (
+                    rolling_std.iloc[i] * 0.5 if i < len(rolling_std) else np.nan
+                )
+                if not np.isnan(threshold) and abs(expected_edge) < threshold:
+                    signal = "HOLD"
 
             signals_per_bar.append(signal)
 
