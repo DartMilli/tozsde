@@ -9,6 +9,7 @@ import numpy as np
 
 from app.data_access.data_manager import DataManager
 from app.validation.utils import get_validation_ticker
+from app.config.config import Config
 
 
 def _collect_param_variance(results: List[Dict]) -> Dict[str, float]:
@@ -60,7 +61,7 @@ def run_ga_robustness_tests() -> dict:
     dm = DataManager()
 
     query = """
-        SELECT result_json
+        SELECT result_json, computed_at
         FROM walk_forward_results
         WHERE ticker = ?
         ORDER BY computed_at ASC
@@ -72,14 +73,25 @@ def run_ga_robustness_tests() -> dict:
         return {"status": "no_data", "ticker": ticker}
 
     results: List[dict] = []
-    for (raw,) in rows:
+    for raw, computed_at in rows:
         try:
-            results.append(json.loads(raw))
+            payload = json.loads(raw)
+            payload["computed_at"] = computed_at
+            results.append(payload)
         except json.JSONDecodeError:
             continue
 
     if not results:
         return {"status": "no_data", "ticker": ticker}
+
+    if Config.AGGREGATION_MODE == "latest_only":
+        if results:
+            latest = max(results, key=lambda r: r.get("computed_at") or "")
+            run_id = latest.get("wf_run_id")
+            if run_id:
+                results = [r for r in results if r.get("wf_run_id") == run_id]
+            else:
+                results = [latest]
 
     fitness_vals = []
     seed_fitness = {}

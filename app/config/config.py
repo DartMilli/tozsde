@@ -39,8 +39,13 @@ class Config:
     ENABLE_EXECUTION_STRESS = (
         os.getenv("ENABLE_EXECUTION_STRESS", "true").lower() == "true"
     )
+    PIPELINE_AUDIT_MODE = os.getenv("PIPELINE_AUDIT_MODE", "false").lower() == "true"
+    EDGE_DIAGNOSTICS_MODE = (
+        os.getenv("EDGE_DIAGNOSTICS_MODE", "false").lower() == "true"
+    )
     MIN_OOS_SHARPE = float(os.getenv("MIN_OOS_SHARPE", "0.4"))
     MAX_RELATIVE_GAP = float(os.getenv("MAX_RELATIVE_GAP", "0.4"))
+    AGGREGATION_MODE = os.getenv("AGGREGATION_MODE", "latest_only").lower()
     ALLOW_NO_MODEL_FALLBACK = (
         os.getenv("ALLOW_NO_MODEL_FALLBACK", "true").lower() == "true"
     )
@@ -51,6 +56,8 @@ class Config:
     DATA_DIR = BASE_DIR / "app" / "data"
     LOG_DIR = BASE_DIR / "logs"
     MODEL_DIR = BASE_DIR / "models"
+    DIAGNOSTICS_DIR = BASE_DIR / "diagnostics"
+    REPORTS_DIR = BASE_DIR / "reports"
 
     CHART_DIR = BASE_DIR / "charts"
     TENSORBOARD_DIR = BASE_DIR / "tensorboard"

@@ -1,3 +1,9 @@
+Recommended: Run governance/validation via main.py:
+
+	python main.py governance --mode diagnostics
+	python main.py governance --mode validation
+	python main.py governance --mode full
+
 # Tozsde Trading System
 
 ## English
@@ -48,6 +54,17 @@ python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-
 python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
 
+### Governance Runner
+Unified quant validation and governance entry point:
+
+```bash
+python app/governance/quant_runner.py --mode diagnostics
+python app/governance/quant_runner.py --mode validation
+python app/governance/quant_runner.py --mode full
+```
+
+Reports are written to `reports/<timestamp>/` and include summary, validation, diagnostics, tests, checklist, and a run log.
+
 ### Admin API (Selected Endpoints)
 Admin endpoints require the X-Admin-Key header (see Config.ADMIN_API_KEY).
 
@@ -83,6 +100,7 @@ python scripts/run_all_tests.py
 - docs/SPRINTS.md for sprint history and architecture narrative
 - docs/TROUBLESHOOTING_GUIDE.md for operational issues
 - docs/deployment for Raspberry Pi setup
+- docs/validation_framework.md for quant validation and governance
 
 ### CI workflows (GitHub Actions)
 - .github/workflows/phase6_check.yml: runs Phase 5 + Phase 6 validation in CI.

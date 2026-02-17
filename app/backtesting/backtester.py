@@ -66,6 +66,7 @@ class Backtester:
         debug_trace: bool = False,
         signals_override: list | None = None,
         fixed_position_pct: float | None = None,
+        audit: dict | None = None,
     ) -> dict:
         """
         Lefuttatja a szimulációt a megadott paraméterekkel.
@@ -112,13 +113,27 @@ class Backtester:
             signals = signals_override
         else:
             signals, _ = compute_signals(
-                self.df, self.ticker, params, return_series=True
+                self.df, self.ticker, params, return_series=True, audit=audit
             )
 
         if hasattr(signals, "tolist"):
             signals = signals.tolist()
 
         action_codes = [normalize_action(s) for s in signals]
+        if isinstance(audit, dict):
+            if "raw_signal_count" in audit:
+                audit["post_dropout_signal_count"] = int(
+                    audit.get("raw_signal_count", 0)
+                )
+            else:
+                audit["post_dropout_signal_count"] = sum(
+                    1 for s in signals if s in {"BUY", "SELL"}
+                )
+            audit["post_edge_filter_signal_count"] = audit.get(
+                "post_edge_filter_signal_count",
+                audit["post_dropout_signal_count"],
+            )
+
         execution_policy = (
             execution_policy or Config.EXECUTION_POLICY or "next_open"
         ).lower()
@@ -157,6 +172,9 @@ class Backtester:
             fee_pct=fee_pct,
         )
         executions = execution_engine.execute(trade_indices, closes, opens)
+        if isinstance(audit, dict):
+            audit["orders_created"] = len(trade_indices)
+            audit["executed_trades"] = len(executions)
 
         if debug_trace:
             for trade in executions[:20]:
@@ -165,14 +183,15 @@ class Backtester:
 
         equity_engine = EquityEngine(self.initial_capital)
         equity_result = equity_engine.apply(
-            executions, position_size_pct=fixed_position_pct
+            executions,
+            position_size_pct=fixed_position_pct,
+            audit=audit,
         )
         trades = equity_result.trade_details
         trade_count = len(executions)
         portfolio_values = equity_result.equity_curve
         portfolio_dates = [dates[trade.exit_at] for trade in executions]
         total_cost = 0.0
-
         # --- Eredmények számítása ---
         if portfolio_values:
             equity_curve = pd.Series(portfolio_values, index=portfolio_dates)

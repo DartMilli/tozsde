@@ -17,3 +17,9 @@ class DeploymentBlockedException(RuntimeError):
     """Raised when improvement check blocks deployment."""
 
     pass
+
+
+class ExecutionPipelineError(RuntimeError):
+    """Raised when the execution pipeline fails to execute trades."""
+
+    pass

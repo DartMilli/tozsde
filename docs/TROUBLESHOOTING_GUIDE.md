@@ -150,54 +150,6 @@ netstat -ano | findstr :5000
 taskkill /PID <PID> /F
 ```
 
-**Solutions:**
-1. **Check sudo permissions:**
-   ```bash
-   sudo -v  # Test sudo access
-   ```
-
-2. **Verify Python version:**
-   ```bash
-   python3 --version  # Should be 3.6+
-   ```
-
-3. **Check disk space:**
-   ```bash
-   df -h /
-   # Need at least 2GB free
-   ```
-
-4. **Run deployment steps manually:**
-   ```bash
-   # Follow RASPBERRY_PI_SETUP_GUIDE.md
-   # Section: Manual Installation
-   ```
-
----
-
-### 10. **Admin Dashboard Errors**
-
-#### Symptom: Dashboard endpoints return errors
-
-**Solutions:**
-1. **Check Flask app is running:**
-   ```bash
-   curl http://localhost:5000/admin/health
-   ```
-
-2. **Verify database exists:**
-   ```bash
-   ls -la market_data.db error_log.db
-   ```
-
-3. **Check error logs:**
-   ```python
-   # In code or via endpoint
-   from app.infrastructure.error_reporter import ErrorReporter
-   reporter = ErrorReporter(db_path="error_log.db")
-   errors = reporter.get_recent_errors(limit=10)
-   ```
-
 4. **Test endpoints individually:**
    ```bash
    curl http://localhost:5000/admin/performance/summary

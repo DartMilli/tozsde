@@ -6,6 +6,7 @@ import numpy as np
 
 from app.data_access.data_manager import DataManager
 from app.infrastructure.logger import setup_logger
+from app.config.config import Config
 
 logger = setup_logger(__name__)
 
@@ -64,7 +65,7 @@ class WalkForwardStabilityAnalyzer:
 
     def _load_results(self, ticker: str):
         query = """
-            SELECT result_json
+            SELECT result_json, computed_at
             FROM walk_forward_results
             WHERE ticker = ?
             ORDER BY computed_at ASC
@@ -72,9 +73,18 @@ class WalkForwardStabilityAnalyzer:
         with self.dm.connection() as conn:
             rows = conn.execute(query, (ticker,)).fetchall()
         out = []
-        for (raw,) in rows:
+        for raw, computed_at in rows:
             try:
-                out.append(json.loads(raw))
+                payload = json.loads(raw)
+                payload["computed_at"] = computed_at
+                out.append(payload)
             except json.JSONDecodeError:
                 continue
+        if Config.AGGREGATION_MODE == "latest_only" and out:
+            latest = max(out, key=lambda r: r.get("computed_at") or "")
+            run_id = latest.get("wf_run_id")
+            if run_id:
+                out = [r for r in out if r.get("wf_run_id") == run_id]
+            else:
+                out = [latest]
         return out

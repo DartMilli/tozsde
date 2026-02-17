@@ -151,7 +151,7 @@ def get_default_params():
     return default_params
 
 
-def compute_signals(df, ticker, params, return_series=False):
+def compute_signals(df, ticker, params, return_series=False, audit=None):
     """
     return_series = False  -> eredeti viselkedés (eseménylista)
     return_series = True   -> per-bar lista: signals[i] = [...signals...]
@@ -307,6 +307,10 @@ def compute_signals(df, ticker, params, return_series=False):
         signals_per_bar = []
         rolling_std = df["Close"].pct_change().rolling(window=20).std()
 
+        if isinstance(audit, dict):
+            audit.setdefault("raw_signal_count", 0)
+            audit.setdefault("post_edge_filter_signal_count", 0)
+
         for i in range(len(df)):
             signal = "HOLD"  # Default
 
@@ -327,6 +331,8 @@ def compute_signals(df, ticker, params, return_series=False):
                 elif ema[i - 1] > sma[i - 1] and ema[i] < sma[i]:
                     signal = "SELL"
 
+            raw_signal = signal
+
             # Signal quality filter based on expected edge
             if use_sma and use_ema and sma is not None and ema is not None:
                 if (
@@ -343,6 +349,23 @@ def compute_signals(df, ticker, params, return_series=False):
                 )
                 if not np.isnan(threshold) and abs(expected_edge) < threshold:
                     signal = "HOLD"
+
+                if (
+                    isinstance(audit, dict)
+                    and Config.EDGE_DIAGNOSTICS_MODE
+                    and raw_signal in {"BUY", "SELL"}
+                ):
+                    if not np.isnan(threshold) and threshold > 0:
+                        edge_values = audit.setdefault("edge_expected_edges", [])
+                        edge_thresholds = audit.setdefault("edge_thresholds", [])
+                        edge_values.append(float(abs(expected_edge)))
+                        edge_thresholds.append(float(threshold))
+
+            if isinstance(audit, dict):
+                if raw_signal in {"BUY", "SELL"}:
+                    audit["raw_signal_count"] += 1
+                if signal in {"BUY", "SELL"}:
+                    audit["post_edge_filter_signal_count"] += 1
 
             signals_per_bar.append(signal)
 

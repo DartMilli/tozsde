@@ -692,6 +692,18 @@ def main():
                 end_date=args.end_date,
             )
 
+        elif args.command == "governance":
+            # Call quant_runner orchestrator as subprocess for full isolation
+            import subprocess
+            import sys
+            import os
+
+            quant_runner_path = os.path.join(
+                os.path.dirname(__file__), "app", "governance", "quant_runner.py"
+            )
+            cmd = [sys.executable, quant_runner_path, "--mode", args.mode]
+            sys.exit(subprocess.call(cmd))
+
     except KeyboardInterrupt:
         logger.info("Pipeline interrupted by user")
         sys.exit(0)

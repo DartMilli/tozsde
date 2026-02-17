@@ -9,6 +9,7 @@ Használat:
     python validation_runner.py --mode shadow
 """
 
+from app.config.config import Config
 import argparse
 import json
 import os
@@ -24,8 +25,10 @@ from app.validation.errors import (
     ValidationError,
     EngineLogicError,
     DeploymentBlockedException,
+    ExecutionPipelineError,
 )
 from app.backtesting.execution_utils import seed_deterministic
+from app.config.config import Config
 
 
 class ValidationRunner:
@@ -144,11 +147,79 @@ class ValidationRunner:
             self._update_engine_status()
             self.compute_final_score()
             if self.mode == "full":
+                trade_count = (
+                    self.results.get("bias", {})
+                    .get("diagnostics", {})
+                    .get("trade_count")
+                )
+                if Config.PIPELINE_AUDIT_MODE or trade_count == 0:
+                    from app.validation.pipeline_audit import run_pipeline_audit
+                    from app.validation.sanity_strategy import run_sanity_backtest
+                    from app.data_access.data_loader import load_data
+                    from app.validation.utils import get_validation_window
+                    from app.validation.utils import get_validation_ticker
+
+                    self.results["pipeline_audit"] = run_pipeline_audit()
+
+                    start, end = get_validation_window()
+                    ticker = get_validation_ticker()
+                    df = load_data(ticker, start=start.isoformat(), end=end.isoformat())
+                    df = df[(df.index.date >= start) & (df.index.date <= end)]
+                    self.results["sanity_strategy"] = run_sanity_backtest(df)
+
+                if trade_count == 0 and isinstance(
+                    self.results.get("pipeline_audit"), dict
+                ):
+                    audit = self.results.get("pipeline_audit") or {}
+                    folds = audit.get("folds") or []
+                    raw_signal_count = sum(f.get("raw_signal_count", 0) for f in folds)
+                    post_dropout_signal_count = sum(
+                        f.get("post_dropout_signal_count", 0) for f in folds
+                    )
+                    post_edge_signal_count = sum(
+                        f.get("post_edge_filter_signal_count", 0) for f in folds
+                    )
+                    position_attempts = sum(
+                        f.get("position_attempts", 0) for f in folds
+                    )
+                    orders_created = sum(f.get("orders_created", 0) for f in folds)
+                    executed_trades = sum(f.get("executed_trades", 0) for f in folds)
+
+                    if raw_signal_count == 0:
+                        collapse_stage = "signal_generation"
+                    elif post_dropout_signal_count == 0:
+                        collapse_stage = "feature_dropout"
+                    elif post_edge_signal_count == 0:
+                        collapse_stage = "edge_filter"
+                    elif position_attempts == 0:
+                        collapse_stage = "position_sizing"
+                    elif orders_created == 0:
+                        collapse_stage = "order_creation"
+                    elif executed_trades == 0:
+                        collapse_stage = "execution_engine"
+                    else:
+                        collapse_stage = "unknown"
+
+                    self.results["collapse_stage"] = collapse_stage
+
+                    if collapse_stage == "edge_filter":
+                        from app.validation.edge_diagnostics import (
+                            classify_collapse_reason,
+                        )
+
+                        edge_summary = self.results.get("pipeline_audit", {}).get(
+                            "edge_diagnostics_summary"
+                        )
+                        if isinstance(edge_summary, dict):
+                            self.results["collapse_reason"] = classify_collapse_reason(
+                                edge_summary
+                            )
+            if self.mode == "full":
                 from app.validation.improvement_check import evaluate_results
 
                 self.results["improvement_check"] = evaluate_results(self.results)
             self._save_reports()
-        except (ValidationError, EngineLogicError) as exc:
+        except (ValidationError, EngineLogicError, ExecutionPipelineError) as exc:
             self.results["engine_error"] = str(exc)
             self.results["final_score"] = {
                 "quant_score": 0,

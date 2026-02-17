@@ -131,73 +131,7 @@ python scripts/run_all_tests.py
 ### Q20 (EN): Validation report is not updating
 **Answer (EN):** Use the run_tests_with_report.py script with --with-validation and ensure you are in the repo root.
 **Valasz (HU):** A run_tests_with_report.py szkriptet hasznald, es ellenorizd a munkakonyvtarat.
-**A:** Decision pipeline:
-1. **Data Loading:** Fetch OHLCV from Yahoo Finance
-2. **Indicator Calculation:** RSI, MACD, Bollinger Bands, etc.
-3. **Regime Detection:** Bull/bear/sideways market
-4. **Strategy Selection:** Choose best strategy for current regime
-5. **Position Sizing:** Calculate allocation using Kelly Criterion
-6. **Risk Management:** Check correlation, diversification
-7. **Signal Generation:** BUY/SELL/HOLD recommendations
-
-### Q23: Can I backtest strategies?
-**A:** Yes:
-```python
-from app.backtesting.backtester import Backtester
-from app.config.config import Config
-
-config = Config()
-backtester = Backtester(config)
-
-results = backtester.run_backtest(
-    tickers=["AAPL", "MSFT", "GOOGL"],
-    start_date="2020-01-01",
-    end_date="2023-12-31",
-    initial_capital=10000
-)
-
-print(f"Total Return: {results['total_return']:.2%}")
-print(f"Sharpe Ratio: {results['sharpe_ratio']:.2f}")
-```
-
-### Q24: How often does the system trade?
-**A:** Configurable:
-- **Daily Pipeline:** Runs once per day (default: 6 AM)
-- **Rebalancing:** Weekly (default: Monday)
-- **Emergency Exits:** Real-time monitoring (if enabled)
-
-### Q25: What's the typical return?
-**A:** **Disclaimer:** Past performance doesn't guarantee future results. Backtesting shows:
-- **Avg Annual Return:** 8-15% (varies by strategy)
-- **Sharpe Ratio:** 0.8-1.5
-- **Max Drawdown:** 15-25%
-- **Win Rate:** 55-65%
-
-### Q26: How does risk management work?
-**A:** Multi-layered approach:
-- **Position Sizing:** Kelly Criterion (Sprint 2)
-- **Correlation Limits:** Max 0.7 between assets (Sprint 7)
-- **Drawdown Protection:** Exit if > 20% loss (Sprint 6)
-- **Diversification Score:** Minimum 0.6 required
-- **Capital Allocation:** Risk parity weighting
-
-### Q27: Can I paper trade first?
-**A:** Yes! Set in config:
-```python
-# In app/config/config.py
-PAPER_TRADING = True  # No real money
-REAL_TRADING = False
-```
-
-### Q28: What brokers are supported?
-**A:** Currently:
-- **Data Source:** Yahoo Finance (yfinance)
-- **Broker Integration:** Not implemented (Sprint 10+ roadmap)
-- **Manual Trading:** System provides recommendations, you execute manually
-
----
-
-## Troubleshooting
+For troubleshooting steps, see docs/TROUBLESHOOTING_GUIDE.md.
 
 ### Q29: "ModuleNotFoundError: No module named 'app'"
 **A:**

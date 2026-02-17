@@ -1,0 +1,954 @@
+{
+  "status": "ok",
+  "ticker": "VOO",
+  "folds": [
+    {
+      "fold_id": 0,
+      "raw_signal_count": 4,
+      "edge_threshold": 0.005688491008534889,
+      "expected_edge_values": [
+        0.00012014866628365611,
+        0.00011441736955019776,
+        0.00035766929322444003,
+        6.835084984678701e-05
+      ],
+      "mean_expected_edge": 0.00016514654472627022,
+      "std_expected_edge": 0.00011295206230396202,
+      "min_expected_edge": 6.835084984678701e-05,
+      "max_expected_edge": 0.00035766929322444003,
+      "p25": 0.00010290073962434507,
+      "p50": 0.00011728301791692693,
+      "p75": 0.0001795288230188521,
+      "p90": 0.0002864131051422049,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.02005492968847648,
+        0.01918065567059403,
+        0.06747767581211896,
+        0.012433803812191755
+      ]
+    },
+    {
+      "fold_id": 1,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 2,
+      "raw_signal_count": 1,
+      "edge_threshold": 0.0022153152265623546,
+      "expected_edge_values": [
+        0.00033595987236857114
+      ],
+      "mean_expected_edge": 0.00033595987236857114,
+      "std_expected_edge": 0.0,
+      "min_expected_edge": 0.00033595987236857114,
+      "max_expected_edge": 0.00033595987236857114,
+      "p25": 0.00033595987236857114,
+      "p50": 0.00033595987236857114,
+      "p75": 0.00033595987236857114,
+      "p90": 0.00033595987236857114,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.15165330348489564
+      ]
+    },
+    {
+      "fold_id": 3,
+      "raw_signal_count": 3,
+      "edge_threshold": 0.0030939517312397746,
+      "expected_edge_values": [
+        8.835755458475448e-05,
+        0.00014169553988018665,
+        0.00039280644249369814
+      ],
+      "mean_expected_edge": 0.00020761984565287976,
+      "std_expected_edge": 0.0001327448477492486,
+      "min_expected_edge": 8.835755458475448e-05,
+      "max_expected_edge": 0.00039280644249369814,
+      "p25": 0.00011502654723247057,
+      "p50": 0.00014169553988018665,
+      "p75": 0.0002672509911869424,
+      "p90": 0.00034258426197099584,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.025891991795154397,
+        0.0420521497894442,
+        0.15713565547368133
+      ]
+    },
+    {
+      "fold_id": 4,
+      "raw_signal_count": 1,
+      "edge_threshold": 0.0022706538544414873,
+      "expected_edge_values": [
+        0.0007102003044234925
+      ],
+      "mean_expected_edge": 0.0007102003044234925,
+      "std_expected_edge": 0.0,
+      "min_expected_edge": 0.0007102003044234925,
+      "max_expected_edge": 0.0007102003044234925,
+      "p25": 0.0007102003044234925,
+      "p50": 0.0007102003044234925,
+      "p75": 0.0007102003044234925,
+      "p90": 0.0007102003044234925,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.3127734784561342
+      ]
+    },
+    {
+      "fold_id": 5,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.005453897894823698,
+      "expected_edge_values": [
+        0.00015006437224556875,
+        0.0008441228471686912
+      ],
+      "mean_expected_edge": 0.0004970936097071299,
+      "std_expected_edge": 0.00034702923746156127,
+      "min_expected_edge": 0.00015006437224556875,
+      "max_expected_edge": 0.0008441228471686912,
+      "p25": 0.00032357899097634936,
+      "p50": 0.0004970936097071299,
+      "p75": 0.0006706082284379106,
+      "p90": 0.000774716999676379,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.025159498066394854,
+        0.17076189430691432
+      ]
+    },
+    {
+      "fold_id": 6,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 7,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.007871843901898976,
+      "expected_edge_values": [
+        0.0009655546682730122,
+        0.0007477844288454881
+      ],
+      "mean_expected_edge": 0.0008566695485592501,
+      "std_expected_edge": 0.00010888511971376204,
+      "min_expected_edge": 0.0007477844288454881,
+      "max_expected_edge": 0.0009655546682730122,
+      "p25": 0.0008022269887023692,
+      "p50": 0.0008566695485592501,
+      "p75": 0.0009111121084161312,
+      "p90": 0.0009437776443302599,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.16225885062202577,
+        0.07635921534325958
+      ]
+    },
+    {
+      "fold_id": 8,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.009666692149390296,
+      "expected_edge_values": [
+        0.0014872115601149275,
+        0.00036982365328494835
+      ],
+      "mean_expected_edge": 0.0009285176066999379,
+      "std_expected_edge": 0.0005586939534149896,
+      "min_expected_edge": 0.00036982365328494835,
+      "max_expected_edge": 0.0014872115601149275,
+      "p25": 0.0006491706299924431,
+      "p50": 0.0009285176066999379,
+      "p75": 0.0012078645834074327,
+      "p90": 0.0013754727694319296,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.15274757080955487,
+        0.03853540549273962
+      ]
+    },
+    {
+      "fold_id": 9,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.006967511287206678,
+      "expected_edge_values": [
+        0.00015952337614708812,
+        0.0009112341149618611
+      ],
+      "mean_expected_edge": 0.0005353787455544746,
+      "std_expected_edge": 0.0003758553694073865,
+      "min_expected_edge": 0.00015952337614708812,
+      "max_expected_edge": 0.0009112341149618611,
+      "p25": 0.00034745106085078137,
+      "p50": 0.0005353787455544747,
+      "p75": 0.0007233064302581679,
+      "p90": 0.0008360630410803838,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.025721748013307153,
+        0.1178350118376389
+      ]
+    },
+    {
+      "fold_id": 10,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.008976907116733622,
+      "expected_edge_values": [
+        0.0012469080746570183,
+        0.0001552338930810412
+      ],
+      "mean_expected_edge": 0.0007010709838690298,
+      "std_expected_edge": 0.0005458370907879885,
+      "min_expected_edge": 0.0001552338930810412,
+      "max_expected_edge": 0.0012469080746570183,
+      "p25": 0.00042815243847503547,
+      "p50": 0.0007010709838690298,
+      "p75": 0.000973989529263024,
+      "p90": 0.0011377406564994207,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.14039959837266325,
+        0.017110042593907446
+      ]
+    },
+    {
+      "fold_id": 11,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.0069714405034339184,
+      "expected_edge_values": [
+        0.002157704961396308,
+        0.00015909698043621386
+      ],
+      "mean_expected_edge": 0.001158400970916261,
+      "std_expected_edge": 0.0009993039904800472,
+      "min_expected_edge": 0.00015909698043621386,
+      "max_expected_edge": 0.002157704961396308,
+      "p25": 0.0006587489756762373,
+      "p50": 0.001158400970916261,
+      "p75": 0.0016580529661562845,
+      "p90": 0.0019578441633002984,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.2561374045635728,
+        0.028827831268298194
+      ]
+    },
+    {
+      "fold_id": 12,
+      "raw_signal_count": 1,
+      "edge_threshold": 0.005524556834239032,
+      "expected_edge_values": [
+        0.0005337453948201713
+      ],
+      "mean_expected_edge": 0.0005337453948201713,
+      "std_expected_edge": 0.0,
+      "min_expected_edge": 0.0005337453948201713,
+      "max_expected_edge": 0.0005337453948201713,
+      "p25": 0.0005337453948201713,
+      "p50": 0.0005337453948201713,
+      "p75": 0.0005337453948201713,
+      "p90": 0.0005337453948201713,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.09661325077013004
+      ]
+    },
+    {
+      "fold_id": 13,
+      "raw_signal_count": 1,
+      "edge_threshold": 0.0035529709438327766,
+      "expected_edge_values": [
+        0.00054368868823607
+      ],
+      "mean_expected_edge": 0.00054368868823607,
+      "std_expected_edge": 0.0,
+      "min_expected_edge": 0.00054368868823607,
+      "max_expected_edge": 0.00054368868823607,
+      "p25": 0.00054368868823607,
+      "p50": 0.00054368868823607,
+      "p75": 0.00054368868823607,
+      "p90": 0.00054368868823607,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.15302367985299772
+      ]
+    },
+    {
+      "fold_id": 14,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 15,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.004041105819939815,
+      "expected_edge_values": [
+        6.316732398250298e-05,
+        0.0009081036459069547
+      ],
+      "mean_expected_edge": 0.00048563548494472885,
+      "std_expected_edge": 0.00042246816096222587,
+      "min_expected_edge": 6.316732398250298e-05,
+      "max_expected_edge": 0.0009081036459069547,
+      "p25": 0.0002744014044636159,
+      "p50": 0.00048563548494472885,
+      "p75": 0.0006968695654258418,
+      "p90": 0.0008236100137145096,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.015422566896836519,
+        0.22779819118462216
+      ]
+    },
+    {
+      "fold_id": 16,
+      "raw_signal_count": 1,
+      "edge_threshold": 0.0036076486259682084,
+      "expected_edge_values": [
+        0.002035298595320427
+      ],
+      "mean_expected_edge": 0.002035298595320427,
+      "std_expected_edge": 0.0,
+      "min_expected_edge": 0.002035298595320427,
+      "max_expected_edge": 0.002035298595320427,
+      "p25": 0.002035298595320427,
+      "p50": 0.002035298595320427,
+      "p75": 0.002035298595320427,
+      "p90": 0.002035298595320427,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.5641620918041043
+      ]
+    },
+    {
+      "fold_id": 17,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 18,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 19,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.0038560828869246703,
+      "expected_edge_values": [
+        2.067947584505131e-05,
+        0.0005376653008924874
+      ],
+      "mean_expected_edge": 0.00027917238836876933,
+      "std_expected_edge": 0.000258492912523718,
+      "min_expected_edge": 2.067947584505131e-05,
+      "max_expected_edge": 0.0005376653008924874,
+      "p25": 0.00014992593210691032,
+      "p50": 0.00027917238836876933,
+      "p75": 0.00040841884463062837,
+      "p90": 0.00048596671838774377,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.004756274966045184,
+        0.1598132189863517
+      ]
+    },
+    {
+      "fold_id": 20,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 21,
+      "raw_signal_count": 4,
+      "edge_threshold": 0.004850428403332576,
+      "expected_edge_values": [
+        0.0003798116459106928,
+        0.0012881937238715241,
+        2.3864771827163207e-05,
+        0.00014481937983620898
+      ],
+      "mean_expected_edge": 0.00045917238036139726,
+      "std_expected_edge": 0.0004954505619017084,
+      "min_expected_edge": 2.3864771827163207e-05,
+      "max_expected_edge": 0.0012881937238715241,
+      "p25": 0.00011458072783394753,
+      "p50": 0.0002623155128734509,
+      "p75": 0.0006069071654009006,
+      "p90": 0.001015679100483275,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.05680305470363914,
+        0.2720677878481046,
+        0.005558884796563701,
+        0.039274799999756
+      ]
+    },
+    {
+      "fold_id": 22,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 23,
+      "raw_signal_count": 1,
+      "edge_threshold": 0.0056101207358569705,
+      "expected_edge_values": [
+        0.0010101026174981554
+      ],
+      "mean_expected_edge": 0.0010101026174981554,
+      "std_expected_edge": 0.0,
+      "min_expected_edge": 0.0010101026174981554,
+      "max_expected_edge": 0.0010101026174981554,
+      "p25": 0.0010101026174981554,
+      "p50": 0.0010101026174981554,
+      "p75": 0.0010101026174981554,
+      "p90": 0.0010101026174981554,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.1800500675577453
+      ]
+    },
+    {
+      "fold_id": 24,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.005124173361616755,
+      "expected_edge_values": [
+        0.0007391941597530105,
+        0.0016904860051483973
+      ],
+      "mean_expected_edge": 0.0012148400824507038,
+      "std_expected_edge": 0.0004756459226976934,
+      "min_expected_edge": 0.0007391941597530105,
+      "max_expected_edge": 0.0016904860051483973,
+      "p25": 0.0009770171211018572,
+      "p50": 0.0012148400824507038,
+      "p75": 0.0014526630437995507,
+      "p90": 0.0015953568206088587,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.1940047056488183,
+        0.2625728489708229
+      ]
+    },
+    {
+      "fold_id": 25,
+      "raw_signal_count": 2,
+      "edge_threshold": 0.010103618245405706,
+      "expected_edge_values": [
+        0.0007671525723947372,
+        0.001017529215359884
+      ],
+      "mean_expected_edge": 0.0008923408938773106,
+      "std_expected_edge": 0.00012518832148257345,
+      "min_expected_edge": 0.0007671525723947372,
+      "max_expected_edge": 0.001017529215359884,
+      "p25": 0.0008297467331360239,
+      "p50": 0.0008923408938773106,
+      "p75": 0.0009549350546185974,
+      "p90": 0.0009924915510633695,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.04972945521735589,
+        0.21284043996796284
+      ]
+    },
+    {
+      "fold_id": 26,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 27,
+      "raw_signal_count": 0,
+      "edge_threshold": null,
+      "expected_edge_values": [],
+      "mean_expected_edge": null,
+      "std_expected_edge": null,
+      "min_expected_edge": null,
+      "max_expected_edge": null,
+      "p25": null,
+      "p50": null,
+      "p75": null,
+      "p90": null,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": []
+    },
+    {
+      "fold_id": 28,
+      "raw_signal_count": 1,
+      "edge_threshold": 0.004502532254017682,
+      "expected_edge_values": [
+        0.00036593251031227396
+      ],
+      "mean_expected_edge": 0.00036593251031227396,
+      "std_expected_edge": 0.0,
+      "min_expected_edge": 0.00036593251031227396,
+      "max_expected_edge": 0.00036593251031227396,
+      "p25": 0.00036593251031227396,
+      "p50": 0.00036593251031227396,
+      "p75": 0.00036593251031227396,
+      "p90": 0.00036593251031227396,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.08127260165337993
+      ]
+    },
+    {
+      "fold_id": 29,
+      "raw_signal_count": 1,
+      "edge_threshold": 0.0037943761891111086,
+      "expected_edge_values": [
+        0.0005526349872673228
+      ],
+      "mean_expected_edge": 0.0005526349872673228,
+      "std_expected_edge": 0.0,
+      "min_expected_edge": 0.0005526349872673228,
+      "max_expected_edge": 0.0005526349872673228,
+      "p25": 0.0005526349872673228,
+      "p50": 0.0005526349872673228,
+      "p75": 0.0005526349872673228,
+      "p90": 0.0005526349872673228,
+      "signals_above_threshold": 0,
+      "signals_within_10pct_of_threshold": 0,
+      "signals_within_20pct_of_threshold": 0,
+      "threshold_sensitivity": {
+        "1.00": 0,
+        "0.95": 0,
+        "0.90": 0,
+        "0.85": 0,
+        "0.80": 0,
+        "0.75": 0,
+        "0.70": 0
+      },
+      "distance_ratios": [
+        0.14564580835533497
+      ]
+    }
+  ],
+  "global_summary": {
+    "total_raw_signals": 39,
+    "total_signals_above_threshold": 0,
+    "mean_edge_threshold": 0.005416396141643381,
+    "global_mean_expected_edge": 0.0006232292009602818,
+    "global_std_expected_edge": 0.0005466952111131742,
+    "global_p90_distance_ratio": 0.25742449344502283,
+    "global_max_distance_ratio": 0.5641620918041043,
+    "threshold_sensitivity_aggregate": {
+      "1.00": 0,
+      "0.95": 0,
+      "0.90": 0,
+      "0.85": 0,
+      "0.80": 0,
+      "0.75": 0,
+      "0.70": 0
+    }
+  }
+}

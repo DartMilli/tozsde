@@ -23,8 +23,10 @@ OUTPUT:
 """
 
 import math
+import uuid
 import numpy as np
 from typing import Optional
+from datetime import datetime, timezone
 
 from app.optimization.genetic_optimizer import optimize_params
 from app.optimization.fitness import (
@@ -339,6 +341,8 @@ def run_walk_forward(ticker: str):
     )
     result = wf.run()
     if result:
+        result["wf_run_id"] = str(uuid.uuid4())
+        result["wf_run_at"] = datetime.now(timezone.utc).isoformat()
         try:
             from app.data_access.data_manager import DataManager
             import json

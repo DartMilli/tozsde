@@ -1,0 +1,11 @@
+{
+  "total_rows": 1538,
+  "monotonic_increasing": true,
+  "duplicate_index_count": 0,
+  "nan_ohlc_rows": 0,
+  "zero_volume_streaks": 0,
+  "constant_price_streaks": 0,
+  "gap_ratio": 0.028627195836044242,
+  "usable_rows_after_lookback": 1505,
+  "warnings": []
+}
