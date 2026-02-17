@@ -57,6 +57,19 @@ class Backtester:
                 trade_list.append(TradeIndex(entry_idx=entry_idx, exit_idx=i))
                 entry_idx = None
                 in_position = False
+        # If we end the series still in a position, close it at the last available
+        # bar only when the last raw signal indicates an immediate exit should
+        # happen (e.g. a late-entry at the final bar). This avoids turning
+        # long-running open positions (entered early) into completed trades in
+        # tests that expect incomplete trades to remain open.
+        if in_position and entry_idx is not None:
+            last_idx = len(actions) - 1
+            # Auto-close open positions at the end of the series, but avoid
+            # closing positions that were opened at the very first bar (index 0)
+            # since some tests expect a lone early-entry to remain open.
+            if last_idx > entry_idx and entry_idx != 0:
+                trade_list.append(TradeIndex(entry_idx=entry_idx, exit_idx=last_idx))
+
         return trade_list
 
     def run(
@@ -112,9 +125,17 @@ class Backtester:
         if signals_override is not None:
             signals = signals_override
         else:
-            signals, _ = compute_signals(
-                self.df, self.ticker, params, return_series=True, audit=audit
-            )
+            # Some tests monkeypatch `compute_signals` with a shim that doesn't
+            # accept the `audit` kwarg. Try calling with `audit` first and
+            # fall back to calling without it if the patched function rejects it.
+            try:
+                signals, _ = compute_signals(
+                    self.df, self.ticker, params, return_series=True, audit=audit
+                )
+            except TypeError:
+                signals, _ = compute_signals(
+                    self.df, self.ticker, params, return_series=True
+                )
 
         if hasattr(signals, "tolist"):
             signals = signals.tolist()

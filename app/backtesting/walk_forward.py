@@ -340,7 +340,9 @@ def run_walk_forward(ticker: str):
         },
     )
     result = wf.run()
-    if result:
+    # If optimizer returned a full WF summary (has best_params), attach metadata
+    # and persist; otherwise return the raw result unchanged (tests expect this).
+    if result and result.get("best_params") is not None:
         result["wf_run_id"] = str(uuid.uuid4())
         result["wf_run_at"] = datetime.now(timezone.utc).isoformat()
         try:

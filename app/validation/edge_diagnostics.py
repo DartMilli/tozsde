@@ -115,4 +115,5 @@ def classify_collapse_reason(summary: dict) -> str | None:
         return "no_edge_present"
     if p90_ratio < 0.9:
         return "weak_edge_distribution"
-    return "threshold_too_strict"
+    # No collapse reason detected for strong edge distributions
+    return None

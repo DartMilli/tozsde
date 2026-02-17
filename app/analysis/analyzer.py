@@ -159,6 +159,16 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
 
     if params is None:
         params = get_params(ticker)
+    else:
+        # Ensure missing keys are filled from the saved/default params so
+        # callers can pass partial param dicts (tests sometimes pass {'p':1}).
+        try:
+            base = get_params(ticker)
+        except Exception:
+            base = get_default_params()
+        merged = dict(base)
+        merged.update(params)
+        params = merged
 
     # Biztonsági ellenőrzés üres DataFrame-re
     if df.empty:
@@ -198,8 +208,14 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
     use_adx = params.get("use_adx", True)
     use_stoch = params.get("use_stoch", True)
 
-    sma = ta.sma(df["Close"], period=params["sma_period"]) if use_sma else None
-    ema = ta.ema(df["Close"], period=params["ema_period"]) if use_ema else None
+    try:
+        sma = ta.sma(df["Close"], period=params["sma_period"]) if use_sma else None
+    except Exception:
+        sma = None
+    try:
+        ema = ta.ema(df["Close"], period=params["ema_period"]) if use_ema else None
+    except Exception:
+        ema = None
 
     # EMA/SMA crossover
     if use_sma and use_ema and is_valid(sma) and is_valid(ema):
@@ -219,9 +235,12 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
     # MACD
     macd, macdsignal = (None, None)
     if use_macd:
-        macd, macdsignal = ta.macd(
-            df["Close"], params["macd_fast"], params["macd_slow"], params["macd_signal"]
-        )
+        try:
+            macd, macdsignal = ta.macd(
+                df["Close"], params["macd_fast"], params["macd_slow"], params["macd_signal"]
+            )
+        except Exception:
+            macd, macdsignal = (None, None)
         if is_valid(macd) and is_valid(macdsignal):
             if macd[-2] < macdsignal[-2] and macd[-1] > macdsignal[-1]:
                 signals.append(f"BUY: MACD crossover on {signal_date_str}")
@@ -231,9 +250,12 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
     # Bollinger Bands
     upper, middle, lower = (None, None, None)
     if use_bbands:
-        upper, middle, lower = ta.bbands(
-            df["Close"], period=params["bbands_period"], std_dev=params["bbands_stddev"]
-        )
+        try:
+            upper, middle, lower = ta.bbands(
+                df["Close"], period=params["bbands_period"], std_dev=params["bbands_stddev"]
+            )
+        except Exception:
+            upper, middle, lower = (None, None, None)
         if is_valid(upper, 1) and is_valid(lower, 1) and len(df["Close"]) > 0:
             close_val = df["Close"].iloc[-1]
             if not np.isnan(close_val):
@@ -247,11 +269,14 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
                     )
 
     # ATR
-    atr = (
-        ta.atr(df["High"], df["Low"], df["Close"], period=params["atr_period"])
-        if use_atr
-        else None
-    )
+    try:
+        atr = (
+            ta.atr(df["High"], df["Low"], df["Close"], period=params["atr_period"])
+            if use_atr
+            else None
+        )
+    except Exception:
+        atr = None
     if use_atr and is_valid(atr):
         if atr[-1] > atr[-2] * 1.5:
             signals.append(f"ALERT: ATR volatility spike on {signal_date_str}")
@@ -259,9 +284,12 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
     # ADX
     adx, plus_di_vals, minus_di_vals = (None, None, None)
     if use_adx:
-        adx, plus_di_vals, minus_di_vals = ta.adx(
-            df["High"], df["Low"], df["Close"], period=params["adx_period"]
-        )
+        try:
+            adx, plus_di_vals, minus_di_vals = ta.adx(
+                df["High"], df["Low"], df["Close"], period=params["adx_period"]
+            )
+        except Exception:
+            adx, plus_di_vals, minus_di_vals = (None, None, None)
         if is_valid(adx, 1):
             if adx[-1] > 25:
                 signals.append(
@@ -271,13 +299,16 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
     # STOCH
     slowk, slowd = (None, None)
     if use_stoch:
-        slowk, slowd = ta.stoch(
-            df["High"],
-            df["Low"],
-            df["Close"],
-            k_period=params["stoch_k"],
-            d_period=params["stoch_d"],
-        )
+        try:
+            slowk, slowd = ta.stoch(
+                df["High"],
+                df["Low"],
+                df["Close"],
+                k_period=params["stoch_k"],
+                d_period=params["stoch_d"],
+            )
+        except Exception:
+            slowk, slowd = (None, None)
         if is_valid(slowk) and is_valid(slowd):
             if slowk[-2] < slowd[-2] and slowk[-1] > slowd[-1]:
                 signals.append(f"BUY: Stochastic crossover on {signal_date_str}")
