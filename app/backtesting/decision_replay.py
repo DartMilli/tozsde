@@ -11,7 +11,7 @@ def replay_decision(
     execution_policy: str = "next_open",
 ) -> dict:
     """
-    P8.0 – Deterministic decision replay
+    P8.0 - Deterministic decision replay
 
     Returns realized outcome of a past decision.
     """

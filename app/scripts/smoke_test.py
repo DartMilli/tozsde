@@ -15,11 +15,15 @@ import json
 import sys
 from datetime import datetime
 
-from app.config.config import Config
-from app.data_access.data_manager import DataManager
+from app.config.build_settings import build_settings
+from app.infrastructure.repositories import DataManagerRepository as DataManager
+from app.data_access.data_loader import get_supported_ticker_list
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+settings = build_settings()
+dm = DataManager(settings=settings)
 
 REQUIRED_TABLES = {
     "ohlcv",
@@ -39,7 +43,13 @@ def run_smoke_test() -> dict:
 
     # Check 1: supported tickers load
     try:
-        tickers = Config.get_supported_tickers()
+        tickers = (
+            list(settings.TICKERS)
+            if settings.TICKERS
+            else list(get_supported_ticker_list())
+        )
+        excluded = set(getattr(settings, "EXCLUDED_TICKERS", []))
+        tickers = [t for t in tickers if t not in excluded]
         results["checks"]["tickers_loaded"] = {
             "ok": True,
             "count": len(tickers),
@@ -50,7 +60,7 @@ def run_smoke_test() -> dict:
 
     # Check 2: DB connectivity + tables
     try:
-        dm = DataManager()
+        # dm should be injected from DI root
         with dm.connection() as conn:
             rows = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"

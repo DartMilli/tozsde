@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Main Entry Point — Trading System Pipeline
+Main Entry Point - Trading System Pipeline
 
 Orchestrates daily, weekly, and monthly trading workflows:
   - Daily decision generation and allocation
@@ -26,53 +26,32 @@ import argparse
 import sys
 import os
 import logging
-from datetime import date, timedelta
+import json
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.services.trading_pipeline import TradingPipelineService
 from app.infrastructure.logger import setup_logger
+from app.bootstrap.bootstrap import build_application
+from app.interfaces.compat import main_contract as _main_contract
 
-from app.models.model_reliability import (
-    ModelReliabilityAnalyzer,
-    save_reliability_scores,
-)
-from app.backtesting.walk_forward import run_walk_forward
-from app.models.model_trainer import train_rl_agent
-from app.config.config import Config
-from app.backtesting.history_store import HistoryStore
-from app.data_access.data_manager import DataManager
-from app.models.model_trainer import TradingEnv
-from app.services.dependencies import (
-    EmailNotifier,
-    MarketDataFetcher,
-    ModelEnsembleRunner,
-)
-from app.services.paper_execution import PaperExecutionEngine
-from app.services.execution_engines import NoopExecutionEngine
-from app.analysis.decision_quality_analyzer import DecisionQualityAnalyzer
-from app.analysis.confidence_calibrator import ConfidenceCalibrator
-from app.analysis.wf_stability_analyzer import WalkForwardStabilityAnalyzer
-from app.analysis.safety_stress_tester import SafetyStressTester
-from app.analysis.validation_report_builder import ValidationReportBuilder
-from app.backtesting.historical_paper_runner import HistoricalPaperRunner
-from app.decision.recommender import generate_daily_recommendation_payload
-from app.decision.recommendation_builder import build_explanation, build_recommendation
-from app.reporting.audit_builder import build_audit_metadata, build_audit_summary
-from app.decision.decision_policy import apply_decision_policy
-from app.decision.allocation import allocate_capital
-from app.notifications.email_formatter import format_email_line
-from app.notifications.mailer import send_email
-from app.notifications.alerter import ErrorAlerter
+# Build application container (settings + repos)
+_APP_CONTAINER = build_application(ensure_dirs=False)
+_SETTINGS = _APP_CONTAINER.settings
+from app.application.use_cases.result import ok as result_ok
+from app.application.use_cases.result import error as result_error
 
 logger = setup_logger(__name__)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+def _emit(payload):
+    print(json.dumps(payload, indent=2, default=str))
+
+
+#
 # DAILY PIPELINE
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_daily(dry_run: bool = False, ticker: str = None):
@@ -90,163 +69,12 @@ def run_daily(dry_run: bool = False, ticker: str = None):
         dry_run: If True, skip email notifications
         ticker: If provided, analyze only this ticker (dev mode)
     """
-    use_legacy_env = os.getenv("USE_LEGACY_RUN_DAILY")
-    use_legacy = (
-        use_legacy_env.lower() == "true"
-        if use_legacy_env is not None
-        else getattr(generate_daily_recommendation_payload, "__module__", "")
-        != "app.decision.recommender"
-    )
-
-    if use_legacy:
-        history_store = HistoryStore()
-        dm = DataManager()
-
-        tickers_to_process = [ticker] if ticker else Config.get_supported_tickers()
-        daily_candidates = []
-
-        for ticker_symbol in tickers_to_process:
-            try:
-                payload = generate_daily_recommendation_payload(
-                    ticker_symbol, history_store
-                )
-
-                if payload.get("error"):
-                    raise ValueError(payload["error"])
-
-                decision = payload.get("decision")
-                if decision is None:
-                    decision = build_recommendation(payload)
-
-                explanation = payload.get("explanation") or build_explanation(
-                    payload, decision
-                )
-
-                audit = build_audit_metadata(payload, decision)
-                decision = apply_decision_policy(decision, audit)
-
-                if explanation is None:
-                    explanation = build_explanation(payload, decision)
-
-                daily_candidates.append(
-                    {
-                        "ticker": ticker_symbol,
-                        "payload": payload,
-                        "decision": decision,
-                        "explanation": explanation,
-                        "audit": audit,
-                    }
-                )
-            except Exception as e:
-                logger.error(
-                    f"ERR DAILY analysis failed for {ticker_symbol}: {e}",
-                    exc_info=True,
-                )
-                if not dry_run:
-                    ErrorAlerter.alert(
-                        error_code="MISSING_TICKER_DATA",
-                        message=f"Daily analysis failed for {ticker_symbol}: {e}",
-                        details={"ticker": ticker_symbol},
-                        severity="auto",
-                    )
-
-        if not daily_candidates:
-            logger.warning("No candidates generated")
-            return
-
-        allocatable = [
-            c for c in daily_candidates if not c["decision"].get("no_trade", False)
-        ]
-        finalized_decisions = allocate_capital(allocatable)
-
-        email_lines = []
-
-        for item in finalized_decisions:
-            payload = item["payload"]
-            decision = item["decision"]
-            explanation = item["explanation"]
-            audit = item["audit"]
-
-            history_store.save_decision(
-                payload=payload,
-                decision=decision,
-                explanation=explanation,
-                audit=audit,
-                model_votes=payload.get("model_votes", []),
-                safety_overrides={
-                    "safety_override": decision.get("safety_override"),
-                    "no_trade_reason": decision.get("no_trade_reason"),
-                    "reasons": decision.get("reasons", []),
-                    "warnings": decision.get("warnings", []),
-                },
-                model_id=payload.get("model_id"),
-                timestamp=payload.get("timestamp"),
-            )
-
-            dm.log_recommendation(
-                ticker=payload.get("ticker"),
-                signal=decision.get("action"),
-                confidence=decision.get("confidence"),
-                params={
-                    "wf_score": decision.get("wf_score"),
-                    "ensemble_quality": decision.get("ensemble_quality"),
-                    "quality_score": decision.get("quality_score"),
-                    "volatility": payload.get("volatility"),
-                    "model_votes": payload.get("model_votes", []),
-                },
-            )
-
-            email_lines.append(
-                format_email_line(
-                    explanation=explanation,
-                    decision=decision,
-                    audit=build_audit_summary(audit, payload, decision),
-                )
-            )
-
-        if email_lines:
-            subject = f"Napi ajánlások ({date.today().isoformat()})"
-            body = "\n".join(email_lines)
-
-            if dry_run:
-                logger.info(f"[DRY-RUN] Email would be sent: {subject}")
-            else:
-                try:
-                    send_email(subject, body, Config.NOTIFY_EMAIL)
-                    logger.info(f"OK Email sent to {Config.NOTIFY_EMAIL}")
-                except Exception as e:
-                    logger.error(f"ERR Failed to send email: {e}")
-                    ErrorAlerter.alert(
-                        error_code="AUTHENTICATION_FAILED",
-                        message=f"Failed to send notification email: {e}",
-                        details={"recipient": Config.NOTIFY_EMAIL},
-                        severity="auto",
-                    )
-
-        return
-
-    if Config.EXECUTION_MODE == "paper":
-        execution_engine = PaperExecutionEngine(DataManager(), logger)
-    else:
-        execution_engine = NoopExecutionEngine(logger)
-
-    pipeline = TradingPipelineService(
-        history_store=HistoryStore(),
-        logger=logger,
-        data_fetcher=MarketDataFetcher(),
-        model_runner=ModelEnsembleRunner(
-            model_dir=Config.MODEL_DIR, env_class=TradingEnv
-        ),
-        email_notifier=EmailNotifier(),
-        execution_engine=execution_engine,
-    )
-
-    pipeline.run_daily(dry_run=dry_run, ticker=ticker)
+    return _main_contract.run_daily(_APP_CONTAINER, dry_run=dry_run, ticker=ticker)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # WEEKLY PIPELINE
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_weekly(dry_run: bool = False):
@@ -259,50 +87,12 @@ def run_weekly(dry_run: bool = False):
     Args:
         dry_run: If True, don't save results
     """
-    logger.info("=" * 80)
-    logger.info(f"WEEKLY reliability analysis started (dry_run={dry_run})")
-    logger.info("=" * 80)
-
-    try:
-        analyzer = ModelReliabilityAnalyzer()
-
-        end = date.today() - timedelta(days=1)
-        start = end - timedelta(days=Config.RELIABILITY_PERIOD_DAYS)
-
-        logger.info(f"Analysis period: {start} to {end}")
-
-        for ticker_symbol in Config.get_supported_tickers():
-            try:
-                scores = analyzer.analyze(
-                    ticker=ticker_symbol,
-                    start=start,
-                    end=end,
-                )
-
-                if not dry_run:
-                    save_reliability_scores(ticker_symbol, end.isoformat(), scores)
-                    logger.info(f"OK {ticker_symbol}: {len(scores)} model scores saved")
-                else:
-                    logger.info(
-                        f"[DRY-RUN] {ticker_symbol}: {len(scores)} model scores (not saved)"
-                    )
-
-            except Exception as e:
-                logger.error(
-                    f"ERR Reliability analysis failed for {ticker_symbol}: {e}"
-                )
-
-    except Exception as e:
-        logger.error(f"ERR WEEKLY analysis failed: {e}", exc_info=True)
-
-    logger.info("=" * 80)
-    logger.info("WEEKLY reliability analysis completed")
-    logger.info("=" * 80)
+    return _main_contract.run_weekly(_APP_CONTAINER, dry_run=dry_run)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # MONTHLY PIPELINE
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_monthly(dry_run: bool = False):
@@ -317,56 +107,12 @@ def run_monthly(dry_run: bool = False):
     Args:
         dry_run: If True, don't save models
     """
-    logger.info("=" * 80)
-    logger.info(f"MONTHLY retraining cycle started (dry_run={dry_run})")
-    logger.info("=" * 80)
-
-    for ticker_symbol in Config.get_supported_tickers():
-        try:
-            logger.info(f"\nProcessing {ticker_symbol}...")
-
-            # 1. Walk-forward optimization
-            logger.info(f"  Running walk-forward optimization for {ticker_symbol}...")
-            wf_summary = run_walk_forward(ticker_symbol)
-            if not wf_summary:
-                logger.warning("  Walk-forward returned no summary; skipping RL")
-                continue
-
-            from app.optimization.fitness import normalize_wf_score
-
-            wf_score = wf_summary.get("normalized_score")
-            if wf_score is None:
-                raw_fitness = wf_summary.get("raw_fitness")
-                if raw_fitness is None:
-                    raw_fitness = wf_summary.get("wf_fitness", 0.0)
-                wf_score = normalize_wf_score(raw_fitness)
-            logger.info(f"  OK Walk-forward score: {wf_score:.4f}")
-
-            # 2. RL training
-            if Config.ENABLE_RL:
-                logger.info(f"  Training RL agent for {ticker_symbol}...")
-                train_rl_agent(
-                    ticker=ticker_symbol,
-                    wf_score=wf_score,
-                    wf_summary=wf_summary,
-                )
-                logger.info("  OK RL agent trained")
-            else:
-                logger.info(f"  ⊘ RL training disabled (ENABLE_RL=False)")
-
-        except Exception as e:
-            logger.error(
-                f"ERR MONTHLY cycle failed for {ticker_symbol}: {e}", exc_info=True
-            )
-
-    logger.info("=" * 80)
-    logger.info("MONTHLY retraining cycle completed")
-    logger.info("=" * 80)
+    return _main_contract.run_monthly(_APP_CONTAINER, dry_run=dry_run)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # WALK-FORWARD OPTIMIZATION (Manual)
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_walk_forward_manual(ticker: str, dry_run: bool = False):
@@ -377,36 +123,16 @@ def run_walk_forward_manual(ticker: str, dry_run: bool = False):
         ticker: Asset ticker symbol
         dry_run: If True, don't save results
     """
-    logger.info("=" * 80)
-    logger.info(f"Manual walk-forward: {ticker} (dry_run={dry_run})")
-    logger.info("=" * 80)
-
-    try:
-        result = run_walk_forward(ticker)
-        if not result:
-            logger.warning("Walk-forward produced no result")
-            return
-        logger.info("Walk-forward completed")
-        from app.optimization.fitness import normalize_wf_score
-
-        wf_score = result.get("normalized_score")
-        if wf_score is None:
-            raw_fitness = result.get("raw_fitness")
-            if raw_fitness is None:
-                raw_fitness = result.get("wf_fitness", 0.0)
-            wf_score = normalize_wf_score(raw_fitness)
-        logger.info(f"  Normalized Score: {wf_score:.4f}")
-        logger.info(f"  Return: {result.get('total_return', 'N/A')}")
-        logger.info(f"  Sharpe: {result.get('sharpe_ratio', 'N/A')}")
-    except Exception as e:
-        logger.error(f"Walk-forward failed: {e}", exc_info=True)
-
-    logger.info("=" * 80)
+    return _main_contract.run_walk_forward_manual(
+        _APP_CONTAINER,
+        ticker=ticker,
+        dry_run=dry_run,
+    )
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # RL AGENT TRAINING (Manual)
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_train_rl_manual(ticker: str, dry_run: bool = False):
@@ -417,18 +143,11 @@ def run_train_rl_manual(ticker: str, dry_run: bool = False):
         ticker: Asset ticker symbol
         dry_run: If True, don't save models
     """
-    logger.info("=" * 80)
-    logger.info(f"Manual RL training: {ticker} (dry_run={dry_run})")
-    logger.info(f"  Steps: {Config.RL_TIMESTEPS:,}")
-    logger.info("=" * 80)
-
-    try:
-        train_rl_agent(ticker=ticker)
-        logger.info(f"RL training completed for {ticker}")
-    except Exception as e:
-        logger.error(f"RL training failed: {e}", exc_info=True)
-
-    logger.info("=" * 80)
+    return _main_contract.run_train_rl_manual(
+        _APP_CONTAINER,
+        ticker=ticker,
+        dry_run=dry_run,
+    )
 
 
 def run_validation(
@@ -443,84 +162,44 @@ def run_validation(
     """
     Run Phase 5 validation analyzers and build a unified report.
     """
-    logger.info("=" * 80)
-    logger.info("PHASE 5 validation started")
-    logger.info("=" * 80)
-
-    DataManager().initialize_tables()
-
-    builder = ValidationReportBuilder()
-    reports = []
-
-    for i in range(repeat):
-        DecisionQualityAnalyzer().analyze(
-            ticker=ticker,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        logger.info("Decision quality metrics computed")
-
-        if include_calibration:
-            ConfidenceCalibrator().compute(
-                ticker=ticker,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            logger.info("Confidence calibration computed")
-
-        if ticker:
-            WalkForwardStabilityAnalyzer().analyze(ticker=ticker)
-            logger.info("Walk-forward stability computed")
-
-            if start_date and end_date:
-                SafetyStressTester().run(
-                    ticker=ticker,
-                    start_date=start_date,
-                    end_date=end_date,
-                    scenario=scenario,
-                )
-                logger.info("Safety stress test completed")
-            else:
-                logger.warning("Safety stress test skipped (missing start/end date)")
-
-        report = builder.build()
-        logger.info("Validation report built")
-        reports.append(report)
-
-        if repeat > 1:
-            logger.info(f"Validation run {i + 1}/{repeat} completed")
-
-    if compare_repeat and len(reports) >= 2:
-        logger.info(f"Repeatable outputs match: {reports[-1] == reports[-2]}")
-
-    logger.info("=" * 80)
-    logger.info("PHASE 5 validation completed")
-    logger.info("=" * 80)
+    return _main_contract.run_validation(
+        _APP_CONTAINER,
+        ticker=ticker,
+        start_date=start_date,
+        end_date=end_date,
+        scenario=scenario,
+        include_calibration=include_calibration,
+        repeat=repeat,
+        compare_repeat=compare_repeat,
+    )
 
 
 def run_paper_history(ticker: str, start_date: str, end_date: str):
     """
     Run deterministic historical paper trading over a date range.
     """
-    logger.info("=" * 80)
-    logger.info(f"HISTORICAL paper run: {ticker} {start_date} -> {end_date}")
-    logger.info("=" * 80)
-
-    runner = HistoricalPaperRunner(logger=logger)
-    runner.run(ticker=ticker, start_date=start_date, end_date=end_date)
-
-    logger.info("=" * 80)
-    logger.info("HISTORICAL paper run completed")
-    logger.info("=" * 80)
+    return _main_contract.run_paper_history(
+        _APP_CONTAINER,
+        ticker=ticker,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # CLI ARGUMENT PARSER
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def parse_arguments():
     """Parse command-line arguments."""
+
+    parser = _build_parser()
+    return parser.parse_args()
+
+
+def _build_parser():
+    """Build argparse parser."""
 
     parser = argparse.ArgumentParser(
         description="Trading system pipeline orchestrator",
@@ -635,12 +314,12 @@ Examples:
         help="Logging level (default: INFO)",
     )
 
-    return parser.parse_args()
+    return parser
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # MAIN ENTRY POINT
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def main():
@@ -650,7 +329,9 @@ def main():
 
     # If no command provided, show help
     if not args.command:
+        parser = _build_parser()
         parser.print_help()
+        _emit(result_error("cli", "no command provided", code="NO_COMMAND"))
         sys.exit(1)
 
     # Set logging level
@@ -660,22 +341,65 @@ def main():
     # Dispatch to appropriate handler
     try:
         if args.command == "daily":
-            run_daily(dry_run=args.dry_run, ticker=args.ticker)
+            result = run_daily(dry_run=args.dry_run, ticker=args.ticker)
+            _emit(
+                result_ok(
+                    "cli.daily",
+                    data=result,
+                    command=args.command,
+                    dry_run=args.dry_run,
+                    ticker=args.ticker,
+                )
+            )
 
         elif args.command == "weekly":
-            run_weekly(dry_run=args.dry_run)
+            result = run_weekly(dry_run=args.dry_run)
+            _emit(
+                result_ok(
+                    "cli.weekly",
+                    data=result,
+                    command=args.command,
+                    dry_run=args.dry_run,
+                )
+            )
 
         elif args.command == "monthly":
-            run_monthly(dry_run=args.dry_run)
+            result = run_monthly(dry_run=args.dry_run)
+            _emit(
+                result_ok(
+                    "cli.monthly",
+                    data=result,
+                    command=args.command,
+                    dry_run=args.dry_run,
+                )
+            )
 
         elif args.command == "walk-forward":
-            run_walk_forward_manual(ticker=args.ticker, dry_run=args.dry_run)
+            result = run_walk_forward_manual(ticker=args.ticker, dry_run=args.dry_run)
+            _emit(
+                result_ok(
+                    "cli.walk_forward",
+                    data=result,
+                    command=args.command,
+                    ticker=args.ticker,
+                    dry_run=args.dry_run,
+                )
+            )
 
         elif args.command == "train-rl":
-            run_train_rl_manual(ticker=args.ticker, dry_run=args.dry_run)
+            result = run_train_rl_manual(ticker=args.ticker, dry_run=args.dry_run)
+            _emit(
+                result_ok(
+                    "cli.train_rl",
+                    data=result,
+                    command=args.command,
+                    ticker=args.ticker,
+                    dry_run=args.dry_run,
+                )
+            )
 
         elif args.command == "validate":
-            run_validation(
+            result = run_validation(
                 ticker=args.ticker,
                 start_date=args.start_date,
                 end_date=args.end_date,
@@ -684,31 +408,84 @@ def main():
                 repeat=args.repeat,
                 compare_repeat=args.compare_repeat,
             )
+            _emit(
+                result_ok(
+                    "cli.validate",
+                    data=result,
+                    command=args.command,
+                    ticker=args.ticker,
+                    start_date=args.start_date,
+                    end_date=args.end_date,
+                    scenario=args.scenario,
+                )
+            )
 
         elif args.command == "run-paper-history":
-            run_paper_history(
+            result = run_paper_history(
                 ticker=args.ticker,
                 start_date=args.start_date,
                 end_date=args.end_date,
+            )
+            _emit(
+                result_ok(
+                    "cli.run_paper_history",
+                    data=result,
+                    command=args.command,
+                    ticker=args.ticker,
+                    start_date=args.start_date,
+                    end_date=args.end_date,
+                )
             )
 
         elif args.command == "governance":
             # Call quant_runner orchestrator as subprocess for full isolation
             import subprocess
-            import sys
-            import os
 
             quant_runner_path = os.path.join(
                 os.path.dirname(__file__), "app", "governance", "quant_runner.py"
             )
             cmd = [sys.executable, quant_runner_path, "--mode", args.mode]
-            sys.exit(subprocess.call(cmd))
+            exit_code = subprocess.call(cmd)
+            if exit_code == 0:
+                _emit(
+                    result_ok(
+                        "cli.governance", data={"exit_code": exit_code}, mode=args.mode
+                    )
+                )
+            else:
+                _emit(
+                    result_error(
+                        "cli.governance",
+                        f"governance subprocess failed (exit_code={exit_code})",
+                        mode=args.mode,
+                        code="SUBPROCESS_FAILED",
+                        exit_code=exit_code,
+                    )
+                )
+            sys.exit(exit_code)
 
     except KeyboardInterrupt:
         logger.info("Pipeline interrupted by user")
+        _emit(
+            result_error(
+                "cli",
+                "interrupted by user",
+                command=getattr(args, "command", None),
+                code="INTERRUPTED",
+            )
+        )
         sys.exit(0)
     except Exception as e:
         logger.error(f"Pipeline failed: {e}", exc_info=True)
+        _emit(
+            result_error(
+                "cli",
+                str(e),
+                command=getattr(args, "command", None),
+                code="UNHANDLED_EXCEPTION",
+                exception_type=type(e).__name__,
+            )
+        )
         sys.exit(1)
 
 

@@ -1,9 +1,8 @@
 import json
 from datetime import datetime, timedelta, date
+from dataclasses import replace
 import pandas as pd
 import pytest
-
-from app.config.config import Config
 from app.decision.confidence import (
     normalize_dqn_confidence,
     normalize_ppo_confidence,
@@ -19,6 +18,7 @@ from app.decision.drift_detector import (
     get_drifting_tickers,
 )
 from app.reporting.audit_builder import build_audit_metadata
+import app.ui.app as ui_app
 from app.ui.app import app
 from app.ui import admin_dashboard as admin_mod
 from app.reporting.performance_analytics import (
@@ -102,8 +102,10 @@ def test_drift_batch_and_filter(monkeypatch):
     assert "A" in drifting and "B" in drifting
 
 
-def test_audit_builder_with_drift(monkeypatch):
-    monkeypatch.setattr(Config, "ENABLE_DRIFT_DETECTION", True)
+def test_audit_builder_with_drift(monkeypatch, test_settings):
+    from app.reporting import audit_builder
+
+    audit_builder.set_settings(replace(test_settings, ENABLE_DRIFT_DETECTION=True))
 
     class DummyDetector:
         def check_drift(self, ticker, current_score):
@@ -128,8 +130,12 @@ def test_audit_builder_with_drift(monkeypatch):
     assert audit["drift_status"] == "WARNING"
 
 
-def test_admin_dashboard_endpoints(monkeypatch, client):
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+def test_admin_dashboard_endpoints(monkeypatch, client, test_settings):
+    from app.ui import set_settings as set_ui_settings
+
+    new_settings = replace(test_settings, ADMIN_API_KEY="key")
+    set_ui_settings(new_settings)
+    monkeypatch.setattr(ui_app, "settings", new_settings)
 
     class DummyAnalytics:
         def load_returns_from_db(self, days_back=30):
@@ -282,10 +288,14 @@ def test_admin_dashboard_endpoints(monkeypatch, client):
     assert client.get("/admin/performance/pyfolio", headers=headers).status_code == 200
 
 
-def test_ui_params_and_admin_routes(monkeypatch, client):
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+def test_ui_params_and_admin_routes(monkeypatch, client, test_settings):
+    from app.ui import set_settings as set_ui_settings
+
+    new_settings = replace(test_settings, ADMIN_API_KEY="key")
+    set_ui_settings(new_settings)
+    monkeypatch.setattr(ui_app, "settings", new_settings)
     monkeypatch.setattr("app.ui.app.get_params", lambda *a, **k: {"sma": 20})
-    monkeypatch.setattr("app.ui.app.Config.get_supported_tickers", lambda: ["VOO"])
+    monkeypatch.setattr("app.ui.app.get_supported_tickers", lambda: {"VOO": {}})
     monkeypatch.setattr("app.ui.app.render_template", lambda *a, **k: "OK")
 
     res = client.get("/params?ticker=VOO")
@@ -324,25 +334,42 @@ def test_ui_params_and_admin_routes(monkeypatch, client):
     assert res.status_code == 200
 
 
-def test_main_weekly_monthly_and_manual(monkeypatch):
-    monkeypatch.setattr(Config, "get_supported_tickers", lambda: ["AAA"])
-    monkeypatch.setattr(Config, "TICKERS", ["AAA"])
+def test_main_weekly_monthly_and_manual(monkeypatch, test_settings):
+    new_settings = replace(test_settings, TICKERS=["AAA"], ENABLE_RL=True)
+    monkeypatch.setattr(main, "_SETTINGS", new_settings)
+
+    class DummyWeeklyUseCase:
+        def run(self, dry_run=False):
+            return {"status": "ok"}
+
+    class DummyMonthlyUseCase:
+        def run(self, dry_run=False):
+            return {"status": "ok"}
+
+    class DummyWalkUseCase:
+        def run(self, ticker=None):
+            return {"status": "ok", "ticker": ticker}
+
+    class DummyTrainUseCase:
+        def run(self, ticker=None, **kwargs):
+            return {"status": "ok", "ticker": ticker}
+
     monkeypatch.setattr(
-        "app.models.model_reliability.ModelReliabilityAnalyzer.analyze",
-        lambda *a, **k: {"m": {}},
-    )
-    monkeypatch.setattr(
-        "app.models.model_reliability.save_reliability_scores", lambda *a, **k: None
+        main,
+        "_APP_CONTAINER",
+        type(
+            "C",
+            (),
+            {
+                "weekly_reliability": DummyWeeklyUseCase(),
+                "monthly_retraining": DummyMonthlyUseCase(),
+                "walk_forward": DummyWalkUseCase(),
+                "train_rl": DummyTrainUseCase(),
+            },
+        )(),
     )
 
     main.run_weekly(dry_run=True)
-
-    monkeypatch.setattr(
-        "main.run_walk_forward", lambda *a, **k: {"normalized_score": 0.5}
-    )
-    monkeypatch.setattr("main.train_rl_agent", lambda *a, **k: None)
-    monkeypatch.setattr(Config, "ENABLE_RL", True)
-
     main.run_monthly(dry_run=True)
     main.run_walk_forward_manual("AAA", dry_run=True)
     main.run_train_rl_manual("AAA", dry_run=True)

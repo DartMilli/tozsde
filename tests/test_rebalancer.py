@@ -38,7 +38,7 @@ class TestDriftDetection:
 
         # Current: AAPL 0.38, MSFT 0.31, GOOGL 0.31
         # Target:  AAPL 0.40, MSFT 0.30, GOOGL 0.30
-        # Drift:   AAPL 0.05, MSFT 0.033, GOOGL 0.033 → avg ≈ 0.039 (3.9%)
+        # Drift:   AAPL 0.05, MSFT 0.033, GOOGL 0.033 -> avg  0.039 (3.9%)
         current_weights = {"AAPL": 0.38, "MSFT": 0.31, "GOOGL": 0.31}
         target_weights = {"AAPL": 0.40, "MSFT": 0.30, "GOOGL": 0.30}
 
@@ -53,7 +53,7 @@ class TestDriftDetection:
 
         # Current: AAPL 0.30, MSFT 0.35, GOOGL 0.35
         # Target:  AAPL 0.40, MSFT 0.30, GOOGL 0.30
-        # Drift:   AAPL 0.25, MSFT 0.167, GOOGL 0.167 → avg ≈ 0.194 (19.4%, just below)
+        # Drift:   AAPL 0.25, MSFT 0.167, GOOGL 0.167 -> avg  0.194 (19.4%, just below)
         current_weights = {"AAPL": 0.30, "MSFT": 0.35, "GOOGL": 0.35}
         target_weights = {"AAPL": 0.40, "MSFT": 0.30, "GOOGL": 0.30}
 
@@ -68,7 +68,7 @@ class TestDriftDetection:
 
         # Current: AAPL 0.25, MSFT 0.40, GOOGL 0.35
         # Target:  AAPL 0.40, MSFT 0.30, GOOGL 0.30
-        # Drift:   AAPL 0.375, MSFT 0.333, GOOGL 0.167 → avg ≈ 0.292 (29.2%)
+        # Drift:   AAPL 0.375, MSFT 0.333, GOOGL 0.167 -> avg  0.292 (29.2%)
         current_weights = {"AAPL": 0.25, "MSFT": 0.40, "GOOGL": 0.35}
         target_weights = {"AAPL": 0.40, "MSFT": 0.30, "GOOGL": 0.30}
 
@@ -193,11 +193,11 @@ class TestRebalancingTradeGeneration:
             current_weights, target_weights, prices, total_value
         )
 
-        # AAPL: current 3000, target 5000, diff 2000 → qty = 20
+        # AAPL: current 3000, target 5000, diff 2000 -> qty = 20
         aapl_trade = [t for t in trades if t["ticker"] == "AAPL"][0]
         assert aapl_trade["qty"] == 20
 
-        # MSFT: current 7000, target 5000, diff -2000 → qty = 10
+        # MSFT: current 7000, target 5000, diff -2000 -> qty = 10
         msft_trade = [t for t in trades if t["ticker"] == "MSFT"][0]
         assert msft_trade["qty"] == 10
 

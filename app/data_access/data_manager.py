@@ -4,8 +4,9 @@ import logging
 import json
 from datetime import datetime, timezone, timedelta, date
 from typing import List, Dict
-from app.config.config import Config
+from app.bootstrap.build_settings import build_settings
 from contextlib import contextmanager
+from pathlib import Path
 
 from app.indicators.technical import sma
 
@@ -14,28 +15,64 @@ logger = logging.getLogger(__name__)
 
 class DataManager:
     """
-    Data Access Layer (DAL) - Az egyetlen osztály, amely közvetlenül érintkezik az SQLite adatbázissal.
-    Felelős az adatok tárolásáért, lekérdezéséért és a séma integritásáért.
+    Data Access Layer (DAL) - Az egyetlen osztaly, amely kozvetlenul erintkezik az SQLite adatbazissal.
+    Felelos az adatok tarolasaert, lekerdezeseert es a sema integritasaert.
     """
 
-    def __init__(self):
-        self.db_path = str(Config.DB_PATH)  # Convert Path to string for sqlite3
+    def __init__(self, settings=None):
+        """Initialize DataManager.
+
+        Args:
+            settings: optional Settings object produced by `build_settings()`.
+                      If provided its `DB_PATH` will be preferred; otherwise
+                      falls back to defaults from `build_settings()`.
+        """
+        self.settings = settings
+        # Prefer injected settings, then build defaults.
+        conf = settings or build_settings()
+        db_path = getattr(conf, "DB_PATH", None)
+        if not db_path:
+            try:
+                fallback_settings = build_settings()
+                db_path = getattr(fallback_settings, "DB_PATH", None)
+            except Exception:
+                db_path = None
+
+        if not db_path:
+            raise RuntimeError("DB_PATH is not configured")
+
+        self.db_path = str(db_path)  # Convert Path to string for sqlite3
+
+        try:
+            # Ensure DB exists with necessary schema when instantiated
+            self.initialize_tables()
+        except Exception:
+            # Avoid failing construction in environments where DB isn't writable
+            logger.debug(
+                "DataManager: initialize_tables failed during init", exc_info=True
+            )
 
     @contextmanager
     def _get_conn(self):
-        """Privát metódus az adatbázis kapcsolat létrehozásához."""
+        """Privat metodus az adatbazis kapcsolat letrehozasahoz."""
+        # Ensure parent directory exists to avoid OperationalError in test environments
+        try:
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+
         conn = sqlite3.connect(self.db_path)
         try:
             yield conn
         finally:
             conn.close()
 
-    # --- SÉMA ÉS INICIALIZÁLÁS (P9/Ops) ---
+    # --- SEMA ES INICIALIZALAS (P9/Ops) ---
 
     def initialize_tables(self):
         """
-        Létrehozza a szükséges táblákat, ha azok még nem léteznek.
-        Ezt hívja az apply_schema.py is.
+        Letrehozza a szukseges tablakat, ha azok meg nem leteznek.
+        Ezt hivja az apply_schema.py is.
         """
         logger.info("Initializing database tables...")
         with self._get_conn() as conn:
@@ -51,7 +88,7 @@ class DataManager:
                 )"""
             )
 
-            # 2. Portfólió/Tranzakciók (Váltja a portfolio.py-t)
+            # 2. Portfolio/Tranzakciok (Valtja a portfolio.py-t)
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS trades (
@@ -61,7 +98,7 @@ class DataManager:
                 )"""
             )
 
-            # 3. Napi Ajánlások (Váltja a recommendation_logger.py-t)
+            # 3. Napi Ajanlasok (Valtja a recommendation_logger.py-t)
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS recommendations (
@@ -81,7 +118,7 @@ class DataManager:
                 )"""
             )
 
-            # Decision History tábla az auditálhatósághoz (P4.5 Roadmap)
+            # Decision History tabla az auditalhatosaghoz (P4.5 Roadmap)
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS decision_history (
@@ -326,7 +363,7 @@ class DataManager:
                 """
             )
 
-            # Indexek a teljesítmény javítására
+            # Indexek a teljesitmeny javitasara
             cur.execute("CREATE INDEX IF NOT EXISTS idx_ohlcv_ticker ON ohlcv(ticker)")
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_dh_ticker_ts ON decision_history(ticker, timestamp)"
@@ -380,19 +417,19 @@ class DataManager:
             conn.commit()
         logger.info("Schema verified and ready.")
 
-    # --- PIACI ADATOK KEZELÉSE (OHLCV) ---
+    # --- PIACI ADATOK KEZELESE (OHLCV) ---
 
     def save_ohlcv(self, ticker, df):
-        """Elmenti a DataFrame-et az ohlcv táblába (Upsert logika)."""
+        """Elmenti a DataFrame-et az ohlcv tablaba (Upsert logika)."""
         if df is None or df.empty:
             return
 
-        # Előkészítés a mentésre
+        # Elokeszites a mentesre
         df_to_save = df.copy()
         if "Ticker" not in df_to_save.columns:
             df_to_save["ticker"] = ticker
 
-        # Reset index, hogy a dátum is oszlop legyen a mentéshez
+        # Reset index, hogy a datum is oszlop legyen a menteshez
         df_to_save = df_to_save.reset_index()
 
         def _norm_col(col):
@@ -403,7 +440,7 @@ class DataManager:
         df_to_save.columns = [_norm_col(c) for c in df_to_save.columns]
 
         with self._get_conn() as conn:
-            # Ideiglenes tábla a gyors upserthez
+            # Ideiglenes tabla a gyors upserthez
             df_to_save.to_sql("temp_ohlcv", conn, if_exists="replace", index=False)
             conn.execute(
                 """
@@ -424,8 +461,8 @@ class DataManager:
 
     def load_ohlcv(self, ticker, start_date=None):
         """
-        Betölti a piaci adatokat a DB-ből.
-        Paraméterezett lekérdezést használ az SQL injection ellen.
+        Betolti a piaci adatokat a DB-bol.
+        Parameterezett lekerdezest hasznal az SQL injection ellen.
         """
         params = [ticker]
         query = "SELECT * FROM ohlcv WHERE ticker = ?"
@@ -444,7 +481,7 @@ class DataManager:
             df = pd.read_sql(query, conn, params=params, parse_dates=["date"])
             if not df.empty:
                 df.set_index("date", inplace=True)
-                # Oszlopnevek visszaállítása a várt formátumra
+                # Oszlopnevek visszaallitasa a vart formatumra
                 df.columns = [c.capitalize() for c in df.columns]
             return df
 
@@ -484,7 +521,7 @@ class DataManager:
             out[tkr] = group
         return out
 
-    # --- DÖNTÉSI ELŐZMÉNYEK (History & Audit) ---
+    # --- DONTESI ELOZMENYEK (History & Audit) ---
 
     def save_history_record(
         self,
@@ -508,7 +545,7 @@ class DataManager:
         decision_source=None,
         timestamp: str = None,
     ):
-        """Enkapszulált mentés a history táblába."""
+        """Enkapszulalt mentes a history tablaba."""
         query = """
             INSERT INTO decision_history 
             (timestamp, as_of_date, ticker, model_id, model_version, action_code, action_label, confidence, wf_score,
@@ -545,7 +582,7 @@ class DataManager:
             return cursor.lastrowid
 
     def get_history_range(self, ticker, start_iso, end_iso):
-        """Lekérdezi a korábbi döntéseket egy adott időintervallumban."""
+        """Lekerdezi a korabbi donteseket egy adott idointervallumban."""
         query = """
             SELECT timestamp, action_label, decision_blob, audit_blob 
             FROM decision_history 
@@ -555,22 +592,22 @@ class DataManager:
         with self._get_conn() as conn:
             return conn.execute(query, (ticker, start_iso, end_iso)).fetchall()
 
-    # --- ELEMZÉSI SEGÉDFÜGGVÉNYEK (DataManager szinten) ---
+    # --- ELEMZESI SEGEDFUGGVENYEK (DataManager szinten) ---
 
     def get_market_regime_is_bear(self, benchmark="SPY", period=200, ref_date=None):
         """
         ref_date: string (YYYY-MM-DD) vagy date object. Ha None, a mai nap.
         """
-        # Itt fontos: load_ohlcv-nél szűrni kell, vagy utólag vágni
-        # A load_ohlcv támogat start_date-et, de end_date-et jelenleg nem.
-        # Ezért betöltjük, és Pandas-ban vágjuk.
+        # Itt fontos: load_ohlcv-nel szurni kell, vagy utolag vagni
+        # A load_ohlcv tamogat start_date-et, de end_date-et jelenleg nem.
+        # Ezert betoltjuk, es Pandas-ban vagjuk.
 
         df = self.load_ohlcv(benchmark)
 
         if df.empty:
             return False
 
-        # Időbeli vágás (Look-ahead bias ellen)
+        # Idobeli vagas (Look-ahead bias ellen)
         if ref_date:
             df = df[df.index <= pd.Timestamp(ref_date)]
 
@@ -605,7 +642,7 @@ class DataManager:
         prices_df = pd.DataFrame(combined_data)
         return prices_df.pct_change().dropna().corr()
 
-    # --- AJÁNLÁSOK KEZELÉSE ---
+    # --- AJANLASOK KEZELESE ---
     def log_recommendation(self, ticker, signal, confidence, params=None):
         today = datetime.now().strftime("%Y-%m-%d")
         with self._get_conn() as conn:
@@ -1259,10 +1296,10 @@ class DataManager:
 
     # ---------- Convenience connection() ----------
 
-    # --- RÉGI KOMPATIBILITÁSI METÓDUSOK ---
+    # --- REGI KOMPATIBILITASI METODUSOK ---
 
     def get_ticker_historical_recommendations(self, ticker, start, end):
-        """Régi API kompatibilitás a recommendation táblához (ha még használatban van valahol)."""
+        """Regi API kompatibilitas a recommendation tablahoz (ha meg hasznalatban van valahol)."""
         with self._get_conn() as conn:
             query = (
                 "SELECT * FROM recommendations WHERE ticker=? AND date>=? AND date<=?"
@@ -1273,12 +1310,12 @@ class DataManager:
 
     def get_strategy_accuracy(self, ticker, lookback_decisions=20):
         """
-        Visszaadja az utolsó X döntés sikerességét.
-        Ez egy egyszerűsített implementáció: megnézi, hogy vételi jel után emelkedett-e az ár.
+        Visszaadja az utolso X dontes sikeresseget.
+        Ez egy egyszerusitett implementacio: megnezi, hogy veteli jel utan emelkedett-e az ar.
         """
-        # FIGYELEM: Ez komplex SQL-t igényelne a jövőbeli árakkal való joinoláshoz.
-        # A snapshot egyszerűsége miatt most csak a 'decision_blob'-okat adjuk vissza,
-        # és Pythonban dolgozzuk fel.
+        # FIGYELEM: Ez komplex SQL-t igenyelne a jovobeli arakkal valo joinolashoz.
+        # A snapshot egyszerusege miatt most csak a 'decision_blob'-okat adjuk vissza,
+        # es Pythonban dolgozzuk fel.
         query = """
             SELECT decision_blob, timestamp FROM decision_history 
             WHERE ticker = ? AND action_code = 1 
@@ -1289,7 +1326,7 @@ class DataManager:
         return rows
 
     def get_unevaluated_buy_decisions(self, limit=100):
-        """P8: Visszaadja azokat a vételi döntéseket, amiknél még nincs outcome beírva."""
+        """P8: Visszaadja azokat a veteli donteseket, amiknel meg nincs outcome beirva."""
         query = """
             SELECT dh.id, dh.timestamp, dh.ticker, dh.audit_blob
             FROM decision_history dh
@@ -1322,7 +1359,7 @@ class DataManager:
             return []
 
     def update_history_audit(self, row_id, new_audit_blob):
-        """P8: Frissíti egy korábbi döntés audit logját (pl. eredménnyel)."""
+        """P8: Frissiti egy korabbi dontes audit logjat (pl. eredmennyel)."""
         query = "UPDATE decision_history SET audit_blob = ? WHERE id = ?"
         with self._get_conn() as conn:
             conn.execute(query, (new_audit_blob, row_id))

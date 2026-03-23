@@ -30,7 +30,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from app.config.config import Config
+from app.bootstrap.build_settings import build_settings
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -47,17 +47,47 @@ class LogManager:
     LOG_EXTENSIONS = [".log", ".jsonl"]
     ARCHIVE_EXTENSION = ".gz"
 
-    def __init__(self, log_dir: Optional[Path] = None):
+    def __init__(
+        self, log_dir: Optional[Path] = None, settings: Optional[object] = None
+    ):
         """
         Initialize log manager.
 
         Args:
-            log_dir: Custom log directory (defaults to Config.LOG_DIR)
+            log_dir: Custom log directory (defaults to settings.LOG_DIR)
+            settings: optional Settings object produced by `build_settings()`.
         """
-        self.log_dir = log_dir or Config.LOG_DIR
+        if settings is None:
+            try:
+                settings = build_settings()
+            except Exception:
+                settings = None
+        self.settings = settings
+
+        # Prefer explicit arg, then settings, then helper-resolved legacy config
+        resolved = None
+        if log_dir is not None:
+            resolved = log_dir
+        elif settings is not None:
+            resolved = getattr(settings, "LOG_DIR", None)
+
+        # Convert to Path defensively (tests may provide Mock objects)
+        try:
+            self.log_dir = Path(resolved) if resolved is not None else Path(".")
+        except Exception:
+            try:
+                self.log_dir = Path(str(resolved))
+            except Exception:
+                self.log_dir = Path(".")
 
         # Ensure log directory exists
-        os.makedirs(self.log_dir, exist_ok=True)
+        try:
+            os.makedirs(self.log_dir, exist_ok=True)
+        except Exception:
+            try:
+                os.makedirs(str(self.log_dir), exist_ok=True)
+            except Exception:
+                pass
 
     def rotate_logs(self) -> Dict:
         """

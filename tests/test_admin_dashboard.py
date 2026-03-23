@@ -1,5 +1,5 @@
 """
-Unit tests for Admin Dashboard Routes (P9 — Engineering Hardening).
+Unit tests for Admin Dashboard Routes (P9 - Engineering Hardening).
 
 Tests:
 - Authentication/authorization (admin key validation)

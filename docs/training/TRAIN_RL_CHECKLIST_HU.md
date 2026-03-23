@@ -101,7 +101,7 @@ Celjai:
   a) greenfield telepites (nincs modell)
   b) model relevans kod valtozott (feature/parameterek)
 
-### Döntesi logika (javaslat)
+### Dontesi logika (javaslat)
 Train szukseges, ha barmelyik igaz:
 - models/ ures vagy nincs model .zip
 - Training fingerprint valtozott
@@ -121,7 +121,7 @@ Hozz letre egy JSON-t, pl. training_fingerprint.json, ami tartalmazza:
 - RL_TIMESTEPS, OPTIMIZER_POPULATION, OPTIMIZER_GENERATIONS
 - GA-before-RL policy + training intervallum (START_DATE/END_DATE)
 
-Ha az uj fingerprint eltér a mentettől -> train szukseges.
+Ha az uj fingerprint elter a mentettol -> train szukseges.
 
 Hasznalat (uj script):
 - python scripts/training_fingerprint.py --check

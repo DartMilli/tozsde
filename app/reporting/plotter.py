@@ -15,8 +15,10 @@ from io import BytesIO
 import warnings
 import base64
 
-from app.config.config import Config
 from app.infrastructure.logger import setup_logger
+from app.config.build_settings import build_settings
+
+settings = build_settings()
 
 logger = setup_logger(__name__)
 
@@ -112,12 +114,12 @@ def get_candle_img_buffer(df, indicators, signals=None):
                     idx = df.index.get_loc(df.index[df.index.date == sig_date][0])
 
                     if sig_type == "BUY":
-                        buy_signals[idx] = price * 0.98  # Kicsit a gyertya alá
+                        buy_signals[idx] = price * 0.98  # Kicsit a gyertya ala
                     else:
-                        sell_signals[idx] = price * 1.02  # Kicsit a gyertya fölé
+                        sell_signals[idx] = price * 1.02  # Kicsit a gyertya fole
             except (ValueError, IndexError) as e:
                 logger.error(
-                    f"Hiba a szignál dátumának feldolgozásakor: {sig_date_str} - {e}",
+                    f"Hiba a szignal datumanak feldolgozasakor: {sig_date_str} - {e}",
                     exc_info=True,
                 )
 
@@ -183,7 +185,7 @@ def get_candle_img_buffer(df, indicators, signals=None):
         ),
     ]
 
-    # ---- Markerek hozzáadása az apds listához ----
+    # ---- Markerek hozzaadasa az apds listahoz ----
     if not np.all(np.isnan(buy_signals)):
         apds.append(
             mpf.make_addplot(buy_signals, type="scatter", marker="^", color="lime")
@@ -197,7 +199,7 @@ def get_candle_img_buffer(df, indicators, signals=None):
         df,
         type="candle",
         style=dark,
-        ylabel="Price (ár)",
+        ylabel="Price (ar)",
         ylabel_lower="Volume (forgalom)",
         volume=True,
         addplot=apds,
@@ -211,18 +213,18 @@ def get_candle_img_buffer(df, indicators, signals=None):
         xrotation=0,
     )
 
-    # Tengelyek csoportosítása subplotonként
+    # Tengelyek csoportositasa subplotonkent
     subplot_axes = {}
     for ax in fig.axes:
-        # subplot index koordináták alapján
+        # subplot index koordinatak alapjan
         pos = tuple(ax.get_position().bounds)
         if pos not in subplot_axes:
             subplot_axes[pos] = []
         subplot_axes[pos].append(ax)
 
-    # Minden subplotban: első legyen a fő (bal) tengely, többit nézzük végig
+    # Minden subplotban: elso legyen a fo (bal) tengely, tobbit nezzuk vegig
     for ax_group in subplot_axes.values():
-        # jobb tengelyek eltüntetése
+        # jobb tengelyek eltuntetese
         if len(ax_group) < 2:
             continue  # csak bal oldali, nincs twin tengely
 
@@ -230,9 +232,9 @@ def get_candle_img_buffer(df, indicators, signals=None):
         main_ylim = main_ax.get_ylim()
 
         for other_ax in ax_group[1:]:
-            # Állítsuk be ugyanazt az y-léptéket
+            # Allitsuk be ugyanazt az y-lepteket
             other_ax.set_ylim(main_ylim)
-            # Rejtsük el a jobb oldali tengely skáláját és spinet
+            # Rejtsuk el a jobb oldali tengely skalajat es spinet
 
             other_ax.yaxis.set_ticks_position("none")
             other_ax.yaxis.set_ticklabels([])
@@ -240,7 +242,7 @@ def get_candle_img_buffer(df, indicators, signals=None):
             other_ax.yaxis.set_visible(False)
 
         all_lines = []
-        # Töröljük az esetlegesen meglévő legendákat (bal és jobb tengelyeken is)
+        # Toroljuk az esetlegesen meglevo legendakat (bal es jobb tengelyeken is)
         for ax in ax_group:
             leg = ax.get_legend()
             if leg is not None:
@@ -248,7 +250,7 @@ def get_candle_img_buffer(df, indicators, signals=None):
 
             all_lines.extend(ax.get_lines())
 
-        # Szűrés: csak értelmes labelűek, ne automatikus _line0, _line1
+        # Szures: csak ertelmes labeluek, ne automatikus _line0, _line1
         handles_labels = [
             (line, line.get_label())
             for line in all_lines
@@ -257,7 +259,7 @@ def get_candle_img_buffer(df, indicators, signals=None):
 
         if handles_labels:
             handles, labels = zip(*handles_labels)
-            # Csak az első (bal) tengelyre tesszük a legend-et
+            # Csak az elso (bal) tengelyre tesszuk a legend-et
             ax_group[0].legend(handles, labels, loc="best")
 
     fig.savefig(buf)
@@ -266,22 +268,33 @@ def get_candle_img_buffer(df, indicators, signals=None):
     return buf
 
 
+def set_settings(s):
+    """Allow DI root to inject settings into this module.
+
+    Call this from the composition root with the application `settings`
+    object so the module stops importing legacy `Config` at module import
+    time.
+    """
+    global settings
+    settings = s
+
+
 def get_equity_curve_buffer(ticker, equity_curve):
     _ensure_plotting_imports()
-    # Grafikon generálása
+    # Grafikon generalasa
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(equity_curve["date"], equity_curve["portfolio_value"], label="Stratégia")
-    ax.set_title(f"{ticker} Stratégia Teljesítménye")
-    ax.set_ylabel("Portfólió Értéke ($)")
+    ax.plot(equity_curve["date"], equity_curve["portfolio_value"], label="Strategia")
+    ax.set_title(f"{ticker} Strategia Teljesitmenye")
+    ax.set_ylabel("Portfolio Erteke ($)")
     ax.grid(True, linestyle="--")
     ax.legend()
 
-    # Kép mentése memóriába
+    # Kep mentese memoriaba
     buf = BytesIO()
     fig.savefig(buf, format="png")
     buf.seek(0)
 
-    # Base64 kódolás a HTML-be ágyazáshoz
+    # Base64 kodolas a HTML-be agyazashoz
     image_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
 
     return image_b64
@@ -316,12 +329,12 @@ def plot_bar_chart(subset, ticker, model_type):
     _ensure_plotting_imports()
     plt.figure(figsize=(10, 5))
     plt.bar(subset["reward_strategy"], subset["final_portfolio_value"])
-    plt.title(f"{ticker} - {model_type} - Portfólió érték összehasonlítás")
-    plt.ylabel("Végső portfólió érték")
-    plt.xlabel("Reward stratégia")
+    plt.title(f"{ticker} - {model_type} - Portfolio ertek osszehasonlitas")
+    plt.ylabel("Vegso portfolio ertek")
+    plt.xlabel("Reward strategia")
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.savefig(f"{Config.CHARTS_DIR}/{ticker}_{model_type}_benchmark.png")
+    plt.savefig(f"{settings.CHART_DIR}/{ticker}_{model_type}_benchmark.png")
     plt.close()
 
 
@@ -330,8 +343,8 @@ def _generate_spiral_positions(
     ax, x, y, min_r=0.06, max_r=0.25, r_steps=6, angle_steps=12
 ):
     """
-    Gyors spirál pozíciógenerátor. Relatív sugár és irányok alapján ad vissza (adat-koordináták).
-    Paramétereket lehet csökkenteni/növelni a sebesség/precizitás tradeoff-hoz.
+    Gyors spiral poziciogenerator. Relativ sugar es iranyok alapjan ad vissza (adat-koordinatak).
+    Parametereket lehet csokkenteni/novelni a sebesseg/precizitas tradeoff-hoz.
     """
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
@@ -345,7 +358,7 @@ def _generate_spiral_positions(
         for angle in angles:
             ann_x = x + np.cos(angle) * r * x_range
             ann_y = y + np.sin(angle) * r * y_range
-            # maradjon a tengelyen belül
+            # maradjon a tengelyen belul
             if xlim[0] <= ann_x <= xlim[1] and ylim[0] <= ann_y <= ylim[1]:
                 yield ann_x, ann_y
 
@@ -360,7 +373,7 @@ def _place_top_annotations_greedy(
     ax, top_rows, cmap, norm, legend_box=None, fontsize=9
 ):
     """
-    top_rows: list of dict-like rows (sorted by priority — we will place highest priority first)
+    top_rows: list of dict-like rows (sorted by priority - we will place highest priority first)
     cmap, norm: color mapping for text color
     legend_box: pixel bbox of legend (or None)
     Returns: list of created annotation artists
@@ -394,18 +407,18 @@ def _place_top_annotations_greedy(
             )
             bbox = ann.get_window_extent(renderer=renderer)
 
-            # Ne takarja a saját pontját
+            # Ne takarja a sajat pontjat
             point_px = ax.transData.transform((x, y))
             if bbox.contains(point_px[0], point_px[1]):
                 ann.remove()
                 continue
 
-            # Ütközés ellenőrzés más annotációkkal
+            # Utkozes ellenorzes mas annotaciokkal
             if _overlaps_any(bbox, placed_boxes):
                 ann.remove()
                 continue
 
-            # Ütközés ellenőrzés legendával
+            # Utkozes ellenorzes legendaval
             if legend_box is not None:
                 expanded_legend = legend_box.expanded(1.05, 1.1)
                 if bbox.overlaps(expanded_legend):
@@ -417,7 +430,7 @@ def _place_top_annotations_greedy(
             placed = True
             break
 
-        # Ha semmi nem jó, fallback: fix jobbra-fel
+        # Ha semmi nem jo, fallback: fix jobbra-fel
         if not placed:
             ann_x = x + 0.06 * (ax.get_xlim()[1] - ax.get_xlim()[0])
             ann_y = y + 0.06 * (ax.get_ylim()[1] - ax.get_ylim()[0])
@@ -457,9 +470,9 @@ def plot_gradient_scatter(subset, ticker, model_type):
     )
     fig.colorbar(scatter, ax=ax, label="Kompozit Score")
 
-    ax.set_title(f"{ticker} – {model_type} | Gradient színezés (kompozit score)")
-    ax.set_xlabel("Sharpe-ráta")
-    ax.set_ylabel("Végső portfólió érték")
+    ax.set_title(f"{ticker} - {model_type} | Gradient szinezes (kompozit score)")
+    ax.set_xlabel("Sharpe-rata")
+    ax.set_ylabel("Vegso portfolio ertek")
     ax.grid(True, linestyle="--", alpha=0.25)
 
     legend = ax.get_legend()
@@ -471,7 +484,7 @@ def plot_gradient_scatter(subset, ticker, model_type):
     _place_top_annotations_greedy(ax, top3.to_dict("records"), cmap, norm, legend_box)
 
     fig.savefig(
-        f"{Config.CHART_DIR}/{ticker}_{model_type}_sharpe_vs_value_gradient.png",
+        f"{settings.CHART_DIR}/{ticker}_{model_type}_sharpe_vs_value_gradient.png",
         bbox_inches="tight",
     )
     plt.close(fig)
@@ -505,11 +518,11 @@ def plot_strategy_colored_scatter(subset, ticker, model_type):
         )
 
     legend = ax.legend(
-        title="Reward stratégia", bbox_to_anchor=(1.05, 1), loc="upper left"
+        title="Reward strategia", bbox_to_anchor=(1.05, 1), loc="upper left"
     )
-    ax.set_title(f"{ticker} – {model_type} | Színezés reward stratégia szerint")
-    ax.set_xlabel("Sharpe-ráta")
-    ax.set_ylabel("Végső portfólió érték")
+    ax.set_title(f"{ticker} - {model_type} | Szinezes reward strategia szerint")
+    ax.set_xlabel("Sharpe-rata")
+    ax.set_ylabel("Vegso portfolio ertek")
     ax.grid(True, linestyle="--", alpha=0.25)
 
     legend_box = legend.get_window_extent(renderer=fig.canvas.get_renderer())
@@ -520,7 +533,7 @@ def plot_strategy_colored_scatter(subset, ticker, model_type):
     _place_top_annotations_greedy(ax, top3.to_dict("records"), cmap, norm, legend_box)
 
     fig.savefig(
-        f"{Config.CHART_DIR}/{ticker}_{model_type}_sharpe_vs_value_by_strategy.png",
+        f"{settings.CHART_DIR}/{ticker}_{model_type}_sharpe_vs_value_by_strategy.png",
         bbox_inches="tight",
     )
     plt.close(fig)

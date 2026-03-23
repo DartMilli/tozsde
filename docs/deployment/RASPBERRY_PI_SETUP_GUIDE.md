@@ -32,11 +32,11 @@ Magyar rovid attekintes: a telepites lepesrol lepesre szerepel ebben a dokumentu
 2. Insert SD card into card reader
 3. Run Imager:
    - Choose Device: **Raspberry Pi 4** or **Raspberry Pi 5**
-   - Choose OS: **Raspberry Pi OS (Other) → Raspberry Pi OS Lite (64-bit)**
+   - Choose OS: **Raspberry Pi OS (Other) -> Raspberry Pi OS Lite (64-bit)**
    - Choose Storage: Your SD card
    - Click **NEXT**
    - Choose **EDIT SETTINGS** (optional, for SSH/WiFi setup)
-   - Click **SAVE** → **YES** (will erase card)
+   - Click **SAVE** -> **YES** (will erase card)
    - Wait for write & verify (~5-10 minutes)
 
 **Option B: Command Line (macOS/Linux)**
@@ -61,8 +61,8 @@ diskutil eject /dev/diskX
 
 1. Insert flashed SD card into Pi
 2. Connect:
-   - HDMI → monitor
-   - USB → keyboard + mouse
+   - HDMI -> monitor
+   - USB -> keyboard + mouse
    - Network cable (optional but recommended)
    - USB-C power last (this starts the Pi)
 3. Wait ~30 seconds for boot (colored square appears)
@@ -84,17 +84,17 @@ sudo raspi-config
 
 **Configure these options:**
 
-1. **System Options → Hostname**
+1. **System Options -> Hostname**
    - Change to: `tozsde-pi` (or your preference)
    - Reboot when asked
 
-2. **Interface Options → SSH**
+2. **Interface Options -> SSH**
    - Enable SSH (so you can SSH from laptop later)
 
-3. **Advanced Options → Expand Filesystem**
+3. **Advanced Options -> Expand Filesystem**
    - Expand to use full SD card space
 
-4. **Localization Options → Timezone**
+4. **Localization Options -> Timezone**
    - Set your timezone
 
 5. **Exit** and choose **YES to reboot**
@@ -116,7 +116,7 @@ sudo apt-get update
 sudo apt-get upgrade -y
 ```
 
-This may take 5-10 minutes. Grab coffee! ☕
+This may take 5-10 minutes. Grab coffee! 
 
 ---
 
@@ -153,34 +153,34 @@ ls -la
 bash deploy_rpi.sh
 
 # Expected output flow:
-# [✓] System dependencies installed
-# [✓] Virtual environment created
-# [✓] Python dependencies installed
-# [✓] systemd service created and enabled
-# [✓] Cron jobs configured
-# [✓] Health check script created
-# [✓] Log rotation configured
-# [✓] Flask API service started successfully
-# [✓] API responding on port 5000
-# DEPLOYMENT COMPLETE! 🎉
+# [v] System dependencies installed
+# [v] Virtual environment created
+# [v] Python dependencies installed
+# [v] systemd service created and enabled
+# [v] Cron jobs configured
+# [v] Health check script created
+# [v] Log rotation configured
+# [v] Flask API service started successfully
+# [v] API responding on port 5000
+# DEPLOYMENT COMPLETE! 
 
 # Total time: 10-15 minutes (depends on internet speed)
 ```
 
 **What the script does:**
-- ✅ Installs system packages (Python 3.11, pip, curl, etc.)
-- ✅ Creates Python virtual environment
-- ✅ Installs Python dependencies from requirements.txt
-- ✅ Creates systemd service for Flask API (auto-start on reboot)
-- ✅ Schedules cron jobs:
+-  Installs system packages (Python 3.11, pip, curl, etc.)
+-  Creates Python virtual environment
+-  Installs Python dependencies from requirements.txt
+-  Creates systemd service for Flask API (auto-start on reboot)
+-  Schedules cron jobs:
   - Daily 6:00 AM: Market pipeline
   - Monday 4:00 AM: Weekly backtest audit
   - 1st of month 1:00 AM: Monthly GA optimization
-- ✅ Optional RL training hook (opt-in via env vars)
-- ✅ Sets up 5-minute health checks
-- ✅ Configures log rotation
-- ✅ Starts Flask API on port 5000
-- ✅ Verifies everything works
+-  Optional RL training hook (opt-in via env vars)
+-  Sets up 5-minute health checks
+-  Configures log rotation
+-  Starts Flask API on port 5000
+-  Verifies everything works
 
 ---
 
@@ -196,7 +196,7 @@ curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"
 # {"status": "healthy", "timestamp": "2026-01-23T10:30:45", ...}
 ```
 
-Note: The default health_check.sh script uses /api/health. Update its URL and headers to match /admin/health.
+Note: For health checks, always use `/admin/health` with the `X-Admin-Key` header.
 
 ### Optional RL training on deploy (opt-in)
 Set these env vars before running `deploy_rpi.sh`:
@@ -273,7 +273,7 @@ curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"
 # Monitor disk usage (Pi 5 runs hot)
 df -h /home
 free -h
-/opt/vc/bin/vcgencmd measure_temp  # Should be <80°C
+/opt/vc/bin/vcgencmd measure_temp  # Should be <80C
 ```
 
 ### 5.2 Check Cron Execution
@@ -293,7 +293,7 @@ cat ~/tozsde_webapp/logs/cron_weekly.log | tail -5
 | **API won't start** | `sudo journalctl -u tozsde-api.service -n 50` | Check error, restart: `sudo systemctl restart tozsde-api.service` |
 | **Cron job didn't run** | Check crontab: `crontab -l` | Verify time zone: `date`, verify time matches |
 | **Disk full (>85%)** | `df -h /home` | Delete old logs: `rm ~/tozsde_webapp/logs/*.gz` |
-| **Pi overheating (>85°C)** | `/opt/vc/bin/vcgencmd measure_temp` | Add fan/heatsink, reduce backtest periods |
+| **Pi overheating (>85C)** | `/opt/vc/bin/vcgencmd measure_temp` | Add fan/heatsink, reduce backtest periods |
 | **Network timeout** | `ping 8.8.8.8` | Restart: `sudo systemctl restart networking` |
 | **High CPU usage** | `top` | Check if backtest running, consider shorter periods |
 | **Import errors** | `python -m app` | Verify venv: `which python` should show /home/pi/... |
@@ -305,7 +305,7 @@ To access your Pi from outside your home network:
 ```bash
 # Option 1: SSH tunnel (secure)
 ssh -R 5000:localhost:5000 user@your-vps.com
-# Then from VPS: curl http://localhost:5000/api/health
+# Then from VPS: curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 
 # Option 2: VPN (like Tailscale, free, easy)
 curl https://tailscale.com/install.sh | sh
@@ -396,20 +396,20 @@ crontab -e  # Add the 3 lines from deploy_rpi.sh
 
 ## NEXT STEPS
 
-1. ✅ Hardware setup complete
-2. ✅ OS flashed and configured
-3. ✅ App deployed with ONE script
-4. ✅ Services running and verified
-5. ⏭️ **NEXT:** Monitor logs for first daily run (6:00 AM tomorrow)
-6. ⏭️ **THEN:** Configure email alerts or dashboard
+1.  Hardware setup complete
+2.  OS flashed and configured
+3.  App deployed with ONE script
+4.  Services running and verified
+5.  **NEXT:** Monitor logs for first daily run (6:00 AM tomorrow)
+6.  **THEN:** Configure email alerts or dashboard
 
 ---
 
 ## Questions?
 
-- **API not responding?** → Check: `curl http://tozsde-pi.local:5000/api/health`
-- **Cron not running?** → Check: `crontab -l` and `/home/pi/tozsde_webapp/logs/cron_*.log`
-- **Permission issues?** → All should be owned by `pi` user. Check: `ls -l ~/tozsde_webapp/`
-- **Memory/disk issues?** → Check: `df -h /home` and `free -h`
+- **API not responding?** -> Check: `curl http://tozsde-pi.local:5000/admin/health -H "X-Admin-Key: <key>"`
+- **Cron not running?** -> Check: `crontab -l` and `/home/pi/tozsde_webapp/logs/cron_*.log`
+- **Permission issues?** -> All should be owned by `pi` user. Check: `ls -l ~/tozsde_webapp/`
+- **Memory/disk issues?** -> Check: `df -h /home` and `free -h`
 
-**Happy trading! 🚀**
+**Happy trading! **

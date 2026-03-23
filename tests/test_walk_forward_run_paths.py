@@ -150,25 +150,31 @@ def test_run_returns_none_when_too_few_windows():
         assert wf.run() is None
 
 
-def test_run_walk_forward_uses_config_windows():
+def test_run_walk_forward_uses_config_windows(test_settings):
     df = _make_df(30)
+
+    from dataclasses import replace
+    from app.backtesting import set_settings as set_backtesting_settings
+
+    settings = replace(
+        test_settings,
+        START_DATE="2025-01-01",
+        END_DATE="2025-02-01",
+        TRAIN_WINDOW_MONTHS=2,
+        TEST_WINDOW_MONTHS=1,
+        WINDOW_STEP_MONTHS=1,
+        OPTIMIZER_POPULATION=10,
+        OPTIMIZER_GENERATIONS=5,
+    )
+    set_backtesting_settings(settings)
 
     with patch("app.backtesting.walk_forward.load_data") as mock_load, patch(
         "app.backtesting.walk_forward.WalkForwardOptimizer"
     ) as mock_wf, patch(
         "app.backtesting.walk_forward.ensure_data_cached"
-    ) as mock_cache, patch(
-        "app.backtesting.walk_forward.Config"
-    ) as mock_cfg:
+    ) as mock_cache:
 
         mock_load.return_value = df
-        mock_cfg.START_DATE = "2025-01-01"
-        mock_cfg.END_DATE = "2025-02-01"
-        mock_cfg.TRAIN_WINDOW_MONTHS = 2
-        mock_cfg.TEST_WINDOW_MONTHS = 1
-        mock_cfg.WINDOW_STEP_MONTHS = 1
-        mock_cfg.OPTIMIZER_POPULATION = 10
-        mock_cfg.OPTIMIZER_GENERATIONS = 5
 
         mock_wf.return_value.run.return_value = {"ok": True}
         mock_cache.return_value = True

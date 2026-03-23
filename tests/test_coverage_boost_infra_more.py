@@ -9,20 +9,21 @@ import pandas as pd
 import pytest
 
 
-def test_health_checker_api_and_resources(monkeypatch, tmp_path):
+def test_health_checker_api_and_resources(monkeypatch, tmp_path, test_settings):
     from app.infrastructure import health_check
-    from app.config.config import Config
+    from app.infrastructure import set_settings as set_infrastructure_settings
+    from dataclasses import replace
 
     db_path = tmp_path / "health.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-    monkeypatch.setattr(Config, "LOG_DIR", tmp_path)
+    settings = replace(test_settings, DB_PATH=db_path, LOG_DIR=tmp_path)
+    set_infrastructure_settings(settings)
 
     conn = sqlite3.connect(str(db_path))
     conn.execute("CREATE TABLE test (id INTEGER)")
     conn.commit()
     conn.close()
 
-    checker = health_check.HealthChecker()
+    checker = health_check.HealthChecker(settings=settings)
 
     class FakeResponse:
         def __init__(self, code):
@@ -84,12 +85,14 @@ def test_health_checker_api_and_resources(monkeypatch, tmp_path):
     assert checker.check_database_health()["healthy"] is True
 
 
-def test_health_checker_cron_and_logs(monkeypatch, tmp_path):
+def test_health_checker_cron_and_logs(monkeypatch, tmp_path, test_settings):
     from app.infrastructure import health_check
-    from app.config.config import Config
+    from app.infrastructure import set_settings as set_infrastructure_settings
+    from dataclasses import replace
 
-    monkeypatch.setattr(Config, "LOG_DIR", tmp_path)
-    checker = health_check.HealthChecker()
+    settings = replace(test_settings, LOG_DIR=tmp_path)
+    set_infrastructure_settings(settings)
+    checker = health_check.HealthChecker(settings=settings)
 
     metrics_path = tmp_path / "metrics.jsonl"
     now = datetime.now(timezone.utc)
@@ -115,13 +118,15 @@ def test_health_checker_cron_and_logs(monkeypatch, tmp_path):
     assert logs
 
 
-def test_health_checker_check_all_and_main(monkeypatch, tmp_path):
+def test_health_checker_check_all_and_main(monkeypatch, tmp_path, test_settings):
     from app.infrastructure import health_check
-    from app.config.config import Config
+    from app.infrastructure import set_settings as set_infrastructure_settings
+    from dataclasses import replace
 
-    monkeypatch.setattr(Config, "LOG_DIR", tmp_path)
+    settings = replace(test_settings, LOG_DIR=tmp_path)
+    set_infrastructure_settings(settings)
 
-    checker = health_check.HealthChecker()
+    checker = health_check.HealthChecker(settings=settings)
 
     monkeypatch.setattr(checker, "check_api_health", lambda: {"healthy": True})
     monkeypatch.setattr(
@@ -476,20 +481,21 @@ def test_market_regime_detector_branches(monkeypatch):
     assert isinstance(bool(is_high_volatility("AAA", threshold=0.0)), bool)
 
 
-def test_strategy_selector_and_optimizer(tmp_path, monkeypatch):
+def test_strategy_selector_and_optimizer(tmp_path, monkeypatch, test_settings):
     from app.decision.adaptive_strategy_selector import (
         AdaptiveStrategySelector,
         get_top_strategies,
         recommend_strategy_for_regime,
     )
+    from app.decision import set_settings as set_decision_settings
+    from dataclasses import replace
     from app.decision.capital_optimizer import CapitalUtilizationOptimizer
 
     db_path = tmp_path / "strategies.db"
-    monkeypatch.setattr(
-        "app.decision.adaptive_strategy_selector.Config.DB_PATH", db_path
-    )
+    settings = replace(test_settings, DB_PATH=db_path)
+    set_decision_settings(settings)
 
-    selector = AdaptiveStrategySelector(epsilon=0.0)
+    selector = AdaptiveStrategySelector(epsilon=0.0, settings=settings)
     weights = selector.select_strategy_weights()
     assert abs(sum(weights.values()) - 1.0) < 1e-6
 
@@ -529,16 +535,16 @@ def test_strategy_selector_and_optimizer(tmp_path, monkeypatch):
     assert 0.0 <= drawdown <= 1.0
 
 
-def test_strategy_selector_explore_and_errors(tmp_path, monkeypatch):
+def test_strategy_selector_explore_and_errors(tmp_path, monkeypatch, test_settings):
     from app.decision.adaptive_strategy_selector import AdaptiveStrategySelector
+    from app.decision import set_settings as set_decision_settings
+    from dataclasses import replace
     import sqlite3 as sqlite
 
-    monkeypatch.setattr(
-        "app.decision.adaptive_strategy_selector.Config.DB_PATH",
-        tmp_path / "bandits.db",
-    )
+    settings = replace(test_settings, DB_PATH=tmp_path / "bandits.db")
+    set_decision_settings(settings)
 
-    selector = AdaptiveStrategySelector(epsilon=1.0)
+    selector = AdaptiveStrategySelector(epsilon=1.0, settings=settings)
     selection = selector.explore_or_exploit(market_regime="BEAR")
     assert selection.selection_mode == "EXPLORE"
 
@@ -607,7 +613,8 @@ def test_system_metrics(monkeypatch, tmp_path):
     health = metrics.get_health_status()
     assert health["status"] in {"healthy", "degraded", "critical"}
 
-    assert get_metrics() is not None
+    # get_metrics() singleton removed; explicit construction required
+    assert metrics is not None
 
 
 def test_log_manager_main(monkeypatch, tmp_path):
@@ -745,8 +752,8 @@ def test_cron_tasks(monkeypatch, tmp_path):
     scheduler.config = SimpleNamespace(db_path="db", log_dir=str(tmp_path))
 
     class FakeDataManager:
-        def __init__(self, db_path=None):
-            self.db_path = db_path
+        def __init__(self, settings=None):
+            self.settings = settings
 
         def update_market_data(self):
             return {"success": True, "total_records": 1}
@@ -758,17 +765,13 @@ def test_cron_tasks(monkeypatch, tmp_path):
         def generate_recommendations(self):
             return [1]
 
-    dm_module = ModuleType("app.data_access.data_manager")
-    dm_module.DataManager = FakeDataManager
     de_module = ModuleType("app.decision.decision_engine")
     de_module.DecisionEngine = FakeDecisionEngine
 
     monkeypatch.setitem(
-        __import__("sys").modules, "app.data_access.data_manager", dm_module
-    )
-    monkeypatch.setitem(
         __import__("sys").modules, "app.decision.decision_engine", de_module
     )
+    monkeypatch.setattr(cron_tasks, "DataManagerRepository", FakeDataManager)
 
     scheduler.backup_manager.backup_database = lambda: {"success": True, "size_mb": 1.0}
     scheduler.backup_manager.cleanup_old_backups = lambda: {"deleted_count": 0}

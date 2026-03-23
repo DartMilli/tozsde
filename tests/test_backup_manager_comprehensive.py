@@ -1,8 +1,8 @@
 """
 Comprehensive Edge Case Tests for Backup Manager - Coverage Expansion (Sprint 11b)
 
-Focus: 59% → 85%+ coverage
-Target: ~35-40 új teszt a hiányzó ágakhoz
+Focus: 59% -> 85%+ coverage
+Target: ~35-40 uj teszt a hianyzo agakhoz
 """
 
 import pytest
@@ -253,7 +253,7 @@ class TestBackupManagerComprehensive:
 
     def test_backup_database_with_special_chars(self, tmp_path):
         """Test backup with special characters in path."""
-        db_path = tmp_path / "тест_测试.db"  # Unicode filename
+        db_path = tmp_path / "_.db"  # Unicode filename
         backup_dir = tmp_path / "backups"
         _create_test_db(db_path)
 

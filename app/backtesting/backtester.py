@@ -1,5 +1,5 @@
 """
-BACKTESTER – SINGLE SOURCE OF TRUTH
+BACKTESTER - SINGLE SOURCE OF TRUTH
 
 ROLE:
     - Execute strategy with given parameters
@@ -31,19 +31,40 @@ from app.backtesting.execution_engine import (
     TradeIndex,
 )
 from app.backtesting.equity_engine import EquityEngine
-from app.config.config import Config
-from app.analysis.analyzer import compute_signals  # Innen vesszük a jeleket
+from app.backtesting import get_settings
+from app.analysis.analyzer import compute_signals  # Innen vesszuk a jeleket
 from app.reporting.metrics import BacktestReport
 
 
 class Backtester:
-    def __init__(self, df: pd.DataFrame, ticker: str):
+    def __init__(self, df: pd.DataFrame, ticker: str, settings=None):
+        self.settings = settings or get_settings()
+        self.cfg = self.settings
         self.df = df.copy()
-        self.initial_capital = Config.INITIAL_CAPITAL
-        self.fee_pct = Config.TRANSACTION_FEE_PCT
-        self.slippage_pct = Config.MIN_SLIPPAGE_PCT
-        self.spread_pct = Config.SPREAD_PCT
+        self.initial_capital = getattr(self.cfg, "INITIAL_CAPITAL", 100000.0)
+        self.fee_pct = getattr(self.cfg, "TRANSACTION_FEE_PCT", 0.001)
+        self.slippage_pct = getattr(self.cfg, "MIN_SLIPPAGE_PCT", 0.0005)
+        self.spread_pct = getattr(self.cfg, "SPREAD_PCT", 0.0002)
         self.ticker = ticker
+
+    @classmethod
+    def from_settings(cls, df: pd.DataFrame, ticker: str, settings: object):
+        """Factory: create a Backtester and apply values from `settings` when present.
+
+        Keeps the main constructor unchanged for compatibility with tests that
+        monkeypatch or directly instantiate `Backtester(df, ticker)`.
+        """
+        inst = cls(df, ticker, settings=settings)
+        if settings is not None:
+            if hasattr(settings, "INITIAL_CAPITAL"):
+                inst.initial_capital = getattr(settings, "INITIAL_CAPITAL")
+            if hasattr(settings, "TRANSACTION_FEE_PCT"):
+                inst.fee_pct = getattr(settings, "TRANSACTION_FEE_PCT")
+            if hasattr(settings, "MIN_SLIPPAGE_PCT"):
+                inst.slippage_pct = getattr(settings, "MIN_SLIPPAGE_PCT")
+            if hasattr(settings, "SPREAD_PCT"):
+                inst.spread_pct = getattr(settings, "SPREAD_PCT")
+        return inst
 
     def _generate_trade_indices(self, actions: list[int]) -> list[TradeIndex]:
         trade_list: list[TradeIndex] = []
@@ -82,8 +103,8 @@ class Backtester:
         audit: dict | None = None,
     ) -> dict:
         """
-        Lefuttatja a szimulációt a megadott paraméterekkel.
-        Ez váltja ki a genetic_optimizer 'backtest_signal_strategy' függvényét is!
+        Lefuttatja a szimulaciot a megadott parameterekkel.
+        Ez valtja ki a genetic_optimizer 'backtest_signal_strategy' fuggvenyet is!
         """
         MIN_REQUIRED_BARS = max(
             [
@@ -121,7 +142,7 @@ class Backtester:
                 },
             )
 
-        # 1. Jelek generálása (A közös analizer.py-ból)
+        # 1. Jelek generalasa (A kozos analizer.py-bol)
         if signals_override is not None:
             signals = signals_override
         else:
@@ -140,6 +161,9 @@ class Backtester:
         if hasattr(signals, "tolist"):
             signals = signals.tolist()
 
+        # Local reference to resolved config for this run
+        cfg = getattr(self, "cfg", None)
+
         action_codes = [normalize_action(s) for s in signals]
         if isinstance(audit, dict):
             if "raw_signal_count" in audit:
@@ -156,7 +180,16 @@ class Backtester:
             )
 
         execution_policy = (
-            execution_policy or Config.EXECUTION_POLICY or "next_open"
+            execution_policy
+            or getattr(
+                cfg,
+                "execution_policy",
+                getattr(
+                    cfg,
+                    "EXECUTION_POLICY",
+                    "next_open",
+                ),
+            )
         ).lower()
         if execution_policy not in {"close_to_close", "next_open"}:
             execution_policy = "next_open"
@@ -167,7 +200,7 @@ class Backtester:
         portfolio_values = []
         portfolio_dates = []
         trade_count = 0
-        trades = []  # minden lezárt trade ide kerül
+        trades = []  # minden lezart trade ide kerul
         total_cost = 0.0
 
         fee_pct = self.fee_pct
@@ -213,7 +246,7 @@ class Backtester:
         portfolio_values = equity_result.equity_curve
         portfolio_dates = [dates[trade.exit_at] for trade in executions]
         total_cost = 0.0
-        # --- Eredmények számítása ---
+        # --- Eredmenyek szamitasa ---
         if portfolio_values:
             equity_curve = pd.Series(portfolio_values, index=portfolio_dates)
         else:
@@ -234,7 +267,7 @@ class Backtester:
         drawdown = (equity_curve - cummax) / cummax
         max_drawdown_pct = drawdown.min() * 100
 
-        # Fitness Score (A te logikád: büntetjük a nagy visszaesést)
+        # Fitness Score (A te logikad: buntetjuk a nagy visszaesest)
         fitness = sharpe_ratio
         if max_drawdown_pct < -20:
             fitness *= 0.5

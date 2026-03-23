@@ -1,6 +1,6 @@
-# Tozsde Trading System – Átfogó architektúra review
+# Tozsde Trading System - Atfogo architektura review
 
-> **Update (2026-02-09):** Stabilization + Validation completed (Sprint 12). See [SPRINTS.md](SPRINTS.md) for Phase 0–5 changes and validation tooling.
+> **Update (2026-02-09):** Stabilization + Validation completed (Sprint 12). See [SPRINTS.md](SPRINTS.md) for Phase 0-5 changes and validation tooling.
 
 ## Addendum (EN)
 This review is historical. The current system includes:
@@ -13,183 +13,183 @@ This review is historical. The current system includes:
 Ez a review historikus. A jelenlegi rendszerben:
 - Paper execution portfolio state mentessel (PaperExecutionEngine).
 - Historikus paper runner determinisztikus fallback-kel, ha nincs RL modell.
-- Döntesek es outcome-ok SQLite-ban, pozicio meretezessel.
+- Dontesek es outcome-ok SQLite-ban, pozicio meretezessel.
 - Phase 5 es Phase 6 validacios tooling, riport integracioval.
 
 ## 0. Kontextus
-- Áttekintett fő belépési pontok és modulok: main.py, app/config/config.py, app/data_access/*, app/analysis/*, app/indicators/*, app/decision/*, app/backtesting/*, app/models/*, app/optimization/*, app/reporting/*, app/notifications/*, app/infrastructure/*, app/ui/*, app/scripts/*, run_dev.py.
-- Cél: a jelenlegi állapot felmérése és értékelése (javítási javaslatok nélkül).
+- Attekintett fo belepesi pontok es modulok: main.py, app/config/config.py, app/data_access/*, app/analysis/*, app/indicators/*, app/decision/*, app/backtesting/*, app/models/*, app/optimization/*, app/reporting/*, app/notifications/*, app/infrastructure/*, app/ui/*, app/scripts/*, run_dev.py.
+- Cel: a jelenlegi allapot felmerese es ertekelese (javitasi javaslatok nelkul).
 
 ---
 
-## 1. PROJECT OVERVIEW (összefoglaló)
-**Alkalmazás célja:** End‑to‑end kvantitatív kereskedési rendszer. Központi funkciók: piaci adatok begyűjtése és tárolása, indikátor‑ és RL‑alapú döntéshozatal, napi ajánlások generálása, backtesting és walk‑forward optimalizáció, admin UI és értesítések.
+## 1. PROJECT OVERVIEW (osszefoglalo)
+**Alkalmazas celja:** Endtoend kvantitativ kereskedesi rendszer. Kozponti funkciok: piaci adatok begyujtese es tarolasa, indikator es RLalapu donteshozatal, napi ajanlasok generalasa, backtesting es walkforward optimalizacio, admin UI es ertesitesek.
 
-**Fő komponensek:**
-- **Belépési pontok / Orchestration:** main.py (daily/weekly/monthly pipeline), run_dev.py (dev mód)
-- **Konfiguráció:** app/config/config.py
-- **Adatelérés és tárolás (SQLite):** app/data_access/data_manager.py, data_loader.py
-- **Indikátorok és elemzés:** app/analysis/analyzer.py, app/indicators/technical.py
-- **Döntési logika:** app/decision/* (RL ensemble, policy, safety, allocation)
-- **Backtesting / Walk‑forward:** app/backtesting/*
+**Fo komponensek:**
+- **Belepesi pontok / Orchestration:** main.py (daily/weekly/monthly pipeline), run_dev.py (dev mod)
+- **Konfiguracio:** app/config/config.py
+- **Adateleres es tarolas (SQLite):** app/data_access/data_manager.py, data_loader.py
+- **Indikatorok es elemzes:** app/analysis/analyzer.py, app/indicators/technical.py
+- **Dontesi logika:** app/decision/* (RL ensemble, policy, safety, allocation)
+- **Backtesting / Walkforward:** app/backtesting/*
 - **Modellek (RL/ML/LSTM):** app/models/*
-- **Optimalizáció (GA):** app/optimization/*
+- **Optimalizacio (GA):** app/optimization/*
 - **Reporting / Audit:** app/reporting/*
-- **Értesítések:** app/notifications/*
+- **Ertesitesek:** app/notifications/*
 - **Infra / Ops:** app/infrastructure/*
 - **UI:** app/ui/*
 
-**Interakciók röviden:**
-- Daily pipeline: adatbetöltés → RL ensemble döntés → safety/policy → allokáció → DB mentés → email.
-- Weekly/Monthly: megbízhatósági elemzés + walk‑forward + RL tréning.
-- Admin UI: monitoring és teljesítmény riportok.
+**Interakciok roviden:**
+- Daily pipeline: adatbetoltes -> RL ensemble dontes -> safety/policy -> allokacio -> DB mentes -> email.
+- Weekly/Monthly: megbizhatosagi elemzes + walkforward + RL trening.
+- Admin UI: monitoring es teljesitmeny riportok.
 
 ---
 
-## 2. FUNKCIONÁLIS TELJESSÉG (összefoglaló)
-**Megvalósított fő funkciók:**
-- Adatbetöltés és DB cache (data_loader.py, data_manager.py)
-- Indikátorok, jelgenerálás (analyzer.py, technical.py)
-- RL ensemble inference (rl_inference.py) és döntési logika (recommender.py)
-- Safety / policy rétegek (safety_rules.py, decision_policy.py)
-- Backtesting + walk‑forward (backtester.py, walk_forward.py)
-- RL tréning (model_trainer.py)
-- Audit és reporting (audit_builder.py, reporting/*)
-- Értesítések (mailer.py, alerter.py)
+## 2. FUNKCIONALIS TELJESSEG (osszefoglalo)
+**Megvalositott fo funkciok:**
+- Adatbetoltes es DB cache (data_loader.py, data_manager.py)
+- Indikatorok, jelgeneralas (analyzer.py, technical.py)
+- RL ensemble inference (rl_inference.py) es dontesi logika (recommender.py)
+- Safety / policy retegek (safety_rules.py, decision_policy.py)
+- Backtesting + walkforward (backtester.py, walk_forward.py)
+- RL trening (model_trainer.py)
+- Audit es reporting (audit_builder.py, reporting/*)
+- Ertesitesek (mailer.py, alerter.py)
 - Admin UI (ui/app.py, ui/admin_dashboard.py)
 
-**Részben vagy gyengén integrált elemek:**
-- Decision history mentés és audit szerkezet eltérés (history_store.py ↔ data_manager.py).
-- Outcome és reliability pipeline jelenleg kettős (DB vs fájlrendszer).
-- Több modul implementációja "TODO" jelölésekkel (ui/app.py, run_dev.py, pyfolio_report.py, alerter.py).
-- Ops/cron modul több hiányzó vagy eltérő API‑t hív.
+**Reszben vagy gyengen integralt elemek:**
+- Decision history mentes es audit szerkezet elteres (history_store.py  data_manager.py).
+- Outcome es reliability pipeline jelenleg kettos (DB vs fajlrendszer).
+- Tobb modul implementacioja "TODO" jelolesekkel (ui/app.py, run_dev.py, pyfolio_report.py, alerter.py).
+- Ops/cron modul tobb hianyzo vagy eltero APIt hiv.
 
 ---
 
-## 3. ARCHITEKTÚRA ÉS DESIGN (összefoglaló)
-- **Stílus:** moduláris, réteges struktúra (data_access, decision, backtesting, models, reporting).
-- **Erősség:** jól elkülönített felelősségek a backtesting / optimization / decision területeken.
-- **Gyengeség:** globális Config‑függőség, több helyen közvetlen DB‑hívások az üzleti logikában, részleges szolgáltatásréteg hiánya.
+## 3. ARCHITEKTURA ES DESIGN (osszefoglalo)
+- **Stilus:** modularis, reteges struktura (data_access, decision, backtesting, models, reporting).
+- **Erosseg:** jol elkulonitett felelossegek a backtesting / optimization / decision teruleteken.
+- **Gyengeseg:** globalis Configfuggoseg, tobb helyen kozvetlen DBhivasok az uzleti logikaban, reszleges szolgaltatasreteg hianya.
 
 ---
 
-## 4. DATA FLOW & STATE MANAGEMENT (összefoglaló)
-- **Adatfolyam:** yfinance → SQLite → prepare_df → RL ensemble → decision/safety → DB → email.
-- **State:** SQLite DB + model fájlok (models/) + log fájlok (logs/).
-- **Kockázat:** több helyen implicit I/O és side effect (data_loader yfinance, mailer SMTP, decision history blob). DB és fájl‑alapú állapot keveredik.
+## 4. DATA FLOW & STATE MANAGEMENT (osszefoglalo)
+- **Adatfolyam:** yfinance -> SQLite -> prepare_df -> RL ensemble -> decision/safety -> DB -> email.
+- **State:** SQLite DB + model fajlok (models/) + log fajlok (logs/).
+- **Kockazat:** tobb helyen implicit I/O es side effect (data_loader yfinance, mailer SMTP, decision history blob). DB es fajlalapu allapot keveredik.
 
 ---
 
-## 5. TESZTELHETŐSÉG ÉS MEGBÍZHATÓSÁG (összefoglaló)
-- **Erős tesztek:** széles tesztlefedettség a tests/ könyvtár alapján.
-- **Kihívások:** erős Config és I/O függés, közvetlen DB/SMTP használat mockolás nélkül.
+## 5. TESZTELHETOSEG ES MEGBIZHATOSAG (osszefoglalo)
+- **Eros tesztek:** szeles tesztlefedettseg a tests/ konyvtar alapjan.
+- **Kihivasok:** eros Config es I/O fugges, kozvetlen DB/SMTP hasznalat mockolas nelkul.
 
 ---
 
-## 6. TELJESÍTMÉNY ÉS SKÁLÁZHATÓSÁG (összefoglaló)
-- **Bottleneckek:** per‑ticker download, RL modell‑betöltés, Python loop alapú backtester.
+## 6. TELJESITMENY ES SKALAZHATOSAG (osszefoglalo)
+- **Bottleneckek:** perticker download, RL modellbetoltes, Python loop alapu backtester.
 
 ---
 
-## 7. TECHNIKAI ADÓSSÁG ÉS KOCKÁZAT (összefoglaló)
-1) Decision history mentési séma és hívás mismatch (magas).
-2) Reliability pipeline DB‑fájl közti kettősség (magas).
-3) Safety drawdown guard működésképtelen (közepes).
-4) Dev/cron hívások hiányzó API‑kra (közepes).
+## 7. TECHNIKAI ADOSSAG ES KOCKAZAT (osszefoglalo)
+1) Decision history mentesi sema es hivas mismatch (magas).
+2) Reliability pipeline DBfajl kozti kettosseg (magas).
+3) Safety drawdown guard mukodeskeptelen (kozepes).
+4) Dev/cron hivasok hianyzo APIkra (kozepes).
 
 ---
 
-## 8. READINESS (összefoglaló)
-- **Backtesting:** közel kész, de néhány inkonzisztencia és placeholder csökkenti a megbízhatóságot.
-- **Paper trading:** nincs végrehajtási/portfólió motor.
-- **Live trading:** nincs broker integráció és order‑menedzsment.
+## 8. READINESS (osszefoglalo)
+- **Backtesting:** kozel kesz, de nehany inkonzisztencia es placeholder csokkenti a megbizhatosagot.
+- **Paper trading:** nincs vegrehajtasi/portfolio motor.
+- **Live trading:** nincs broker integracio es ordermenedzsment.
 
 ---
 
-# Részletes alrendszer‑review
+# Reszletes alrendszerreview
 
-## A) Belépési pontok és konfiguráció
-**Fájlok:** main.py, run_dev.py, app/config/config.py
-- **Main pipeline:** daily/weekly/monthly flows átláthatóan szervezettek. A daily pipeline adatbetöltéstől a döntés mentésig és emailig végigfut.
-- **Config:** központi paraméterek és útvonalak, lazy ticker betöltés. Erős global state‑hatás.
-- **Dev runner:** több TODO, és több helyen hibás/eltérő függvényhívások (pl. main.run_walk_forward nem létezik; main.train_rl_agent sem exportált). Részben inkonzisztens a main.py API‑hoz.
+## A) Belepesi pontok es konfiguracio
+**Fajlok:** main.py, run_dev.py, app/config/config.py
+- **Main pipeline:** daily/weekly/monthly flows atlathatoan szervezettek. A daily pipeline adatbetoltestol a dontes mentesig es emailig vegigfut.
+- **Config:** kozponti parameterek es utvonalak, lazy ticker betoltes. Eros global statehatas.
+- **Dev runner:** tobb TODO, es tobb helyen hibas/eltero fuggvenyhivasok (pl. main.run_walk_forward nem letezik; main.train_rl_agent sem exportalt). Reszben inkonzisztens a main.py APIhoz.
 
 ## B) Data Access & Storage
-**Fájlok:** app/data_access/data_manager.py, data_loader.py, data_cleaner.py, market_context.py
-- **DataManager:** SQLite schema és DAO réteg jól szervezett; több táblát támogat (ohlcv, recommendations, decision_history, pipeline_metrics, market_metadata).
-- **DataLoader:** yfinance alapú letöltés és DB cache. Single source of truth a DB‑ből.
-- **Market context:** VIX/IRX frissítés DB‑be.
-- **Kockázat:** DataManager.save_history_record signature és decision history schema nem egyezik a HistoryStore használatával (explanation field). DataLoader implicit network side effects.
+**Fajlok:** app/data_access/data_manager.py, data_loader.py, data_cleaner.py, market_context.py
+- **DataManager:** SQLite schema es DAO reteg jol szervezett; tobb tablat tamogat (ohlcv, recommendations, decision_history, pipeline_metrics, market_metadata).
+- **DataLoader:** yfinance alapu letoltes es DB cache. Single source of truth a DBbol.
+- **Market context:** VIX/IRX frissites DBbe.
+- **Kockazat:** DataManager.save_history_record signature es decision history schema nem egyezik a HistoryStore hasznalataval (explanation field). DataLoader implicit network side effects.
 
 ## C) Analysis & Indicators
-**Fájlok:** app/analysis/analyzer.py, app/indicators/technical.py
-- **Analyzer:** indikátorok és signal‑logika, paraméter‑fallback logika.
-- **Indicators:** széles indikátor készlet, caching, pandas‑alapú EMA; jól dokumentált.
-- **Kockázat:** compute_signals jelenleg korlátozott per‑bar jel logika (csak EMA/SMA), a többi indikátor per‑bar jel nem integrált.
+**Fajlok:** app/analysis/analyzer.py, app/indicators/technical.py
+- **Analyzer:** indikatorok es signallogika, parameterfallback logika.
+- **Indicators:** szeles indikator keszlet, caching, pandasalapu EMA; jol dokumentalt.
+- **Kockazat:** compute_signals jelenleg korlatozott perbar jel logika (csak EMA/SMA), a tobbi indikator perbar jel nem integralt.
 
 ## D) Decisioning & Policy
-**Fájlok:** app/decision/* (recommender.py, decision_engine.py, safety_rules.py, decision_policy.py, recommendation_builder.py, ensemble_aggregator.py, decision_reliability.py)
-- **Ensemble:** RL model votes + confidence + WF score aggregáció.
-- **Policy:** reliability‑alapú trade engedélyezés és reward hint.
-- **Safety:** cooldown, drawdown guard, VIX és bear market guard.
-- **Kockázat:** drawdown guard outcomes adatra támaszkodik, de nincs outcomes tábla (fetch_recent_outcomes stub). Safety engine DataManager‑t hív (DB‑függés).
+**Fajlok:** app/decision/* (recommender.py, decision_engine.py, safety_rules.py, decision_policy.py, recommendation_builder.py, ensemble_aggregator.py, decision_reliability.py)
+- **Ensemble:** RL model votes + confidence + WF score aggregacio.
+- **Policy:** reliabilityalapu trade engedelyezes es reward hint.
+- **Safety:** cooldown, drawdown guard, VIX es bear market guard.
+- **Kockazat:** drawdown guard outcomes adatra tamaszkodik, de nincs outcomes tabla (fetch_recent_outcomes stub). Safety engine DataManagert hiv (DBfugges).
 
 ## E) Allocation & Portfolio Optimization
-**Fájlok:** app/decision/allocation.py, risk_parity.py, capital_optimizer.py, confidence_allocator.py, rebalancer.py, etf_allocator.py, portfolio_correlation_manager.py
-- **Allocation:** inverse‑vol + correlation penalty, de enforce_correlation_limits nincs integrálva a daily pipeline‑ba.
-- **Risk parity / correlation manager:** fejlettebb allokációs logika, viszont fő pipeline nem használja.
-- **Capital optimizer / confidence allocator / rebalancer / ETF allocator:** moduláris, de jelenleg izolált (nincs látványos integráció).
+**Fajlok:** app/decision/allocation.py, risk_parity.py, capital_optimizer.py, confidence_allocator.py, rebalancer.py, etf_allocator.py, portfolio_correlation_manager.py
+- **Allocation:** inversevol + correlation penalty, de enforce_correlation_limits nincs integralva a daily pipelineba.
+- **Risk parity / correlation manager:** fejlettebb allokacios logika, viszont fo pipeline nem hasznalja.
+- **Capital optimizer / confidence allocator / rebalancer / ETF allocator:** modularis, de jelenleg izolalt (nincs latvanyos integracio).
 
 ## F) Backtesting, Audit, Replay
-**Fájlok:** app/backtesting/backtester.py, walk_forward.py, history_store.py, replay_runner.py, backtest_audit.py, outcome_evaluator.py, reward_engine.py, dataset_builder.py, training_dataset.py, transaction_costs.py
-- **Backtester:** egyetlen ticker per futás, indikátorokra támaszkodó trade logika.
-- **Walk‑forward:** GA‑val együttműködve, időablak‑kezeléssel.
-- **Replay/audit:** döntések determinisztikus visszajátszása és reward számítása.
-- **Kockázat:** decision history mentésben schema‑mismatch; outcome_evaluator audit_blob‑ot módosít, de a pipeline másik irányban ír döntéseket; integráció töredezett.
+**Fajlok:** app/backtesting/backtester.py, walk_forward.py, history_store.py, replay_runner.py, backtest_audit.py, outcome_evaluator.py, reward_engine.py, dataset_builder.py, training_dataset.py, transaction_costs.py
+- **Backtester:** egyetlen ticker per futas, indikatorokra tamaszkodo trade logika.
+- **Walkforward:** GAval egyuttmukodve, idoablakkezelessel.
+- **Replay/audit:** dontesek determinisztikus visszajatszasa es reward szamitasa.
+- **Kockazat:** decision history mentesben schemamismatch; outcome_evaluator audit_blobot modosit, de a pipeline masik iranyban ir donteseket; integracio toredezett.
 
 ## G) Modellek (RL/ML/LSTM)
-**Fájlok:** app/models/rl_inference.py, model_trainer.py, ml_predictor.py, lstm_predictor.py, model_output.py
-- **RL:** PPO/DQN inference és tréning. TradingEnv obs‑struktúra rugalmas.
-- **ML/LSTM:** külön prediktorok scikit‑learn / PyTorch alapokon, de nincs a döntési pipeline‑ba bekötve.
-- **Kockázat:** ML/LSTM modulok potenciálisan árnyékban, nincs integráció a döntési láncba.
+**Fajlok:** app/models/rl_inference.py, model_trainer.py, ml_predictor.py, lstm_predictor.py, model_output.py
+- **RL:** PPO/DQN inference es trening. TradingEnv obsstruktura rugalmas.
+- **ML/LSTM:** kulon prediktorok scikitlearn / PyTorch alapokon, de nincs a dontesi pipelineba bekotve.
+- **Kockazat:** ML/LSTM modulok potencialisan arnyekban, nincs integracio a dontesi lancba.
 
 ## H) Optimization (GA)
-**Fájlok:** app/optimization/genetic_optimizer.py, fitness.py, ga_wf_normalizer.py
-- **GA:** DEAP‑alapú optimalizáció paraméterekre, jó logolással.
-- **Fitness:** single és WF score számítás.
-- **Kockázat:** hosszú futások, compute intenzív; pipeline‑ba kapcsolás csak monthly walk‑forwardban.
+**Fajlok:** app/optimization/genetic_optimizer.py, fitness.py, ga_wf_normalizer.py
+- **GA:** DEAPalapu optimalizacio parameterekre, jo logolassal.
+- **Fitness:** single es WF score szamitas.
+- **Kockazat:** hosszu futasok, compute intenziv; pipelineba kapcsolas csak monthly walkforwardban.
 
 ## I) Reporting & Analytics
-**Fájlok:** app/reporting/audit_builder.py, metrics.py, performance_analytics.py, pyfolio_report.py, plotter.py
-- **Audit builder:** decision meta és audit summary.
-- **Performance analytics:** részletes metrikák és drawdown analitika.
-- **PyFolio:** opcionális, több TODO.
-- **Plotter:** lazy import, rugalmas grafikon generálás.
+**Fajlok:** app/reporting/audit_builder.py, metrics.py, performance_analytics.py, pyfolio_report.py, plotter.py
+- **Audit builder:** decision meta es audit summary.
+- **Performance analytics:** reszletes metrikak es drawdown analitika.
+- **PyFolio:** opcionalis, tobb TODO.
+- **Plotter:** lazy import, rugalmas grafikon generalas.
 
 ## J) Notifications
-**Fájlok:** app/notifications/mailer.py, alerter.py, email_formatter.py
-- **Mailer:** SMTP alapú küldés.
-- **Alerter:** kritikus/warning események, több TODO (pl. remediation mapping teljes).
-- **Kockázat:** több helyen hiányzó / részlegesen implementált döntés az alert‑küldésre.
+**Fajlok:** app/notifications/mailer.py, alerter.py, email_formatter.py
+- **Mailer:** SMTP alapu kuldes.
+- **Alerter:** kritikus/warning esemenyek, tobb TODO (pl. remediation mapping teljes).
+- **Kockazat:** tobb helyen hianyzo / reszlegesen implementalt dontes az alertkuldesre.
 
 ## K) Infrastructure / Ops
-**Fájlok:** app/infrastructure/logger.py, metrics.py, error_reporter.py, health_check.py, backup_manager.py, log_manager.py, cron_tasks.py, decision_logger.py
-- **Logger/metrics:** egységes logging, pipeline metrics DB‑be.
-- **Backup/log manager:** Pi deployment orientált, jól strukturált.
-- **Health check:** átfogó, API + DB + rendszer erőforrások.
-- **Cron tasks:** több régi/eltérő API‑ra hivatkozik (DataManager.update_market_data, DecisionEngine.generate_recommendations), ami nem található a jelenlegi kódban.
+**Fajlok:** app/infrastructure/logger.py, metrics.py, error_reporter.py, health_check.py, backup_manager.py, log_manager.py, cron_tasks.py, decision_logger.py
+- **Logger/metrics:** egyseges logging, pipeline metrics DBbe.
+- **Backup/log manager:** Pi deployment orientalt, jol strukturalt.
+- **Health check:** atfogo, API + DB + rendszer eroforrasok.
+- **Cron tasks:** tobb regi/eltero APIra hivatkozik (DataManager.update_market_data, DecisionEngine.generate_recommendations), ami nem talalhato a jelenlegi kodban.
 
 ## L) UI
-**Fájlok:** app/ui/app.py, app/ui/admin_dashboard.py
-- **Admin dashboard:** több teljesítmény és monitoring endpoint; auth kulccsal védett.
-- **Dev endpoints:** több TODO (pl. dev/status, dev/config, dev/metrics), részben implementált.
+**Fajlok:** app/ui/app.py, app/ui/admin_dashboard.py
+- **Admin dashboard:** tobb teljesitmeny es monitoring endpoint; auth kulccsal vedett.
+- **Dev endpoints:** tobb TODO (pl. dev/status, dev/config, dev/metrics), reszben implementalt.
 
 ## M) Scripts
-**Fájlok:** app/scripts/apply_schema.py, app/scripts/smoke_test.py
-- **apply_schema:** DB inicializálás.
-- **smoke_test:** gyors ellenőrzés (tickers + DB táblák).
+**Fajlok:** app/scripts/apply_schema.py, app/scripts/smoke_test.py
+- **apply_schema:** DB inicializalas.
+- **smoke_test:** gyors ellenorzes (tickers + DB tablak).
 
 ---
 
-# Záró megjegyzés
-Ez a dokumentum kizárólag a jelenlegi állapot értékelése. A következő lépésben (ha kéred) tudok javasolni konkrét javítási irányokat és refaktorokat alrendszer‑szinten.
+# Zaro megjegyzes
+Ez a dokumentum kizarolag a jelenlegi allapot ertekelese. A kovetkezo lepesben (ha kered) tudok javasolni konkret javitasi iranyokat es refaktorokat alrendszerszinten.

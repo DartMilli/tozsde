@@ -12,7 +12,6 @@ import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
 from datetime import date
-from app.config.config import Config
 from app.decision.recommendation_builder import build_recommendation
 from app.decision.decision_policy import apply_decision_policy
 from app.decision.allocation import allocate_capital

@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 from datetime import date, datetime, timedelta
 
-from app.config.config import Config
+from app.validation import get_settings
+from app.data_access.data_loader import get_supported_ticker_list
 
 
 def _parse_date(value: str | None, fallback: date) -> date:
@@ -22,14 +23,23 @@ def get_validation_ticker() -> str:
     if ticker:
         return ticker
     try:
-        return Config.get_supported_tickers()[0]
+        settings = get_settings()
+        if settings.TICKERS:
+            return settings.TICKERS[0]
+        excluded = set(getattr(settings, "EXCLUDED_TICKERS", []))
+        for supported in get_supported_ticker_list():
+            if supported not in excluded:
+                return supported
+        return "VOO"
     except Exception:
         return "VOO"
 
 
 def get_validation_window() -> tuple[date, date]:
-    default_start = _parse_date(Config.START_DATE, date.today() - timedelta(days=365))
-    default_end = _parse_date(Config.END_DATE, date.today())
+    default_start = _parse_date(
+        get_settings().START_DATE, date.today() - timedelta(days=365)
+    )
+    default_end = _parse_date(get_settings().END_DATE, date.today())
 
     start = _parse_date(os.getenv("VALIDATION_START_DATE"), default_start)
     end = _parse_date(os.getenv("VALIDATION_END_DATE"), default_end)

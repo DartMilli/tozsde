@@ -141,7 +141,7 @@ def build_validation_markdown(args, report) -> str:
         "",
         "## Validation Snapshot",
         f"- **Ticker:** {args.ticker or 'ALL'}",
-        f"- **Date range:** {args.start_date or 'N/A'} → {args.end_date or 'N/A'}",
+        f"- **Date range:** {args.start_date or 'N/A'} -> {args.end_date or 'N/A'}",
         f"- **Scenario:** {args.scenario}",
         "",
     ]

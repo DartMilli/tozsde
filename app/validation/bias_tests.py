@@ -1,6 +1,6 @@
 """
 bias_tests.py
-Lookahead és leakage detektálás.
+Lookahead es leakage detektalas.
 
 Helye:
 app/validation/bias_tests.py
@@ -28,7 +28,7 @@ def run_bias_tests() -> dict:
 
 
 # --- Stub ---
-# Ezt a projekted backtesterére kell rákötni
+# Ezt a projekted backtesterere kell rakotni
 
 
 def run_backtest(execution_mode: str, fixed_position_pct: float | None = None) -> dict:

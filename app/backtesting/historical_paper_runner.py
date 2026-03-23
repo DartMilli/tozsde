@@ -5,10 +5,12 @@ from typing import Optional
 import pandas as pd
 
 from app.backtesting.history_store import HistoryStore
-from app.config.config import Config
-from app.data_access.data_manager import DataManager
-from app.decision.position_sizer import apply_position_sizing
-from app.decision.volatility import compute_normalized_volatility
+from app.backtesting import get_settings
+
+# Avoid import-time get_settings(); settings injected at runtime
+settings = None
+from app.core.decision.position_sizer import apply_position_sizing
+from app.core.decision.volatility import compute_normalized_volatility
 from app.data_access.data_cleaner import prepare_df
 from app.reporting.audit_builder import build_audit_metadata
 from app.models.model_trainer import TradingEnv
@@ -19,6 +21,7 @@ from app.services.dependencies import (
 )
 from app.services.paper_execution import PaperExecutionEngine
 from app.services.trading_pipeline import TradingPipelineService
+from app.infrastructure.repositories import DataManagerRepository
 
 
 class HistoricalPaperRunner:
@@ -28,7 +31,9 @@ class HistoricalPaperRunner:
 
     def __init__(self, logger: Optional[logging.Logger] = None):
         self.logger = logger or logging.getLogger(__name__)
-        self.dm = DataManager()
+        cfg = get_settings()
+        self.state_repo = DataManagerRepository(settings=cfg)
+        self.dm = self.state_repo
 
     def run(self, ticker: str, start_date: str, end_date: str) -> None:
         self.dm.initialize_tables()
@@ -39,15 +44,17 @@ class HistoricalPaperRunner:
                 "Historical runner fallback enabled (no RL model files found)."
             )
 
+        cfg = get_settings()
         pipeline = TradingPipelineService(
             history_store=HistoryStore(),
             logger=self.logger,
             data_fetcher=MarketDataFetcher(),
             model_runner=ModelEnsembleRunner(
-                model_dir=Config.MODEL_DIR, env_class=TradingEnv
+                model_dir=getattr(cfg, "MODEL_DIR", None), env_class=TradingEnv
             ),
             email_notifier=EmailNotifier(),
             execution_engine=PaperExecutionEngine(self.dm, self.logger),
+            state_repo=self.state_repo,
         )
 
         days = pd.bdate_range(start=start_date, end=end_date)
@@ -106,9 +113,10 @@ class HistoricalPaperRunner:
                     )
                     item["decision_id"] = decision_id
 
-            if Config.ENABLE_POSITION_SIZING and finalized:
+            cfg = get_settings()
+            if getattr(cfg, "ENABLE_POSITION_SIZING", False) and finalized:
                 latest = self.dm.fetch_latest_portfolio_state(source="paper")
-                equity = latest.get("equity", Config.INITIAL_CAPITAL)
+                equity = latest.get("equity", getattr(cfg, "INITIAL_CAPITAL", 0.0))
                 finalized = [
                     apply_position_sizing(item, equity=equity) for item in finalized
                 ]
@@ -133,8 +141,9 @@ class HistoricalPaperRunner:
             pipeline.execute_trades(finalized, as_of=as_of)
 
     def _should_use_fallback(self) -> bool:
-        model_dir = Config.MODEL_DIR
-        if not model_dir.exists():
+        cfg = get_settings()
+        model_dir = getattr(cfg, "MODEL_DIR", None)
+        if model_dir is None or not model_dir.exists():
             return True
         return not any(model_dir.glob("*.zip"))
 

@@ -7,12 +7,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.config.config import Config
+from app.config import get_conf
 from app.analysis.phase6_validator import Phase6Validator
 
 
 def main():
-    conn = sqlite3.connect(str(Config.DB_PATH))
+    cfg = get_conf(None)
+    conn = sqlite3.connect(str(getattr(cfg, "DB_PATH")))
     cur = conn.cursor()
 
     validation_equal = None

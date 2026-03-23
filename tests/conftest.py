@@ -12,6 +12,7 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
+from dataclasses import replace
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -21,36 +22,150 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.config.config import Config
+from app.config.build_settings import build_settings
 from app.data_access.data_manager import DataManager
 
 
+def _apply_settings(settings):
+    try:
+        from app import analysis
+
+        analysis.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app import backtesting
+
+        backtesting.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app import data_access
+
+        data_access.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app import decision
+
+        decision.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app import governance
+
+        governance.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app import models
+
+        models.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app import infrastructure
+
+        infrastructure.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app import ui
+
+        ui.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app import validation
+
+        validation.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app.reporting import audit_builder
+
+        audit_builder.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app.reporting import plotter
+
+        plotter.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app.notifications import alerter
+
+        alerter.set_settings(settings)
+    except Exception:
+        pass
+    try:
+        from app.ui import app as ui_app
+
+        ui_app.settings = settings
+        ui_app.app.secret_key = settings.SECRET_KEY
+    except Exception:
+        pass
+
+
+def _build_test_settings(tmpdir: Path):
+    base = build_settings(ensure_dirs=False)
+    data_dir = tmpdir / "data"
+    log_dir = tmpdir / "logs"
+    reports_dir = tmpdir / "reports"
+    chart_dir = tmpdir / "charts"
+    diagnostics_dir = tmpdir / "diagnostics"
+    history_dir = tmpdir / "decision_history"
+    decision_log_dir = tmpdir / "decision_logs"
+    decision_outcome_dir = tmpdir / "decision_outcomes"
+    model_dir = tmpdir / "models"
+    tensorboard_dir = tmpdir / "tensorboard"
+    model_reliability_dir = log_dir / "model_reliability"
+    data_dir.mkdir(exist_ok=True)
+    log_dir.mkdir(exist_ok=True)
+    reports_dir.mkdir(exist_ok=True)
+    chart_dir.mkdir(exist_ok=True)
+    diagnostics_dir.mkdir(exist_ok=True)
+    history_dir.mkdir(exist_ok=True)
+    decision_log_dir.mkdir(exist_ok=True)
+    decision_outcome_dir.mkdir(exist_ok=True)
+    model_dir.mkdir(exist_ok=True)
+    tensorboard_dir.mkdir(exist_ok=True)
+    model_reliability_dir.mkdir(exist_ok=True)
+
+    return replace(
+        base,
+        DATA_DIR=data_dir,
+        LOG_DIR=log_dir,
+        REPORTS_DIR=reports_dir,
+        CHART_DIR=chart_dir,
+        DIAGNOSTICS_DIR=diagnostics_dir,
+        HISTORY_DIR=history_dir,
+        DECISION_LOG_DIR=decision_log_dir,
+        DECISION_OUTCOME_DIR=decision_outcome_dir,
+        MODEL_DIR=model_dir,
+        TENSORBOARD_DIR=tensorboard_dir,
+        MODEL_RELIABILITY_DIR=model_reliability_dir,
+        DB_PATH=data_dir / "test.db",
+        PARAMS_FILE_PATH=data_dir / "optimized_params.json",
+        FAILED_DAYS_FILE_PATH=data_dir / "failed_to_download.json",
+        MODEL_TEST_RESULT_FILE_PATH=data_dir / "model_test_result.json",
+    )
+
+
 @pytest.fixture(scope="function")
-def test_db():
+def test_settings(tmp_path):
+    settings = _build_test_settings(tmp_path)
+    _apply_settings(settings)
+    return settings
+
+
+@pytest.fixture(scope="function")
+def test_db(test_settings):
     """Create temporary test database that persists across session."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # Store original paths
-        original_data_dir = Config.DATA_DIR
-        original_db_path = Config.DB_PATH
-        original_log_dir = Config.LOG_DIR
-
-        # Override with temp paths
-        Config.DATA_DIR = Path(tmpdir) / "data"
-        Config.DATA_DIR.mkdir(exist_ok=True)
-        Config.DB_PATH = Config.DATA_DIR / "test.db"
-        Config.LOG_DIR = Path(tmpdir) / "logs"
-        Config.LOG_DIR.mkdir(exist_ok=True)
-
-        # Initialize database
-        dm = DataManager()
-        dm.initialize_tables()
-
-        yield dm
-
-        # Restore original paths
-        Config.DATA_DIR = original_data_dir
-        Config.DB_PATH = original_db_path
-        Config.LOG_DIR = original_log_dir
+    dm = DataManager(settings=test_settings)
+    dm.initialize_tables()
+    return dm
 
 
 @pytest.fixture(scope="function")

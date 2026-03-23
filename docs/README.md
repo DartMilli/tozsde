@@ -108,7 +108,7 @@ python scripts/run_all_tests.py
 - .github/workflows/train_models.yml: model training (minimal/full) when required.
 	- Usage: GitHub -> Actions -> "train-models" -> Run workflow (mode minimal or full).
 
-Note: deploy_rpi.sh does not run RL training; Pi cron covers daily/weekly/GA monthly tasks only.
+Note: deploy_rpi.sh supports optional RL training and optional RL cron via environment variables.
 
 ### Notes
 - Historical paper runner uses a fallback HOLD decision if no RL model files are present.
@@ -117,15 +117,15 @@ Note: deploy_rpi.sh does not run RL training; Pi cron covers daily/weekly/GA mon
 ## Magyar
 
 ### Attekintes
-A Tozsde egy Python alapú kereskedési rendszer, amely napi döntési pipeline-t futtat, auditálható döntéseket és outcome-okat ment SQLite-ba, valamint backtestinget, historikus paper futtatást és validációs toolingot ad (Phase 5 és Phase 6). Támogatja a paper végrehajtást, model ensemble-t, pozícióméretezést és megbízhatóság-elemzést, monitorozási és karbantartási eszközökkel.
+A Tozsde egy Python alapu kereskedesi rendszer, amely napi dontesi pipeline-t futtat, auditalhato donteseket es outcome-okat ment SQLite-ba, valamint backtestinget, historikus paper futtatast es validacios toolingot ad (Phase 5 es Phase 6). Tamogatja a paper vegrehajtast, model ensemble-t, poziciomeretezest es megbizhatosag-elemzest, monitorozasi es karbantartasi eszkozokkel.
 
-### Funkciotérkép (részletes)
-- Napi pipeline: adatbetöltés, jelgenerálás, policy, allokáció, mentés, értesítés.
-- Paper execution: portfolio state és outcome számítás.
-- Historikus paper runner: determinisztikus visszatöltés; fallback HOLD döntés, ha nincs RL modell.
-- Validáció: döntési minőség, kalibráció, walk-forward stabilitás, safety stress, Phase 6 ellenőrzések.
-- Backtesting és audit: replay, audit nyomvonalak, reward shaping elemzés, riportok.
-- Ops tooling: health check, backup, error reporting, cron ütemezés, log menedzsment.
+### Funkcioterkep (reszletes)
+- Napi pipeline: adatbetoltes, jelgeneralas, policy, allokacio, mentes, ertesites.
+- Paper execution: portfolio state es outcome szamitas.
+- Historikus paper runner: determinisztikus visszatoltes; fallback HOLD dontes, ha nincs RL modell.
+- Validacio: dontesi minoseg, kalibracio, walk-forward stabilitas, safety stress, Phase 6 ellenorzesek.
+- Backtesting es audit: replay, audit nyomvonalak, reward shaping elemzes, riportok.
+- Ops tooling: health check, backup, error reporting, cron utemezes, log menedzsment.
 
 ### Gyors Start (Windows IDE)
 ```bash
@@ -149,21 +149,21 @@ python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-
 ```
 
 ### Adat es tarolas
-- SQLite tarolja a döntéseket, outcome-okat, portfolio state-et és validációs metrikákat.
-- Piaci adatok a data loaderen keresztül jönnek, OHLCV-kent mentve.
-- Decision history tartalmazza a model vote-okat, auditot és pozícióméretezést.
+- SQLite tarolja a donteseket, outcome-okat, portfolio state-et es validacios metrikakat.
+- Piaci adatok a data loaderen keresztul jonnek, OHLCV-kent mentve.
+- Decision history tartalmazza a model vote-okat, auditot es poziciomeretezest.
 
 ### Validacio es riport
-- Phase 5: döntési minőség, kalibráció, WF stabilitás, safety stress.
-- Phase 6: hatékonyság, pozícióméretezés monotonitás, model trust, reward shaping, promotion gate.
-- Validáció beírása a teszt riportba:
+- Phase 5: dontesi minoseg, kalibracio, WF stabilitas, safety stress.
+- Phase 6: hatekonysag, poziciomeretezes monotonitas, model trust, reward shaping, promotion gate.
+- Validacio beirasa a teszt riportba:
 
 ```bash
 python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
 
 ### Admin API (kiemelt endpointok)
-Az admin endpointokhoz X-Admin-Key header szükséges (Config.ADMIN_API_KEY).
+Az admin endpointokhoz X-Admin-Key header szukseges (Config.ADMIN_API_KEY).
 
 - GET /admin/health
 - GET /admin/performance/summary?days=30
@@ -173,11 +173,17 @@ Az admin endpointokhoz X-Admin-Key header szükséges (Config.ADMIN_API_KEY).
 - GET /admin/capital/status
 
 ### Tesztek
-- Legfrissebb teszt statusz: docs/testing/TEST_STATUS_REPORT.md
+- Legfrissebb teszt statusz es coverage: docs/testing/TEST_STATUS_REPORT.md
 - Lokalis futtatas:
 
 ```bash
 pytest
+```
+
+- Teljes suite:
+
+```bash
+python scripts/run_all_tests.py
 ```
 
 ### Projekt szerkezet (jelenlegi)
@@ -193,5 +199,5 @@ pytest
 - docs/deployment Raspberry Pi telepites
 
 ### Megjegyzesek
-- A historikus paper runner fallback HOLD döntest ad, ha nincs RL modell.
-- Validáció outcome-ok nélkül no_data-t ad az effectiveness/trust metrikákra.
+- A historikus paper runner fallback HOLD dontest ad, ha nincs RL modell.
+- Validacio outcome-ok nelkul no_data-t ad az effectiveness/trust metrikakra.

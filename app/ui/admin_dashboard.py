@@ -16,9 +16,9 @@ Key Features:
 
 from flask import Blueprint, jsonify, request
 from typing import Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
-from app.config.config import Config
+from app.ui import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,40 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 def _check_admin_auth():
     """Verify admin API key from request header."""
     api_key = request.headers.get("X-Admin-Key")
-    return api_key == Config.ADMIN_API_KEY
+    if not api_key:
+        return False
+
+    # 1) Check injected package settings
+    try:
+        s = get_settings()
+        if getattr(s, "ADMIN_API_KEY", None) == api_key:
+            return True
+        if getattr(s, "admin_api_key", None) == api_key:
+            return True
+    except Exception:
+        pass
+
+    # 2) Check app-level settings from UI app module (stable fallback)
+    try:
+        from app.ui.app import settings as app_settings
+
+        if getattr(app_settings, "ADMIN_API_KEY", None) == api_key:
+            return True
+        if getattr(app_settings, "admin_api_key", None) == api_key:
+            return True
+    except Exception:
+        pass
+
+    # 3) Check Flask app config
+    try:
+        from app.ui.app import app as _app
+
+        if _app.config.get("ADMIN_API_KEY") == api_key:
+            return True
+    except Exception:
+        pass
+
+    return False
 
 
 def _parse_positive_int(value, default: int, field_name: str):
@@ -42,6 +75,15 @@ def _parse_positive_int(value, default: int, field_name: str):
         return parsed, None
     except (TypeError, ValueError):
         return None, f"Invalid {field_name}"
+
+
+def _parse_date(value: str):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
 
 
 @admin_bp.before_request
@@ -68,6 +110,92 @@ def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+
+@admin_bp.route("/dashboard", methods=["GET"])
+def dashboard():
+    """Admin-only dashboard with system health and recent decisions."""
+    try:
+        from app.infrastructure.metrics import get_metrics
+
+        metrics = get_metrics()
+        today = datetime.today().strftime("%Y-%m-%d")
+
+        try:
+            from app.ui.app import _create_data_repository
+
+            recommendations = _create_data_repository().get_today_recommendations()
+        except Exception:
+            recommendations = []
+
+        health = metrics.get_health_status()
+        recent_metrics = metrics.get_recent_metrics(hours=24)
+        daily_summary = metrics.get_daily_summary(today)
+
+        return (
+            jsonify(
+                {
+                    "status": health.get("status", "unknown"),
+                    "date": today,
+                    "health": health,
+                    "metrics": recent_metrics,
+                    "daily_summary": daily_summary,
+                    "recommendations_today": (
+                        len(recommendations) if recommendations else 0
+                    ),
+                    "last_update": datetime.now(timezone.utc).isoformat(),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        logger.error(f"Dashboard error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/metrics", methods=["GET"])
+def metrics_summary():
+    """Get system metrics for monitoring."""
+    try:
+        from app.infrastructure.metrics import get_metrics
+
+        metrics = get_metrics()
+
+        hours = request.args.get("hours", 24, type=int)
+        date_value = request.args.get("date", None, type=str)
+
+        if date_value and not _parse_date(date_value):
+            return jsonify({"error": "Invalid date. Use YYYY-MM-DD."}), 400
+
+        if date_value:
+            summary = metrics.get_daily_summary(date_value)
+            return jsonify({"date_summary": summary}), 200
+
+        recent = metrics.get_recent_metrics(hours=hours)
+        health = metrics.get_health_status()
+        return jsonify({"metrics": recent, "health": health}), 200
+    except Exception as e:
+        logger.error(f"Metrics error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/force-rebalance", methods=["POST"])
+def force_rebalance():
+    """Manual trigger for portfolio rebalancing."""
+    try:
+        return (
+            jsonify(
+                {
+                    "status": "rebalance_initiated",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "message": "Rebalancing triggered manually",
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        logger.error(f"Rebalance trigger error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @admin_bp.route("/performance/summary", methods=["GET"])
@@ -254,7 +382,8 @@ def get_pyfolio_report():
         import pandas as pd
 
         try:
-            analytics = PerformanceAnalytics(db_path=str(Config.DB_PATH))
+            cfg = get_settings()
+            analytics = PerformanceAnalytics(db_path=str(getattr(cfg, "DB_PATH")))
         except TypeError:
             analytics = PerformanceAnalytics()
         returns, dates = analytics.load_returns_from_db(days_back=days)

@@ -8,7 +8,7 @@ import numpy as np
 
 from app.analysis.analyzer import get_params
 from app.backtesting.backtester import Backtester
-from app.config.config import Config
+from app.validation import get_settings
 from app.data_access.data_loader import ensure_data_cached, load_data
 from app.validation.utils import get_validation_ticker
 
@@ -67,10 +67,19 @@ def analyze_trade_quality(
     if params is None:
         params = get_params(ticker)
 
-    if not ensure_data_cached(ticker, start=Config.START_DATE, end=Config.END_DATE):
+    cfg = get_settings()
+    if not ensure_data_cached(
+        ticker,
+        start=getattr(cfg, "START_DATE"),
+        end=getattr(cfg, "END_DATE"),
+    ):
         return {"status": "no_data", "ticker": ticker}
 
-    df = load_data(ticker, start=Config.START_DATE, end=Config.END_DATE)
+    df = load_data(
+        ticker,
+        start=getattr(cfg, "START_DATE"),
+        end=getattr(cfg, "END_DATE"),
+    )
     backtester = Backtester(df, ticker)
     report = backtester.run(params, execution_policy="next_open")
 

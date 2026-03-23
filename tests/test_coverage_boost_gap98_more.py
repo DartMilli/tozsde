@@ -8,6 +8,7 @@ import sys
 import types
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from dataclasses import replace
 
 import pandas as pd
 import pytest
@@ -381,12 +382,11 @@ def test_decision_logger_export_success(tmp_path):
     assert out_file.exists()
 
 
-def test_decision_history_analyzer_error_paths(tmp_path, monkeypatch):
+def test_decision_history_analyzer_error_paths(tmp_path, monkeypatch, test_settings):
     from app.decision.decision_history_analyzer import DecisionHistoryAnalyzer
-    from app.config.config import Config
 
     db_path = tmp_path / "history.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
+    settings = replace(test_settings, DB_PATH=db_path)
 
     conn = sqlite3.connect(str(db_path))
     conn.execute(
@@ -407,7 +407,7 @@ def test_decision_history_analyzer_error_paths(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
 
-    analyzer = DecisionHistoryAnalyzer()
+    analyzer = DecisionHistoryAnalyzer(settings=settings)
     stats = analyzer.analyze_ticker_reliability("AAA", days=1)
     assert stats.total_decisions == 0
 
@@ -421,12 +421,11 @@ def test_decision_history_analyzer_error_paths(tmp_path, monkeypatch):
     assert analyzer._load_ticker_decisions("AAA", days=1) == []
 
 
-def test_decision_history_analyzer_more_metrics(tmp_path, monkeypatch):
+def test_decision_history_analyzer_more_metrics(tmp_path, monkeypatch, test_settings):
     from app.decision.decision_history_analyzer import DecisionHistoryAnalyzer
-    from app.config.config import Config
 
     db_path = tmp_path / "history2.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
+    settings = replace(test_settings, DB_PATH=db_path)
 
     conn = sqlite3.connect(str(db_path))
     conn.execute(
@@ -447,7 +446,7 @@ def test_decision_history_analyzer_more_metrics(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
 
-    analyzer = DecisionHistoryAnalyzer()
+    analyzer = DecisionHistoryAnalyzer(settings=settings)
     assert analyzer._calculate_sharpe([0.0, 0.0]) == 0.0
     assert analyzer._classify_strategy_status(0.6, 0.1, 0.1) == "DECLINING"
     assert analyzer._classify_strategy_status(0.4, 0.1, 0.4) == "POOR"
@@ -460,12 +459,13 @@ def test_decision_history_analyzer_more_metrics(tmp_path, monkeypatch):
     assert analyzer.compute_rolling_metrics(window_days=5, total_days=30).empty
 
 
-def test_decision_history_analyzer_calibration_and_strategy(tmp_path, monkeypatch):
+def test_decision_history_analyzer_calibration_and_strategy(
+    tmp_path, monkeypatch, test_settings
+):
     from app.decision.decision_history_analyzer import DecisionHistoryAnalyzer
-    from app.config.config import Config
 
     db_path = tmp_path / "history3.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
+    settings = replace(test_settings, DB_PATH=db_path)
 
     conn = sqlite3.connect(str(db_path))
     conn.execute(
@@ -497,7 +497,7 @@ def test_decision_history_analyzer_calibration_and_strategy(tmp_path, monkeypatc
     conn.commit()
     conn.close()
 
-    analyzer = DecisionHistoryAnalyzer()
+    analyzer = DecisionHistoryAnalyzer(settings=settings)
     stats = analyzer.analyze_strategy_performance("ALL", days=90)
     assert stats.total_trades >= 1
 
@@ -509,13 +509,12 @@ def test_decision_history_analyzer_calibration_and_strategy(tmp_path, monkeypatc
     assert 0.0 <= calibration <= 1.0
 
 
-def test_data_manager_ref_date_branches(tmp_path, monkeypatch):
+def test_data_manager_ref_date_branches(tmp_path, monkeypatch, test_settings):
     from app.data_access.data_manager import DataManager
-    from app.config.config import Config
 
     db_path = tmp_path / "dm2.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-    dm = DataManager()
+    settings = replace(test_settings, DB_PATH=db_path)
+    dm = DataManager(settings=settings)
     dm.initialize_tables()
 
     dates = pd.date_range("2024-01-01", periods=5, freq="D")
@@ -539,9 +538,8 @@ def test_data_manager_ref_date_branches(tmp_path, monkeypatch):
     assert corr.empty or corr.isna().all().all()
 
 
-def test_data_loader_exception_and_main(monkeypatch, tmp_path):
+def test_data_loader_exception_and_main(monkeypatch, tmp_path, test_settings):
     import app.data_access.data_loader as data_loader
-    from app.config.config import Config
 
     class FakeYF:
         @staticmethod
@@ -575,7 +573,11 @@ def test_data_loader_exception_and_main(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "yfinance", fake_yf)
     monkeypatch.setitem(sys.modules, "app.data_access.data_manager", fake_dm_module)
 
-    monkeypatch.setattr(Config, "FAILED_DAYS_FILE_PATH", tmp_path / "failed.json")
+    from app import data_access
+
+    data_access.set_settings(
+        replace(test_settings, FAILED_DAYS_FILE_PATH=tmp_path / "failed.json")
+    )
 
     sys.modules.pop("app.data_access.data_loader", None)
     monkeypatch.setattr(sys, "argv", ["data_loader.py"])
@@ -847,13 +849,12 @@ def test_data_loader_market_volatility_fallback(monkeypatch):
     assert data_loader.get_market_volatility_index() is None
 
 
-def test_data_manager_additional_branches(tmp_path, monkeypatch):
+def test_data_manager_additional_branches(tmp_path, monkeypatch, test_settings):
     from app.data_access.data_manager import DataManager
-    from app.config.config import Config
 
     db_path = tmp_path / "dm.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-    dm = DataManager()
+    settings = replace(test_settings, DB_PATH=db_path)
+    dm = DataManager(settings=settings)
     dm.initialize_tables()
 
     dm.save_ohlcv("AAA", None)

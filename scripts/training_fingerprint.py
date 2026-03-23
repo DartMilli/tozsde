@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List
 
-from app.config.config import Config, EXCLUDED_TICKERS
+from app.config import get_conf
 from app.models.model_trainer import TradingEnv
 
 
@@ -59,20 +59,21 @@ def compute_fingerprint(root: Path, watched: List[str]) -> Dict:
         rel = path.relative_to(root).as_posix()
         file_hashes[rel] = sha256_file(path)
 
-    tickers = sorted(Config.get_supported_tickers())
+    cfg = get_conf(None)
+    tickers = sorted(cfg.get_supported_tickers())
 
     return {
         "generated_at": datetime.utcnow().isoformat(),
         "watched_paths": watched,
         "file_hashes": file_hashes,
         "tickers": tickers,
-        "excluded_tickers": EXCLUDED_TICKERS,
-        "rl_timesteps": Config.RL_TIMESTEPS,
-        "optimizer_population": Config.OPTIMIZER_POPULATION,
-        "optimizer_generations": Config.OPTIMIZER_GENERATIONS,
+        "excluded_tickers": getattr(cfg, "EXCLUDED_TICKERS", []),
+        "rl_timesteps": getattr(cfg, "RL_TIMESTEPS", 100000),
+        "optimizer_population": getattr(cfg, "OPTIMIZER_POPULATION", None),
+        "optimizer_generations": getattr(cfg, "OPTIMIZER_GENERATIONS", None),
         "ga_before_rl": True,
-        "training_start_date": Config.START_DATE,
-        "training_end_date": Config.END_DATE,
+        "training_start_date": getattr(cfg, "START_DATE", None),
+        "training_end_date": getattr(cfg, "END_DATE", None),
         "model_types": ["DQN", "PPO"],
         "reward_strategies": TradingEnv.get_reward_strategies(),
         "python_version": sys.version.split()[0],
@@ -110,6 +111,8 @@ def models_exist(model_dir: Path) -> bool:
 
 
 def parse_args():
+    cfg = get_conf(None)
+    model_dir = getattr(cfg, "MODEL_DIR", Path("models"))
     parser = argparse.ArgumentParser(description="Compute training fingerprint")
     parser.add_argument(
         "--write",
@@ -123,12 +126,12 @@ def parse_args():
     )
     parser.add_argument(
         "--output",
-        default=str(Config.MODEL_DIR / "training_fingerprint.json"),
+        default=str(Path(model_dir) / "training_fingerprint.json"),
         help="Fingerprint JSON path",
     )
     parser.add_argument(
         "--summary-out",
-        default=str(Config.MODEL_DIR / "training_fingerprint_summary.json"),
+        default=str(Path(model_dir) / "training_fingerprint_summary.json"),
         help="Summary JSON path",
     )
     parser.add_argument(
@@ -147,7 +150,7 @@ def main():
 
     fingerprint = compute_fingerprint(root, DEFAULT_WATCHED)
 
-    has_models = models_exist(Config.MODEL_DIR)
+    has_models = models_exist(Path(model_dir))
     if not has_models and not args.no_models_ok and args.check:
         print("NO_MODELS: training required")
         sys.exit(3)

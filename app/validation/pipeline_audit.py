@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.analysis.analyzer import get_params
 from app.backtesting.backtester import Backtester
-from app.config.config import Config
+from app.validation import get_settings
 from app.data_access.data_loader import load_data
 from app.infrastructure.logger import setup_logger
 from app.validation.data_integrity_check import run_data_integrity_checks
@@ -15,6 +15,10 @@ from app.validation.edge_diagnostics import (
 from app.validation.utils import get_validation_ticker, get_validation_window
 
 logger = setup_logger(__name__)
+
+
+# Settings are injected at runtime via `set_settings()`; avoid resolving at import time
+settings = None
 
 
 def _lookback_from_params(params: dict) -> int:
@@ -33,6 +37,7 @@ def _lookback_from_params(params: dict) -> int:
 
 
 def _audit_fold(df, ticker: str, params: dict, fold_id: int) -> dict:
+    cfg = get_settings()
     lookback = _lookback_from_params(params)
     raw_rows = len(df)
     cleaned = df.dropna(
@@ -53,15 +58,15 @@ def _audit_fold(df, ticker: str, params: dict, fold_id: int) -> dict:
         "position_attempts": 0,
         "orders_created": 0,
         "executed_trades": 0,
-        "capital_start": float(Config.INITIAL_CAPITAL),
-        "capital_end": float(Config.INITIAL_CAPITAL),
+        "capital_start": float(cfg.INITIAL_CAPITAL),
+        "capital_end": float(cfg.INITIAL_CAPITAL),
         "size_zero_count": 0,
         "rejected_orders": 0,
         "slice_start": df.index[0].isoformat() if raw_rows else None,
         "slice_end": df.index[-1].isoformat() if raw_rows else None,
     }
 
-    if Config.EDGE_DIAGNOSTICS_MODE:
+    if cfg.EDGE_DIAGNOSTICS_MODE:
         audit["edge_expected_edges"] = []
         audit["edge_thresholds"] = []
 
@@ -76,7 +81,7 @@ def _audit_fold(df, ticker: str, params: dict, fold_id: int) -> dict:
         0, audit.get("orders_created", 0) - audit.get("executed_trades", 0)
     )
 
-    if Config.EDGE_DIAGNOSTICS_MODE:
+    if cfg.EDGE_DIAGNOSTICS_MODE:
         audit["edge_distribution"] = compute_fold_edge_stats(
             fold_id=fold_id,
             raw_signal_count=int(audit.get("raw_signal_count", 0)),
@@ -100,9 +105,10 @@ def run_pipeline_audit(ticker: str | None = None, params: dict | None = None) ->
     integrity = run_data_integrity_checks(df, lookback=lookback)
 
     days_per_month = 21
-    train_window = int(Config.TRAIN_WINDOW_MONTHS * days_per_month)
-    test_window = int(Config.TEST_WINDOW_MONTHS * days_per_month)
-    step_size = int(Config.WINDOW_STEP_MONTHS * days_per_month)
+    cfg = get_settings()
+    train_window = int(cfg.TRAIN_WINDOW_MONTHS * days_per_month)
+    test_window = int(cfg.TEST_WINDOW_MONTHS * days_per_month)
+    step_size = int(cfg.WINDOW_STEP_MONTHS * days_per_month)
 
     folds = []
     start_idx = train_window
@@ -115,7 +121,7 @@ def run_pipeline_audit(ticker: str | None = None, params: dict | None = None) ->
         start_idx += step_size
 
     edge_diagnostics_summary = None
-    if Config.EDGE_DIAGNOSTICS_MODE:
+    if cfg.EDGE_DIAGNOSTICS_MODE:
         distributions = [
             f.get("edge_distribution")
             for f in folds
@@ -129,6 +135,6 @@ def run_pipeline_audit(ticker: str | None = None, params: dict | None = None) ->
         "folds": folds,
         "data_integrity": integrity,
         "edge_diagnostics_summary": edge_diagnostics_summary,
-        "edge_distributions": distributions if Config.EDGE_DIAGNOSTICS_MODE else None,
+        "edge_distributions": distributions if cfg.EDGE_DIAGNOSTICS_MODE else None,
     }
     return payload

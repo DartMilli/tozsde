@@ -1,26 +1,28 @@
 """
 validation_runner.py
 
-Automatikus rendszer-validációs orkesztrátor.
+Automatikus rendszer-validacios orkesztrator.
 
-Használat:
+Hasznalat:
     python validation_runner.py --mode full
     python validation_runner.py --mode quick
     python validation_runner.py --mode shadow
 """
 
-from app.config.config import Config
+from app.bootstrap.build_settings import build_settings
+
+settings = build_settings()
+from app.validation import get_settings
 import argparse
 import json
 import os
 import random
 from datetime import datetime, timezone
 
-# Feltételezett modulok (implementálandók a validation/ mappában)
-# Ezeket a Copilot segítségével kell majd kitölteni
+# Feltetelezett modulok (implementalandok a validation/ mappaban)
+# Ezeket a Copilot segitsegevel kell majd kitolteni
 from app.validation.scoring import compute_quant_score
 from app.validation.report_builder import build_markdown_report
-from app.data_access.data_manager import DataManager
 from app.validation.errors import (
     ValidationError,
     EngineLogicError,
@@ -28,7 +30,9 @@ from app.validation.errors import (
     ExecutionPipelineError,
 )
 from app.backtesting.execution_utils import seed_deterministic
-from app.config.config import Config
+from app.bootstrap.build_settings import build_settings
+
+settings = build_settings()
 
 
 class ValidationRunner:
@@ -126,7 +130,8 @@ class ValidationRunner:
         os.environ["VALIDATION_MODE"] = self.mode
         os.environ["VALIDATION_DISABLE_SAFETY"] = "true"
         os.environ["VALIDATION_DISABLE_POLICY"] = "true"
-        DataManager().initialize_tables()
+        # DataManager should be injected from DI root
+        # dm.initialize_tables()
         seed_deterministic(42)
         random.seed(42)
 
@@ -152,7 +157,10 @@ class ValidationRunner:
                     .get("diagnostics", {})
                     .get("trade_count")
                 )
-                if Config.PIPELINE_AUDIT_MODE or trade_count == 0:
+                if (
+                    getattr(get_settings(), "PIPELINE_AUDIT_MODE", False)
+                    or trade_count == 0
+                ):
                     from app.validation.pipeline_audit import run_pipeline_audit
                     from app.validation.sanity_strategy import run_sanity_backtest
                     from app.data_access.data_loader import load_data
@@ -239,11 +247,11 @@ class ValidationRunner:
         json_path = f"validation_reports/validation_{timestamp}.json"
         md_path = f"validation_reports/validation_{timestamp}.md"
 
-        # JSON mentés
+        # JSON mentes
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(self.results, f, indent=4)
 
-        # Markdown riport generálás
+        # Markdown riport generalas
         md_content = build_markdown_report(self.results)
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(md_content)

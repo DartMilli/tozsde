@@ -22,7 +22,8 @@ sys.path.insert(0, str(project_root))
 from app.infrastructure.logger import setup_logger
 from app.infrastructure.backup_manager import BackupManager
 from app.infrastructure.log_manager import LogManager
-from app.config.config import Config
+from app.infrastructure.repositories import DataManagerRepository
+from app.infrastructure import get_settings
 
 logger = setup_logger(__name__)
 
@@ -48,11 +49,22 @@ class CronTaskScheduler:
     - Monthly GA optimization (1st of month 1:00 AM)
     """
 
-    def __init__(self):
-        """Initialize scheduler with config and managers."""
-        self.config = Config()
-        self.backup_manager = BackupManager()
-        self.log_manager = LogManager()
+    def __init__(self, settings: object = None):
+        """Initialize scheduler with optional `settings` (preferred)."""
+        self.settings = settings if settings is not None else get_settings()
+
+        # inject settings into managers when possible to avoid global Config usage
+        self.backup_manager = BackupManager(settings=self.settings)
+
+        # Resolve log_dir from injected settings or resolved config (defensive)
+        log_dir = None
+        try:
+            s = self.settings
+            log_dir = getattr(s, "LOG_DIR", None)
+        except Exception:
+            log_dir = None
+
+        self.log_manager = LogManager(log_dir=log_dir)
 
     def run_daily_pipeline(self) -> Dict[str, Any]:
         """
@@ -76,7 +88,6 @@ class CronTaskScheduler:
             logger.info(f"Starting {task_name} at {start_time.isoformat()}")
 
             # Import here to avoid circular dependencies
-            from app.data_access.data_manager import DataManager
             from app.decision.decision_engine import DecisionEngine
 
             results = {
@@ -88,7 +99,15 @@ class CronTaskScheduler:
 
             # Step 1: Update market data
             logger.info("Step 1/5: Updating market data...")
-            data_manager = DataManager(db_path=self.config.db_path)
+            # Prefer injected data_manager, else construct one defensively
+            if getattr(self, "data_manager", None) is not None:
+                data_manager = self.data_manager
+            else:
+                try:
+                    data_manager = DataManagerRepository(settings=self.settings)
+                except TypeError:
+                    data_manager = DataManagerRepository()
+
             update_result = data_manager.update_market_data()
             results["steps"]["data_update"] = {
                 "success": update_result.get("success", False),
@@ -97,7 +116,7 @@ class CronTaskScheduler:
 
             # Step 2: Generate recommendations
             logger.info("Step 2/5: Generating recommendations...")
-            decision_engine = DecisionEngine(config=self.config)
+            decision_engine = DecisionEngine(config=self.settings)
             recommendations = decision_engine.generate_recommendations()
             results["steps"]["recommendations"] = {
                 "success": len(recommendations) > 0,
@@ -203,7 +222,7 @@ class CronTaskScheduler:
 
             # Run audit
             logger.info("Running backtesting audit...")
-            auditor = BacktestAuditor(config=self.config)
+            auditor = BacktestAuditor(config=self.settings)
             audit_result = auditor.run_weekly_audit()
 
             results["metrics"] = audit_result.get("metrics", {})
@@ -277,7 +296,7 @@ class CronTaskScheduler:
 
             # Run optimization
             logger.info("Running genetic algorithm optimization...")
-            optimizer = GeneticOptimizer(config=self.config)
+            optimizer = GeneticOptimizer(config=self.settings)
             opt_result = optimizer.run_monthly_optimization()
 
             results["best_fitness"] = opt_result.get("best_fitness", 0.0)
@@ -353,7 +372,31 @@ class CronTaskScheduler:
         }
 
         # Write to cron execution log
-        cron_log_path = Path(self.config.log_dir) / "cron_executions.jsonl"
+        # Resolve log_dir from settings
+        log_dir = None
+        try:
+            s = self.settings
+            log_dir = getattr(s, "LOG_DIR", None)
+        except Exception:
+            log_dir = None
+
+        if log_dir is None:
+            log_dir = "."
+
+        # Convert to string/path if necessary; avoid operating on Mock objects
+        try:
+            cron_log_path = Path(log_dir) / "cron_executions.jsonl"
+        except Exception:
+            try:
+                cron_log_path = Path(str(log_dir)) / "cron_executions.jsonl"
+            except Exception:
+                cron_log_path = Path(".") / "cron_executions.jsonl"
+
+        # Ensure parent directory exists (defensive)
+        try:
+            cron_log_path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
 
         try:
             with open(cron_log_path, "a") as f:

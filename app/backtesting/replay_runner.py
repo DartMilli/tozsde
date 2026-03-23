@@ -11,12 +11,12 @@ def run_replay_for_ticker(
 ):
     history = HistoryStore()
 
-    # 1️⃣ betöltjük az ÖSSZES rekordot (append-only log)
+    # 1 betoltjuk az OSSZES rekordot (append-only log)
     records = list(history.iter_records(ticker=ticker))
     if not records:
         return []
 
-    # 2️⃣ árfolyam adat – legkorábbi decision-től
+    # 2 arfolyam adat - legkorabbi decision-tol
     start_ts = min(datetime.fromisoformat(r["timestamp"]) for r in records)
     df = load_data(
         ticker,

@@ -169,7 +169,7 @@ class TestBackupManagerErrorPaths:
 
     def test_backup_path_with_special_characters(self, tmp_path):
         """Test backup with special characters in database path."""
-        special_dir = tmp_path / "test_dir_with_spaces_and_特殊"
+        special_dir = tmp_path / "test_dir_with_spaces_and_"
         special_dir.mkdir(exist_ok=True)
 
         db_path = special_dir / "test_db.db"

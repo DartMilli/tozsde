@@ -60,8 +60,16 @@ class ExecutionEngine:
 
         entry_at = entry_idx + 1
         exit_at = exit_idx + 1
+        # If the next-open index is out of range (trade closes on final bar),
+        # fall back to using close-to-close pricing so that the trade still
+        # executes instead of being dropped.
         if entry_at >= len(opens) or exit_at >= len(opens):
-            return None, None, entry_at, exit_at
+            return (
+                float(closes[entry_idx]),
+                float(closes[exit_idx]),
+                entry_idx,
+                exit_idx,
+            )
 
         return float(opens[entry_at]), float(opens[exit_at]), entry_at, exit_at
 

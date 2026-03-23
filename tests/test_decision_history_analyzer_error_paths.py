@@ -4,18 +4,19 @@ import json
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
+from dataclasses import replace
 
 import pandas as pd
 import pytest
 
 import app.decision.decision_history_analyzer as dha
+from app.decision import set_settings as set_decision_settings
 from app.decision.decision_history_analyzer import DecisionHistoryAnalyzer
 
 
 @pytest.fixture
-def temp_db(tmp_path, monkeypatch):
+def temp_db(tmp_path, test_settings):
     db_path = tmp_path / "test.db"
     conn = sqlite3.connect(str(db_path))
     cur = conn.cursor()
@@ -33,14 +34,14 @@ def temp_db(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
 
-    mock_config = SimpleNamespace(DB_PATH=db_path)
-    monkeypatch.setattr(dha, "Config", mock_config)
+    settings = replace(test_settings, DB_PATH=db_path)
+    set_decision_settings(settings)
 
-    return db_path
+    return settings
 
 
-def _insert_decision(db_path, timestamp, ticker, audit_data):
-    conn = sqlite3.connect(str(db_path))
+def _insert_decision(settings, timestamp, ticker, audit_data):
+    conn = sqlite3.connect(str(settings.DB_PATH))
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO decision_history (timestamp, ticker, action_code, audit_data) VALUES (?, ?, ?, ?)",
@@ -51,7 +52,7 @@ def _insert_decision(db_path, timestamp, ticker, audit_data):
 
 
 def test_load_strategy_decisions_db_error(temp_db):
-    analyzer = DecisionHistoryAnalyzer()
+    analyzer = DecisionHistoryAnalyzer(settings=temp_db)
 
     with patch(
         "app.decision.decision_history_analyzer.sqlite3.connect",
@@ -72,7 +73,7 @@ def test_load_ticker_decisions_skips_bad_json(temp_db):
         json.dumps({"outcome": {"pnl_pct": 0.02}, "confidence": 0.8}),
     )
 
-    analyzer = DecisionHistoryAnalyzer()
+    analyzer = DecisionHistoryAnalyzer(settings=temp_db)
     decisions = analyzer._load_ticker_decisions("AAPL", days=30)
 
     assert len(decisions) == 1
@@ -82,9 +83,14 @@ def test_load_ticker_decisions_skips_bad_json(temp_db):
 def test_load_all_decisions_skips_bad_json(temp_db):
     now = datetime.now().isoformat()
     _insert_decision(temp_db, now, "AAPL", "{bad json")
-    _insert_decision(temp_db, now, "AAPL", json.dumps({"outcome": {"pnl_pct": -0.01}}))
+    _insert_decision(
+        temp_db,
+        now,
+        "AAPL",
+        json.dumps({"outcome": {"pnl_pct": -0.01}}),
+    )
 
-    analyzer = DecisionHistoryAnalyzer()
+    analyzer = DecisionHistoryAnalyzer(settings=temp_db)
     decisions = analyzer._load_all_decisions(days=30)
 
     assert len(decisions) == 1

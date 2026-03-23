@@ -1,18 +1,17 @@
 """Tests for decision policy application."""
 
 from app.decision.decision_policy import apply_decision_policy
-from app.config.config import Config
 
 
-def test_policy_enforces_no_trade_when_blocked():
+def test_policy_enforces_no_trade_when_blocked(test_settings):
     decision = {"action_code": 1, "action": "BUY"}
     audit = {"trade_allowed": False, "decision_level": "STRONG"}
 
-    result = apply_decision_policy(decision, audit)
+    result = apply_decision_policy(decision, audit, settings=test_settings)
 
     assert result["no_trade"] is True
     assert result["action_code"] == 0
-    assert result["action"] == Config.ACTION_LABELS[Config.LANG][0]
+    assert result["action"] == test_settings.ACTION_LABELS[test_settings.LANG][0]
     assert result["decision_reason"] == "NO_TRADE_ENFORCED"
     assert result["reward_hint"] == -0.1
 

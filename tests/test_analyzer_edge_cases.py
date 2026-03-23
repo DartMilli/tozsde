@@ -2,11 +2,13 @@
 
 import json
 import os
+from dataclasses import replace
 from datetime import datetime
 import numpy as np
 import pandas as pd
 
 from app.analysis import analyzer
+from app.analysis import set_settings
 
 
 def _make_df():
@@ -23,18 +25,18 @@ def _make_df():
     )
 
 
-def test_get_params_returns_default_on_missing_file(monkeypatch, tmp_path):
-    monkeypatch.setattr(analyzer.Config, "PARAMS_FILE_PATH", str(tmp_path / "missing.json"))
+def test_get_params_returns_default_on_missing_file(test_settings, tmp_path):
+    set_settings(replace(test_settings, PARAMS_FILE_PATH=tmp_path / "missing.json"))
     params = analyzer.get_params("SPY")
     assert params == analyzer.get_default_params()
 
 
-def test_get_params_converts_stddev_to_float(monkeypatch, tmp_path):
+def test_get_params_converts_stddev_to_float(test_settings, tmp_path):
     params_file = tmp_path / "params.json"
     data = {"SPY": {"bbands_stddev": 2, "sma_period": 10}}
     params_file.write_text(json.dumps(data))
 
-    monkeypatch.setattr(analyzer.Config, "PARAMS_FILE_PATH", str(params_file))
+    set_settings(replace(test_settings, PARAMS_FILE_PATH=params_file))
 
     params = analyzer.get_params("SPY")
     assert isinstance(params["bbands_stddev"], float)
@@ -100,11 +102,27 @@ def test_compute_signals_return_series(monkeypatch):
 
     # Minimal required mocks for unused indicators
     monkeypatch.setattr(analyzer.ta, "rsi", lambda *a, **k: np.array([50.0, 50.0]))
-    monkeypatch.setattr(analyzer.ta, "macd", lambda *a, **k: (np.array([0.0, 0.0]), np.array([0.0, 0.0])))
-    monkeypatch.setattr(analyzer.ta, "bbands", lambda *a, **k: (np.array([2.0]), np.array([1.0]), np.array([0.0])))
+    monkeypatch.setattr(
+        analyzer.ta,
+        "macd",
+        lambda *a, **k: (np.array([0.0, 0.0]), np.array([0.0, 0.0])),
+    )
+    monkeypatch.setattr(
+        analyzer.ta,
+        "bbands",
+        lambda *a, **k: (np.array([2.0]), np.array([1.0]), np.array([0.0])),
+    )
     monkeypatch.setattr(analyzer.ta, "atr", lambda *a, **k: np.array([1.0, 1.0]))
-    monkeypatch.setattr(analyzer.ta, "adx", lambda *a, **k: (np.array([10.0]), np.array([0.0]), np.array([0.0])))
-    monkeypatch.setattr(analyzer.ta, "stoch", lambda *a, **k: (np.array([0.0, 0.0]), np.array([0.0, 0.0])))
+    monkeypatch.setattr(
+        analyzer.ta,
+        "adx",
+        lambda *a, **k: (np.array([10.0]), np.array([0.0]), np.array([0.0])),
+    )
+    monkeypatch.setattr(
+        analyzer.ta,
+        "stoch",
+        lambda *a, **k: (np.array([0.0, 0.0]), np.array([0.0, 0.0])),
+    )
 
     signals_per_bar, indicators = analyzer.compute_signals(
         df, "SPY", params=analyzer.get_default_params(), return_series=True

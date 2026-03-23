@@ -2,27 +2,29 @@ import json
 from datetime import datetime
 from typing import Dict
 
-from app.data_access.data_manager import DataManager
+from app.infrastructure.repositories.sqlite_decision_repository import (
+    SqliteDecisionRepository,
+)
 
 """
-❗ HistoryStore NEM helyettesíti a DB-t
+ HistoryStore NEM helyettesiti a DB-t
 
 nincs index
 nincs UPSERT
-nincs napi lekérdezés
-nem UI-ra való
+nincs napi lekerdezes
+nem UI-ra valo
 
-❗ recommendations DB NEM audit log
+ recommendations DB NEM audit log
 
-csak utolsó döntés
-overwrite-olható
-kevés metaadat
+csak utolso dontes
+overwrite-olhato
+keves metaadat
 """
 
 
 class HistoryStore:
     """
-    P4.5 – Decision History Store
+    P4.5 - Decision History Store
 
     Responsibility:
         - Persist finalized daily decisions
@@ -36,8 +38,16 @@ class HistoryStore:
         - later: reliability scoring, audits, UI
     """
 
-    def __init__(self):
-        self.dm = DataManager()
+    def __init__(self, history_repo=None, settings=None):
+        # self.dm may be injected by DI; for tests and legacy callers,
+        # provide a safe DataManager instance as a fallback so callers can
+        # monkeypatch methods on `hs.dm`.
+        self.dm = history_repo
+        if self.dm is None:
+            try:
+                self.dm = SqliteDecisionRepository(settings=settings)
+            except Exception:
+                self.dm = None
 
     # ------------------------------------------------------------------
     # PUBLIC API

@@ -118,42 +118,42 @@ p {
     }
 }
 
-/* --- MÓDOSÍTOTT INDIKÁTOR STÍLUSOK --- */
+/* --- MODOSITOTT INDIKATOR STILUSOK --- */
 
-/* Új konténer a szélesség fixálásához */
+/* Uj kontener a szelesseg fixalasahoz */
 #indicator-table-container {
     width: 90%;
     max-width: 1000px;
     display: flex;
     flex-direction: column;
     gap: 15px;
-    /* Térköz a panelek között */
+    /* Terkoz a panelek kozott */
 }
 
 /* Maga a panel */
 .indicator-section {
-    /* A margin a gap miatt nem kell, a szélesség 100% a konténerhez képest */
+    /* A margin a gap miatt nem kell, a szelesseg 100% a kontenerhez kepest */
     width: 100%;
     padding: 12px 15px;
-    /* Csökkentett belső margó a magassághoz */
+    /* Csokkentett belso margo a magassaghoz */
     background-color: #1d1d1d;
     border: 1px solid #333;
     border-radius: 8px;
     box-sizing: border-box;
 }
 
-/* A panel címe (H3) */
+/* A panel cime (H3) */
 .indicator-section h3 {
     color: #0d6efd;
     cursor: pointer;
     margin: 0;
-    /* Alaphelyzetben nincs margó */
+    /* Alaphelyzetben nincs margo */
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-/* Csak akkor van alsó margója, ha nyitva van */
+/* Csak akkor van also margoja, ha nyitva van */
 .indicator-section h3:not(.collapsed) {
     margin-bottom: 12px;
 }
@@ -188,7 +188,7 @@ p {
     background-color: #1e1e1e;
 }
 
-/* --- CSÚSZKA STÍLUSOK --- */
+/* --- CSUSZKA STILUSOK --- */
 .range-slider-container {
     width: 90%;
     max-width: 1000px;
@@ -291,7 +291,7 @@ p {
     color: #005f99;
 }
 
-.status-erős {
+.status-eros {
     background-color: #e6f4ea;
     color: #1e7e34;
 }

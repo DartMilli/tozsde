@@ -1,20 +1,20 @@
 #!/bin/bash
 ################################################################################
 # ToZsDE Raspberry Pi 4/5 Automated Deployment Script
-# ONE-CLICK SETUP: System deps → Python env → Flask service → Cron jobs
+# ONE-CLICK SETUP: System deps -> Python env -> Flask service -> Cron jobs
 # 
 # Usage: bash deploy_rpi.sh
 # 
 # What it does:
-#   ✓ Installs system dependencies (Python 3.11, pip, curl, etc.)
-#   ✓ Creates Python virtual environment
-#   ✓ Installs application requirements
-#   ✓ Creates systemd service for Flask API (auto-restart)
-#   ✓ Schedules 3 cron jobs (daily, weekly, monthly)
-#   ✓ Sets up health checks (every 5 minutes)
-#   ✓ Configures log rotation
-#   ✓ Starts Flask service
-#   ✓ Verifies everything works
+#   v Installs system dependencies (Python 3.11, pip, curl, etc.)
+#   v Creates Python virtual environment
+#   v Installs application requirements
+#   v Creates systemd service for Flask API (auto-restart)
+#   v Schedules 3 cron jobs (daily, weekly, monthly)
+#   v Sets up health checks (every 5 minutes)
+#   v Configures log rotation
+#   v Starts Flask service
+#   v Verifies everything works
 #
 # Total runtime: 10-15 minutes
 # Requires: Raspberry Pi OS Lite 64-bit, sudo access
@@ -49,17 +49,17 @@ NC='\033[0m' # No Color
 
 # Output functions
 print_status() {
-    echo -e "${GREEN}[✓]${NC} $1"
+    echo -e "${GREEN}[v]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}[✗]${NC} $1"
+    echo -e "${RED}[x]${NC} $1"
 }
 
 print_header() {
-    echo -e "\n${YELLOW}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${YELLOW}║${NC} $1"
-    echo -e "${YELLOW}╚════════════════════════════════════════════════════════╝${NC}\n"
+    echo -e "\n${YELLOW}${NC}"
+    echo -e "${YELLOW}${NC} $1"
+    echo -e "${YELLOW}${NC}\n"
 }
 
 print_info() {
@@ -319,10 +319,10 @@ HEALTH_CHECK="$SCRIPTS_DIR/health_check.sh"
 add_cron_entry "*/5 * * * *" "$HEALTH_CHECK >> /dev/null 2>&1"
 
 print_status "Cron jobs configured:"
-echo "  • Daily pipeline:       6:00 AM (every day)"
-echo "  • Weekly audit:         4:00 AM (every Monday)"
-echo "  • Monthly optimization: 1:00 AM (1st of month)"
-echo "  • Health check:         Every 5 minutes"
+echo "  - Daily pipeline:       6:00 AM (every day)"
+echo "  - Weekly audit:         4:00 AM (every Monday)"
+echo "  - Monthly optimization: 1:00 AM (1st of month)"
+echo "  - Health check:         Every 5 minutes"
 
 # ==============================================================================
 # STEP 6: HEALTH CHECK SCRIPT
@@ -363,9 +363,9 @@ fi
 
 # Check if API is responding
 if timeout $TIMEOUT curl -f -s "${HEADER[@]}" "$HEALTH_URL" > /dev/null 2>&1; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ OK" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] v OK" >> "$LOG_FILE"
 else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✗ FAILED - attempting restart" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] x FAILED - attempting restart" >> "$LOG_FILE"
     
     # Try to restart service
     systemctl restart tozsde-api.service
@@ -373,16 +373,16 @@ else
     
     # Verify recovery
     if timeout $TIMEOUT curl -f -s "${HEADER[@]}" "$HEALTH_URL" > /dev/null 2>&1; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ Service recovered" >> "$LOG_FILE"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] v Service recovered" >> "$LOG_FILE"
     else
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✗ Service still down - see logs" >> "$LOG_FILE"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] x Service still down - see logs" >> "$LOG_FILE"
     fi
 fi
 
 # Check disk space
 DISK_USAGE=$(df -h /home | tail -1 | awk '{print $5}' | sed 's/%//')
 if [ "$DISK_USAGE" -gt 85 ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️  Disk usage: ${DISK_USAGE}% (cleanup logs)" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')]   Disk usage: ${DISK_USAGE}% (cleanup logs)" >> "$LOG_FILE"
 fi
 EOF
 
@@ -413,10 +413,10 @@ sudo mv /tmp/tozsde_logrotate /etc/logrotate.d/tozsde
 sudo chmod 644 /etc/logrotate.d/tozsde
 
 print_status "Log rotation configured:"
-echo "  • Frequency: Daily"
-echo "  • Retention: 7 days"
-echo "  • Compression: Enabled"
-echo "  • Location: /etc/logrotate.d/tozsde"
+echo "  - Frequency: Daily"
+echo "  - Retention: 7 days"
+echo "  - Compression: Enabled"
+echo "  - Location: /etc/logrotate.d/tozsde"
 
 # ==============================================================================
 # STEP 8: START SERVICES
@@ -465,12 +465,12 @@ for i in {1..20}; do
 done
 
 if [ $API_READY -eq 1 ]; then
-    print_status "✓ API responding on port 5000"
+    print_status "v API responding on port 5000"
     
     # Test health endpoint
-    HEALTH=$(curl -s http://localhost:5000/api/health)
+    HEALTH=$(curl -s "${HEALTH_HEADER[@]}" http://localhost:5000/admin/health)
     if echo "$HEALTH" | grep -q "healthy"; then
-        print_status "✓ Health endpoint working"
+        print_status "v Health endpoint working"
     fi
 else
     print_error "API not responding after 20 seconds"
@@ -491,20 +491,20 @@ sudo systemctl status tozsde-api.service --no-pager | head -10
 # ==============================================================================
 # FINAL STATUS
 # ==============================================================================
-print_header "DEPLOYMENT COMPLETE! 🎉"
+print_header "DEPLOYMENT COMPLETE! "
 
-echo -e "${GREEN}✓ System dependencies installed${NC}"
-echo -e "${GREEN}✓ Python 3.11 environment created${NC}"
-echo -e "${GREEN}✓ Application requirements installed${NC}"
-echo -e "${GREEN}✓ Flask API service running${NC}"
-echo -e "${GREEN}✓ Cron jobs scheduled${NC}"
-echo -e "${GREEN}✓ Health checks active${NC}"
-echo -e "${GREEN}✓ Log rotation configured${NC}"
+echo -e "${GREEN}v System dependencies installed${NC}"
+echo -e "${GREEN}v Python 3.11 environment created${NC}"
+echo -e "${GREEN}v Application requirements installed${NC}"
+echo -e "${GREEN}v Flask API service running${NC}"
+echo -e "${GREEN}v Cron jobs scheduled${NC}"
+echo -e "${GREEN}v Health checks active${NC}"
+echo -e "${GREEN}v Log rotation configured${NC}"
 
 echo ""
 echo -e "${YELLOW}NEXT STEPS:${NC}"
 echo "  1. Test API:"
-echo "     curl http://raspberrypi.local:5000/api/health"
+echo "     curl http://raspberrypi.local:5000/admin/health -H \"X-Admin-Key: <key>\""
 echo ""
 echo "  2. View logs:"
 echo "     sudo journalctl -u tozsde-api.service -f"
@@ -518,9 +518,9 @@ echo "     free -h         # Memory"
 echo "     top             # CPU usage"
 echo ""
 echo -e "${YELLOW}IMPORTANT:${NC}"
-echo "  • First daily run: Tomorrow at 6:00 AM"
-echo "  • Check logs: /home/pi/tozsde_webapp/logs/"
-echo "  • SSH access: ssh pi@raspberrypi.local"
-echo "  • To restart service: sudo systemctl restart tozsde-api.service"
+echo "  - First daily run: Tomorrow at 6:00 AM"
+echo "  - Check logs: /home/pi/tozsde_webapp/logs/"
+echo "  - SSH access: ssh pi@raspberrypi.local"
+echo "  - To restart service: sudo systemctl restart tozsde-api.service"
 echo ""
-echo -e "${GREEN}Happy trading! 🚀${NC}"
+echo -e "${GREEN}Happy trading! ${NC}"

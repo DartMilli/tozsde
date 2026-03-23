@@ -4,7 +4,7 @@ def realize_reward(
     audit: dict,
 ) -> float:
     """
-    P8.1 – Reward realization
+    P8.1 - Reward realization
 
     Converts raw_return into learning reward.
     """
@@ -13,7 +13,7 @@ def realize_reward(
     confidence = decision.get("confidence")
     decision_level = audit.get("decision_level", "UNKNOWN")
 
-    # HOLD → no reward
+    # HOLD -> no reward
     if action == 0:
         return 0.0
 

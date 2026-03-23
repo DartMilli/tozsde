@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.config.config import Config
+from app.config import get_conf
 from app.data_access.data_loader import ensure_data_cached
 from app.data_access.data_manager import DataManager
 
@@ -21,14 +21,18 @@ def main() -> int:
     parser.add_argument("--end-date", default=None)
     args = parser.parse_args()
 
-    end = args.end_date or Config.END_DATE
-    start = args.start_date or Config.START_DATE
+    cfg = get_conf(None)
+    end = args.end_date or getattr(cfg, "END_DATE", None)
+    start = args.start_date or getattr(cfg, "START_DATE", None)
 
     if not ensure_data_cached(args.ticker, start=start, end=end):
         print("cache_status: incomplete")
         return 1
 
-    dm = DataManager()
+    try:
+        dm = DataManager(settings=cfg)
+    except TypeError:
+        dm = DataManager()
     cached = dm.load_ohlcv(args.ticker)
     last_date = cached.index[-1].date().isoformat() if not cached.empty else "unknown"
     print("cache_status: ok")

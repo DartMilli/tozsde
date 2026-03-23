@@ -1,6 +1,6 @@
 """
 scoring.py
-Quant Stability Score számítás.
+Quant Stability Score szamitas.
 
 Helye:
 app/validation/scoring.py

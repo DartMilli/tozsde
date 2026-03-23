@@ -19,10 +19,17 @@ from app.services.dependencies import EmailNotifier, MarketDataFetcher
 from app.services.execution_engines import NoopExecutionEngine
 from app.services.trading_pipeline import TradingPipelineService
 from app.analysis.analyzer import get_params, compute_signals
-from app.data_access.data_manager import DataManager
+from app.infrastructure.repositories.sqlite_decision_repository import (
+    SqliteDecisionRepository,
+)
 from app.data_access.data_loader import load_data
 from app.validation.utils import get_validation_ticker, get_validation_window
-from app.config.config import Config
+from app.validation import get_settings
+
+try:
+    dm = SqliteDecisionRepository()
+except Exception:
+    dm = SqliteDecisionRepository()
 
 
 def _baseline_policy(rsi_value: float) -> int:
@@ -58,10 +65,13 @@ def _build_pipeline(data_fetcher: MarketDataFetcher) -> TradingPipelineService:
                 {
                     "model": "BASELINE_RSI",
                     "action": action_code,
-                    "action_label": Config.ACTION_LABELS[Config.LANG].get(
-                        action_code,
-                        ACTION_MAP.get(action_code, "HOLD"),
-                    ),
+                    "action_label": getattr(
+                        get_settings().ACTION_LABELS.get(
+                            getattr(get_settings(), "LANG", "en"), {}
+                        ),
+                        "get",
+                        lambda *_: ACTION_MAP.get(action_code, "HOLD"),
+                    )(action_code, ACTION_MAP.get(action_code, "HOLD")),
                     "action_code": action_code,
                     "confidence": confidence,
                 }
@@ -120,7 +130,7 @@ def run_shadow_comparison() -> dict:
         evaluate_outcomes=False,
     )
 
-    dm = DataManager()
+    # dm should be injected from DI root
     rows = dm.fetch_history_range(
         ticker=ticker,
         start_iso=start.isoformat(),
@@ -189,15 +199,18 @@ def run_shadow_comparison() -> dict:
     bt = Backtester(df[df.index.date <= end], ticker)
     replay_report = bt.run(
         params,
-        execution_policy=Config.EXECUTION_POLICY,
+        execution_policy=getattr(get_settings(), "EXECUTION_POLICY", "next_open"),
         signals_override=signals_override,
     )
     backtest_report = bt.run(
         params,
-        execution_policy=Config.EXECUTION_POLICY,
+        execution_policy=getattr(get_settings(), "EXECUTION_POLICY", "next_open"),
         signals_override=signals_override,
     )
-    analyzer_report = bt.run(params, execution_policy=Config.EXECUTION_POLICY)
+    analyzer_report = bt.run(
+        params,
+        execution_policy=getattr(get_settings(), "EXECUTION_POLICY", "next_open"),
+    )
     replay_total_return = float(replay_report.metrics.get("net_profit", 0.0))
     backtest_return = float(backtest_report.metrics.get("net_profit", 0.0))
     analyzer_return = float(analyzer_report.metrics.get("net_profit", 0.0))

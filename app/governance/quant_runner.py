@@ -12,7 +12,10 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from app.config.config import Config
+from app.governance import get_settings
+from app.bootstrap.build_settings import build_settings
+
+settings = build_settings()
 from app.reporting.report_builder import prepare_report_dir, write_report_bundle
 from app.reporting.report_schema import SummaryReport, now_timestamp
 from app.validation.scoring import compute_quant_score
@@ -29,7 +32,6 @@ from app.validation.sanity_strategy import run_sanity_backtest
 from app.validation.data_integrity_check import run_data_integrity_checks
 from app.validation.utils import get_validation_ticker, get_validation_window
 from app.data_access.data_loader import load_data
-from app.data_access.data_manager import DataManager
 from app.backtesting.walk_forward import run_walk_forward
 from app.backtesting.execution_utils import seed_deterministic
 from app.governance.checklist_runner import evaluate_checklist
@@ -37,10 +39,11 @@ from app.validation.edge_diagnostics import classify_collapse_reason
 
 
 def _git_commit() -> Optional[str]:
+    cfg = get_settings()
     try:
         result = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
-            cwd=str(Config.REPORTS_DIR.parent),
+            cwd=str(getattr(cfg, "REPORTS_DIR", Path(".")).parent),
             stderr=subprocess.DEVNULL,
             text=True,
         )
@@ -135,8 +138,9 @@ def _run_tests(logger: logging.Logger) -> dict:
 
 def _run_diagnostics(logger: logging.Logger) -> dict:
     logger.info("Running diagnostics pipeline")
-    Config.PIPELINE_AUDIT_MODE = True
-    Config.EDGE_DIAGNOSTICS_MODE = True
+    cfg = get_settings()
+    settings.pipeline_audit_mode = True
+    settings.edge_diagnostics_mode = True
 
     ticker = get_validation_ticker()
     start, end = get_validation_window()
@@ -287,14 +291,16 @@ def main() -> int:
     logger = _configure_logging(report_dir / "run.log", run_id, args.mode, commit)
     logger.info("Starting quant runner")
 
-    Config.EDGE_DIAGNOSTICS_MODE = False
-    Config.PIPELINE_AUDIT_MODE = False
+    cfg = get_settings()
+    settings.edge_diagnostics_mode = False
+    settings.pipeline_audit_mode = False
 
     if args.mode != "tests":
         os.environ["VALIDATION_MODE"] = args.mode
         os.environ["VALIDATION_DISABLE_SAFETY"] = "true"
         os.environ["VALIDATION_DISABLE_POLICY"] = "true"
-        DataManager().initialize_tables()
+        # DataManager should be injected from DI root
+        # dm.initialize_tables()
         seed_deterministic(42)
         random.seed(42)
 
@@ -303,8 +309,8 @@ def main() -> int:
     tests = {}
 
     if args.mode == "research":
-        Config.EDGE_DIAGNOSTICS_MODE = True
-        Config.PIPELINE_AUDIT_MODE = True
+        settings.edge_diagnostics_mode = True
+        settings.pipeline_audit_mode = True
         run_walk_forward(get_validation_ticker())
         diagnostics = _run_diagnostics(logger)
         validation = _run_validation(

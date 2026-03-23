@@ -8,6 +8,12 @@
 ## Current Snapshot (EN)
 This document is a historical sprint record. For current usage and CLI flows, see docs/README.md and docs/INDEX.md.
 
+> **Important:** This document is historical sprint history.
+> Operational truth (commands, current behavior, latest validation snapshot) is maintained in:
+> - [docs/README.md](README.md)
+> - [docs/testing/TEST_STATUS_REPORT.md](testing/TEST_STATUS_REPORT.md)
+> - [docs/testing/go_live_checklist.md](testing/go_live_checklist.md)
+
 Current system highlights:
 - Daily pipeline in main.py (daily/weekly/monthly, walk-forward, train-rl).
 - Historical paper runner with deterministic fallback when no models exist.
@@ -20,32 +26,32 @@ Ez a dokumentum historikus sprint tortenet. A jelenlegi hasznalathoz lasd docs/R
 Aktualis fo pontok:
 - Napi pipeline a main.py-ban (daily/weekly/monthly, walk-forward, train-rl).
 - Historikus paper runner determinisztikus fallback-kel, ha nincs modell.
-- SQLite perzisztencia (döntesek, outcome-ok, portfolio state, validáció).
+- SQLite perzisztencia (dontesek, outcome-ok, portfolio state, validacio).
 - Phase 5 es Phase 6 validacios tooling, riport integracioval.
 
 ---
 
-## 📊 Overall Progress
+##  Overall Progress
 
 | Sprint | Focus | Tests | Coverage | Status | Date |
 |--------|-------|-------|----------|--------|------|
-| **1** | Core Infrastructure | 63 | - | ✅ COMPLETE | 2026-01-22 |
-| **2** | Enhanced Decision Making | Integrated | - | ✅ COMPLETE | 2026-01-22 |
-| **3** | Portfolio Optimization | 51 | - | ✅ COMPLETE | 2026-01-22 |
-| **4** | Hardening & Monitoring | 25 | - | ✅ COMPLETE | 2026-01-23 |
-| **5** | Production Deployment (SW) | 64 | - | ✅ COMPLETE | 2026-02-01 |
-| **6** | Learning System (P8) | 40 | - | ✅ COMPLETE | 2026-02-01 |
-| **7** | Portfolio Optimization (P7) | 21 | - | ✅ COMPLETE | 2026-02-01 |
-| **8** | Capital Efficiency (P6) | 78 | - | ✅ COMPLETE | 2026-02-01 |
-| **9** | Product Hardening | 17 | 59% | ✅ COMPLETE | 2026-02-02 |
-| **10** | Quality & Coverage ↓ | 625 | 83% | ✅ COMPLETE | 2026-02-02 |
-| **11** | Coverage + Maintenance | 700+ | 91% | ✅ COMPLETE | 2026-02-04 |
-| **12** | Stabilization & Validation (Phases 0-5) | - | - | ✅ COMPLETE | 2026-02-08 |
+| **1** | Core Infrastructure | 63 | - |  COMPLETE | 2026-01-22 |
+| **2** | Enhanced Decision Making | Integrated | - |  COMPLETE | 2026-01-22 |
+| **3** | Portfolio Optimization | 51 | - |  COMPLETE | 2026-01-22 |
+| **4** | Hardening & Monitoring | 25 | - |  COMPLETE | 2026-01-23 |
+| **5** | Production Deployment (SW) | 64 | - |  COMPLETE | 2026-02-01 |
+| **6** | Learning System (P8) | 40 | - |  COMPLETE | 2026-02-01 |
+| **7** | Portfolio Optimization (P7) | 21 | - |  COMPLETE | 2026-02-01 |
+| **8** | Capital Efficiency (P6) | 78 | - |  COMPLETE | 2026-02-01 |
+| **9** | Product Hardening | 17 | 59% |  COMPLETE | 2026-02-02 |
+| **10** | Quality & Coverage  | 625 | 83% |  COMPLETE | 2026-02-02 |
+| **11** | Coverage + Maintenance | 700+ | 91% |  COMPLETE | 2026-02-04 |
+| **12** | Stabilization & Validation (Phases 0-5) | - | - |  COMPLETE | 2026-02-08 |
 | **TOTAL** | | **700+** | **91%** | **COMPLETE** | **2026-02-08** |
 
 ---
 
-## SPRINT 1: Core Infrastructure ✅
+## SPRINT 1: Core Infrastructure 
 
 **Timeline:** 2 weeks | **Tests:** 63/63 passing
 
@@ -90,7 +96,7 @@ Aktualis fo pontok:
 
 ---
 
-## SPRINT 2: Enhanced Decision Making ✅
+## SPRINT 2: Enhanced Decision Making 
 
 **Timeline:** 2 weeks | **Tests:** Integrated into other sprints
 
@@ -113,7 +119,7 @@ Aktualis fo pontok:
 
 ---
 
-## SPRINT 3: Portfolio Optimization ✅
+## SPRINT 3: Portfolio Optimization 
 
 **Timeline:** 2 weeks | **Tests:** 51/51 passing
 
@@ -146,7 +152,7 @@ Aktualis fo pontok:
 
 ---
 
-## SPRINT 4: Hardening & Monitoring ✅
+## SPRINT 4: Hardening & Monitoring 
 
 **Timeline:** 1.5 weeks | **Tests:** 25/25 passing
 
@@ -172,7 +178,7 @@ Aktualis fo pontok:
 
 ---
 
-## SPRINT 5: Production Deployment (Software) ✅
+## SPRINT 5: Production Deployment (Software) 
 
 **Timeline:** 2 weeks | **Tests:** 64/64 passing
 
@@ -220,7 +226,7 @@ Aktualis fo pontok:
 
 ---
 
-## SPRINT 6: Learning System (P8) ✅
+## SPRINT 6: Learning System (P8) 
 
 **Priority:** HIGH - Adaptive Intelligence  
 **Timeline:** 15 hours | **Tests:** 40/40 passing  
@@ -245,10 +251,10 @@ Aktualis fo pontok:
      - Epsilon-greedy exploration (10% explore, 90% exploit)
      - Contextual bandits (market regime-aware)
      - Persistent state (SQLite `strategy_bandits` table)
-   - **Algorithm:** Thompson Sampling with Beta(α, β) distributions
-     - Success → α += 1
-     - Failure → β += 1
-     - Sample: weight = Beta(α, β).sample()
+   - **Algorithm:** Thompson Sampling with Beta(, ) distributions
+     - Success ->  += 1
+     - Failure ->  += 1
+     - Sample: weight = Beta(, ).sample()
    - **Tests:** 14/14 passing
    - **Size:** 500+ lines
 
@@ -277,7 +283,7 @@ Aktualis fo pontok:
 
 ---
 
-## SPRINT 7: Portfolio Optimization (P7) ✅
+## SPRINT 7: Portfolio Optimization (P7) 
 
 **Priority:** MEDIUM - Portfolio-Level Scaling  
 **Timeline:** 10 hours | **Tests:** 21/21 passing  
@@ -328,14 +334,14 @@ Aktualis fo pontok:
    - **New Methods:**
      - `minimize_rebalancing_costs()`: Filter trades < $100, aggregate
      - `apply_tax_efficiency()`: Prioritize long-term gains, harvest losses
-       - Tax score: 0 (loss) → 1 (long-term gain) → 2 (short-term gain)
+       - Tax score: 0 (loss) -> 1 (long-term gain) -> 2 (short-term gain)
        - Prefer selling: losses first, then long-term (>365 days), defer short-term
      - `rebalance_multi_asset()`: ETF + stock + bond rebalancing
        - Cross-asset optimization
        - Correlation-aware filtering (avoid correlated buys)
-       - Asset-type sorting (ETF → Stock → Bond)
+       - Asset-type sorting (ETF -> Stock -> Bond)
    - **Tests:** 6/6 passing (enhanced)
-   - **Size:** +240 lines (234 → 474 total)
+   - **Size:** +240 lines (234 -> 474 total)
 
 ### Integration
 
@@ -346,7 +352,7 @@ Aktualis fo pontok:
 
 ---
 
-## 📈 Test Coverage Evolution
+##  Test Coverage Evolution
 
 ```
 Sprint 1: 63 tests (Foundation)
@@ -363,7 +369,7 @@ ACTUAL TOTAL: 342/342 tests passing (100%)
 
 ---
 
-## SPRINT 8: Capital Efficiency (P6) ✅
+## SPRINT 8: Capital Efficiency (P6) 
 
 **Priority:** HIGH - Capital Optimization  
 **Timeline:** 8 hours | **Tests:** 78/78 passing  
@@ -375,8 +381,8 @@ ACTUAL TOTAL: 342/342 tests passing (100%)
    - **Purpose:** Allocate capital based on decision confidence levels
    - **Features:**
      - Three confidence buckets with capital multipliers:
-       - **STRONG** (confidence ≥ 0.75): **1.5x** multiplier
-       - **NORMAL** (0.5 ≤ confidence < 0.75): **1.0x** multiplier
+       - **STRONG** (confidence  0.75): **1.5x** multiplier
+       - **NORMAL** (0.5  confidence < 0.75): **1.0x** multiplier
        - **WEAK** (confidence < 0.5): **0.5x** multiplier
      - Automatic classification by confidence score
      - Single and multi-strategy allocation
@@ -394,7 +400,7 @@ ACTUAL TOTAL: 342/342 tests passing (100%)
    - **Purpose:** Optimize capital usage across trades
    - **Features:**
      - Kelly criterion position sizing
-       - Kelly % = (W × Avg_W - L × Avg_L) / Avg_W
+       - Kelly % = (W  Avg_W - L  Avg_L) / Avg_W
        - Clamped to [0.01, 0.50] for safety
      - Risk-adjusted position sizing
        - Accounts for volatility in calculation
@@ -404,7 +410,7 @@ ACTUAL TOTAL: 342/342 tests passing (100%)
      - Diversification scoring (Herfindahl-Hirschman Index)
        - 0.0 = perfectly diversified
        - 1.0 = fully concentrated
-     - Maximum drawdown estimation (3σ volatility rule)
+     - Maximum drawdown estimation (3 volatility rule)
      - Capital utilization tracking
    - **Data Structures:**
      - `PositionSize` dataclass
@@ -444,7 +450,7 @@ ACTUAL TOTAL: 342/342 tests passing (100%)
 
 ---
 
-## 🎯 Sprint 9: Product Hardening (P9) - ✅ COMPLETE
+##  Sprint 9: Product Hardening (P9) -  COMPLETE
 
 **Status:** Implementation complete, 17 core tests passing
 
@@ -490,6 +496,7 @@ Advanced monitoring, analytics, and error visibility for production systems
 
 **3. AdminDashboard Enhancement** (`app/ui/admin_dashboard.py` - ~380 lines)
 - **12 REST API Endpoints:**
+   - Authentication: all `/admin/*` endpoints require `X-Admin-Key` header.
   - `/admin/health` - System health check
   - `/admin/performance/summary` - Overall metrics (days param)
   - `/admin/performance/drawdown` - Drawdown analysis
@@ -519,10 +526,10 @@ Advanced monitoring, analytics, and error visibility for production systems
 
 ### Test Results
 ```
-✅ 17 Sprint 9 core tests PASSED
-✅ 78 Sprint 8 tests still PASSING (no regressions)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ 95 total tests for Sprints 8-9 PASSING
+ 17 Sprint 9 core tests PASSED
+ 78 Sprint 8 tests still PASSING (no regressions)
+
+ 95 total tests for Sprints 8-9 PASSING
 ```
 
 ### Architecture Highlights
@@ -534,16 +541,16 @@ Advanced monitoring, analytics, and error visibility for production systems
 - **JSON export** for external reporting
 
 ### Deliverables Summary
-- ✅ 3 major modules (performance_analytics, error_reporter, admin_dashboard)
-- ✅ ~1,460 lines of production code
-- ✅ 17 passing core tests
-- ✅ Zero regressions on existing 342 tests
-- ✅ Full REST API for monitoring dashboard
-- ✅ Integration with all Sprint 6-8 components
+-  3 major modules (performance_analytics, error_reporter, admin_dashboard)
+-  ~1,460 lines of production code
+-  17 passing core tests
+-  Zero regressions on existing 342 tests
+-  Full REST API for monitoring dashboard
+-  Integration with all Sprint 6-8 components
 
 ---
 
-## 🎯 Next Steps
+##  Next Steps
 
 ### Hardware Deployment - PENDING
 - **Raspberry Pi 4/5 setup** (hardware not yet arrived)
@@ -552,102 +559,102 @@ Advanced monitoring, analytics, and error visibility for production systems
 
 ---
 
-## 📂 File Structure Summary
+##  File Structure Summary
 
 ```
 app/
-├── analysis/
-│   └── analyzer.py
-├── backtesting/
-│   ├── backtester.py (Sprint 1)
-│   ├── walk_forward.py (Sprint 1)
-│   ├── history_store.py
-│   ├── outcome_evaluator.py
-│   └── ... (12 files)
-├── config/
-│   ├── config.py
-│   └── pi_config.py (Sprint 5)
-├── data_access/
-│   ├── data_manager.py (Sprint 1)
-│   ├── data_loader.py
-│   └── data_cleaner.py
-├── decision/
-│   ├── decision_engine.py (Sprint 2)
-│   ├── ensemble_aggregator.py (Sprint 2)
-│   ├── drift_detector.py (Sprint 2)
-│   ├── allocation.py (Sprint 1)
-│   ├── risk_parity.py (Sprint 3)
-│   ├── correlation_limits.py (Sprint 3)
-│   ├── rebalancer.py (Sprint 3, enhanced Sprint 7)
-│   ├── decision_history_analyzer.py (Sprint 6)
-│   ├── adaptive_strategy_selector.py (Sprint 6)
-│   ├── market_regime_detector.py (Sprint 6)
-│   ├── etf_allocator.py (Sprint 7)
-│   ├── portfolio_correlation_manager.py (Sprint 7)
-│   ├── confidence_allocator.py (Sprint 8)
-│   └── capital_optimizer.py (Sprint 8)
-├── indicators/
-│   └── technical.py (Sprint 1)
-├── infrastructure/
-│   ├── logger.py
-│   ├── health_check.py (Sprint 5)
-│   ├── log_manager.py (Sprint 5)
-│   ├── backup_manager.py (Sprint 5)
-│   ├── cron_tasks.py (Sprint 5)
-│   ├── metrics.py (Sprint 4)
-│   ├── decision_logger.py (Sprint 8)
-│   └── error_reporter.py (Sprint 9)
-├── notifications/
-│   └── alerter.py (Sprint 4)
-├── optimization/
-│   └── fitness.py (Sprint 1)
-├── reporting/
-│   └── performance_analytics.py (Sprint 9)
-├── scripts/
-│   └── daily_pipeline.py (Sprint 5)
-└── ui/
-   ├── app.py (Flask UI)
-   └── admin_dashboard.py (Sprint 9 - enhanced)
+ analysis/
+    analyzer.py
+ backtesting/
+    backtester.py (Sprint 1)
+    walk_forward.py (Sprint 1)
+    history_store.py
+    outcome_evaluator.py
+    ... (12 files)
+ config/
+    config.py
+    pi_config.py (Sprint 5)
+ data_access/
+    data_manager.py (Sprint 1)
+    data_loader.py
+    data_cleaner.py
+ decision/
+    decision_engine.py (Sprint 2)
+    ensemble_aggregator.py (Sprint 2)
+    drift_detector.py (Sprint 2)
+    allocation.py (Sprint 1)
+    risk_parity.py (Sprint 3)
+    correlation_limits.py (Sprint 3)
+    rebalancer.py (Sprint 3, enhanced Sprint 7)
+    decision_history_analyzer.py (Sprint 6)
+    adaptive_strategy_selector.py (Sprint 6)
+    market_regime_detector.py (Sprint 6)
+    etf_allocator.py (Sprint 7)
+    portfolio_correlation_manager.py (Sprint 7)
+    confidence_allocator.py (Sprint 8)
+    capital_optimizer.py (Sprint 8)
+ indicators/
+    technical.py (Sprint 1)
+ infrastructure/
+    logger.py
+    health_check.py (Sprint 5)
+    log_manager.py (Sprint 5)
+    backup_manager.py (Sprint 5)
+    cron_tasks.py (Sprint 5)
+    metrics.py (Sprint 4)
+    decision_logger.py (Sprint 8)
+    error_reporter.py (Sprint 9)
+ notifications/
+    alerter.py (Sprint 4)
+ optimization/
+    fitness.py (Sprint 1)
+ reporting/
+    performance_analytics.py (Sprint 9)
+ scripts/
+    daily_pipeline.py (Sprint 5)
+ ui/
+    app.py (Flask UI)
+    admin_dashboard.py (Sprint 9 - enhanced)
 
 tests/
-├── conftest.py (Sprint 1)
-├── test_indicators.py (Sprint 1 - 6 tests)
-├── test_fitness.py (Sprint 1 - 9 tests)
-├── test_backtester.py (Sprint 1 - 11 tests)
-├── test_walk_forward.py (Sprint 1 - 7 tests)
-├── test_data_manager.py (Sprint 1 - 10 tests)
-├── test_allocation.py (Sprint 1 - 10 tests)
-├── test_risk_parity.py (Sprint 3 - 7 tests)
-├── test_correlation_limits.py (Sprint 3 - 9 tests)
-├── test_rebalancer.py (Sprint 3 - 8 tests)
-├── test_etf_allocator.py (Sprint 3/7 - 8 tests)
-├── test_portfolio_correlation_manager.py (Sprint 3/7 - 10 tests)
-├── test_admin_dashboard.py (Sprint 4 - 6 tests)
-├── test_metrics.py (Sprint 4 - 13 tests)
-├── test_health_check.py (Sprint 5 - 10 tests)
-├── test_log_manager.py (Sprint 5 - 12 tests)
-├── test_backup_manager.py (Sprint 5 - 9 tests)
-├── test_cron_tasks.py (Sprint 5 - 8 tests)
-├── test_pi_config.py (Sprint 5 - 5 tests)
-├── test_daily_pipeline.py (Sprint 5 - 10 tests)
-├── test_decision_history_analyzer.py (Sprint 6 - 10 tests)
-├── test_adaptive_strategy_selector.py (Sprint 6 - 14 tests)
-├── test_market_regime_detector.py (Sprint 6 - 16 tests)
-├── test_rebalancer_enhanced.py (Sprint 7 - 6 tests)
-├── test_confidence_allocator.py (Sprint 8 - 24 tests)
-├── test_capital_optimizer.py (Sprint 8 - 25 tests)
-├── test_decision_logger.py (Sprint 8 - 29 tests)
-└── test_sprint9_modules.py (Sprint 9 - 17 tests)
+ conftest.py (Sprint 1)
+ test_indicators.py (Sprint 1 - 6 tests)
+ test_fitness.py (Sprint 1 - 9 tests)
+ test_backtester.py (Sprint 1 - 11 tests)
+ test_walk_forward.py (Sprint 1 - 7 tests)
+ test_data_manager.py (Sprint 1 - 10 tests)
+ test_allocation.py (Sprint 1 - 10 tests)
+ test_risk_parity.py (Sprint 3 - 7 tests)
+ test_correlation_limits.py (Sprint 3 - 9 tests)
+ test_rebalancer.py (Sprint 3 - 8 tests)
+ test_etf_allocator.py (Sprint 3/7 - 8 tests)
+ test_portfolio_correlation_manager.py (Sprint 3/7 - 10 tests)
+ test_admin_dashboard.py (Sprint 4 - 6 tests)
+ test_metrics.py (Sprint 4 - 13 tests)
+ test_health_check.py (Sprint 5 - 10 tests)
+ test_log_manager.py (Sprint 5 - 12 tests)
+ test_backup_manager.py (Sprint 5 - 9 tests)
+ test_cron_tasks.py (Sprint 5 - 8 tests)
+ test_pi_config.py (Sprint 5 - 5 tests)
+ test_daily_pipeline.py (Sprint 5 - 10 tests)
+ test_decision_history_analyzer.py (Sprint 6 - 10 tests)
+ test_adaptive_strategy_selector.py (Sprint 6 - 14 tests)
+ test_market_regime_detector.py (Sprint 6 - 16 tests)
+ test_rebalancer_enhanced.py (Sprint 7 - 6 tests)
+ test_confidence_allocator.py (Sprint 8 - 24 tests)
+ test_capital_optimizer.py (Sprint 8 - 25 tests)
+ test_decision_logger.py (Sprint 8 - 29 tests)
+ test_sprint9_modules.py (Sprint 9 - 17 tests)
 ```
 
 ---
 
-## 🔑 Key Architectural Decisions
+##  Key Architectural Decisions
 
 ### 1. Reinforcement Learning for Strategy Selection
 - **Approach:** Thompson Sampling (Bayesian multi-armed bandit)
 - **Rationale:** Balances exploration/exploitation, naturally handles uncertainty
-- **Alternative considered:** ε-greedy (simpler but less principled)
+- **Alternative considered:** -greedy (simpler but less principled)
 
 ### 2. Market Regime Classification
 - **Approach:** Rule-based (volatility + trend + consistency)
@@ -660,7 +667,7 @@ tests/
 - **Alternative considered:** Pure stock picking (higher costs, concentration risk)
 
 ### 4. Tax-Efficient Rebalancing
-- **Approach:** Priority scoring (losses → long-term → short-term)
+- **Approach:** Priority scoring (losses -> long-term -> short-term)
 - **Rationale:** Minimize tax burden while maintaining target allocation
 - **Alternative considered:** Tax-loss harvesting only (incomplete solution)
 
@@ -671,7 +678,7 @@ tests/
 
 ---
 
-## 📊 Performance Metrics (As of Sprint 9)
+##  Performance Metrics (As of Sprint 9)
 
 - **Test Coverage:** 359/359 (100%)
   - Sprint 1-5: 203 tests
@@ -688,7 +695,7 @@ tests/
 
 ---
 
-## 🚀 Production Readiness Checklist
+##  Production Readiness Checklist
 
 - [x] Comprehensive test coverage (264 tests)
 - [x] Error handling & logging
@@ -707,7 +714,7 @@ tests/
 
 ---
 
-## SPRINT 9: Product Hardening ✅
+## SPRINT 9: Product Hardening 
 
 **Timeline:** 1 week | **Tests:** 17/17 passing | **Coverage:** 59% overall
 
@@ -731,33 +738,33 @@ tests/
    - 190 lines of code
 
 ### Test Results
-- ✅ All 17 new tests passing
-- ✅ All 334 previous tests still passing
-- ✅ **Total: 351/351 passing (100%)**
-- ✅ 59% code coverage achieved
+-  All 17 new tests passing
+-  All 334 previous tests still passing
+-  **Total: 351/351 passing (100%)**
+-  59% code coverage achieved
 
 ---
 
-## SPRINT 10: Quality & Coverage Improvement ✅ COMPLETE
+## SPRINT 10: Quality & Coverage Improvement  COMPLETE
 
 **Timeline:** 4 weeks (2026-02-03 to 2026-03-02)  
 **Target:** 430+ tests, 75%+ coverage
 
 ### Planning Documents
-- ✅ Planning docs consolidated into this file
+-  Planning docs consolidated into this file
 
 ### Key Objectives
 - Fix 5 known bugs (portfolio tests, deprecation warnings, etc.)
-- Phase 1: 59% → 68% coverage (Weeks 1-2)
-- Phase 2: 68% → 75%+ coverage (Weeks 3-4)
+- Phase 1: 59% -> 68% coverage (Weeks 1-2)
+- Phase 2: 68% -> 75%+ coverage (Weeks 3-4)
 - Add 79+ new tests across core modules
 
 ### Status
-**✅ COMPLETE** - 2026-02-02
+** COMPLETE** - 2026-02-02
 
 ---
 
-## SPRINT 11: Coverage & Maintenance ✅
+## SPRINT 11: Coverage & Maintenance 
 
 **Timeline:** 2026-02-03 to 2026-02-04
 **Outcome:** 91% coverage, clean suite, deprecation cleanup
@@ -776,7 +783,7 @@ tests/
 
 ---
 
-## SPRINT 12: Stabilization & Validation (Phases 0–5) ✅
+## SPRINT 12: Stabilization & Validation (Phases 0-5) 
 
 **Timeline:** 2026-02-05 to 2026-02-08
 **Objective:** End-to-end stabilization + validation tooling
@@ -797,7 +804,7 @@ tests/
 
 ---
 
-## SPRINT 13: Performance & Learning Integrations (P2/P8/P3) 🟡 PLANNED
+## SPRINT 13: Performance & Learning Integrations (P2/P8/P3)  PLANNED
 
 **Timeline:** 2026-02-12 to 2026-02-20
 **Objective:** Close P2/P3/P8 gaps (caching, reporting, RL strategy selection, PyFolio)

@@ -2,10 +2,11 @@
 
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from dataclasses import replace
 
 import pytest
 
-from app.config.config import Config
+import app.ui.app as ui_app
 from app.ui.app import app
 from app.decision.decision_history_analyzer import StrategyStats
 
@@ -21,12 +22,20 @@ def _auth_headers():
     return {"X-Admin-Key": "key"}
 
 
-def test_admin_health_endpoint(monkeypatch, client):
+def _set_admin_key(monkeypatch, test_settings):
+    from app.ui import set_settings as set_ui_settings
+
+    new_settings = replace(test_settings, ADMIN_API_KEY="key")
+    set_ui_settings(new_settings)
+    monkeypatch.setattr(ui_app, "settings", new_settings)
+
+
+def test_admin_health_endpoint(monkeypatch, client, test_settings):
     class DummyMetrics:
         def get_health_status(self):
             return {"status": "healthy"}
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.infrastructure.metrics.get_metrics", lambda: DummyMetrics()
     )
@@ -36,7 +45,7 @@ def test_admin_health_endpoint(monkeypatch, client):
     assert res.get_json()["status"] == "healthy"
 
 
-def test_performance_summary_endpoint(monkeypatch, client):
+def test_performance_summary_endpoint(monkeypatch, client, test_settings):
     class DummyAnalytics:
         def load_returns_from_db(self, days_back=30):
             return [0.01, 0.02], [
@@ -60,7 +69,7 @@ def test_performance_summary_endpoint(monkeypatch, client):
                 period_end=dates[-1],
             )
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.reporting.performance_analytics.PerformanceAnalytics", DummyAnalytics
     )
@@ -71,7 +80,7 @@ def test_performance_summary_endpoint(monkeypatch, client):
     assert "total_return" in data
 
 
-def test_performance_drawdown_endpoint(monkeypatch, client):
+def test_performance_drawdown_endpoint(monkeypatch, client, test_settings):
     class DummyAnalytics:
         def load_returns_from_db(self, days_back=90):
             return [0.01, -0.02], [
@@ -91,7 +100,7 @@ def test_performance_drawdown_endpoint(monkeypatch, client):
                 drawdowns=[{"start": dates[0], "end": dates[-1]}],
             )
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.reporting.performance_analytics.PerformanceAnalytics", DummyAnalytics
     )
@@ -102,7 +111,7 @@ def test_performance_drawdown_endpoint(monkeypatch, client):
     assert "max_drawdown" in data
 
 
-def test_performance_rolling_endpoint(monkeypatch, client):
+def test_performance_rolling_endpoint(monkeypatch, client, test_settings):
     class DummyAnalytics:
         def load_returns_from_db(self, days_back=90):
             return [0.01, 0.02], [
@@ -119,7 +128,7 @@ def test_performance_rolling_endpoint(monkeypatch, client):
                 dates=dates,
             )
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.reporting.performance_analytics.PerformanceAnalytics", DummyAnalytics
     )
@@ -130,7 +139,7 @@ def test_performance_rolling_endpoint(monkeypatch, client):
     assert "rolling_returns" in data
 
 
-def test_error_summary_endpoint(monkeypatch, client):
+def test_error_summary_endpoint(monkeypatch, client, test_settings):
     class DummyStats:
         total_errors = 2
         errors_by_severity = {"ERROR": 2}
@@ -144,7 +153,7 @@ def test_error_summary_endpoint(monkeypatch, client):
         def get_error_statistics(self, hours_back=24):
             return DummyStats()
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.infrastructure.error_reporter.ErrorReporter", DummyReporter
     )
@@ -154,12 +163,12 @@ def test_error_summary_endpoint(monkeypatch, client):
     assert res.get_json()["total_errors"] == 2
 
 
-def test_error_recent_endpoint(monkeypatch, client):
+def test_error_recent_endpoint(monkeypatch, client, test_settings):
     class DummyReporter:
         def get_recent_errors(self, limit=50, severity=None):
             return [{"msg": "oops"}]
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.infrastructure.error_reporter.ErrorReporter", DummyReporter
     )
@@ -169,12 +178,12 @@ def test_error_recent_endpoint(monkeypatch, client):
     assert res.get_json()["count"] == 1
 
 
-def test_error_trends_endpoint(monkeypatch, client):
+def test_error_trends_endpoint(monkeypatch, client, test_settings):
     class DummyReporter:
         def get_error_trends(self, days=7):
             return {"days": days, "counts": [1, 2, 3]}
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.infrastructure.error_reporter.ErrorReporter", DummyReporter
     )
@@ -185,7 +194,7 @@ def test_error_trends_endpoint(monkeypatch, client):
     assert data["days"] == 7
 
 
-def test_capital_utilization_endpoint(monkeypatch, client):
+def test_capital_utilization_endpoint(monkeypatch, client, test_settings):
     class DummyOptimizer:
         def get_position_history(self):
             return [
@@ -193,7 +202,7 @@ def test_capital_utilization_endpoint(monkeypatch, client):
                 {"portfolio_weight": 0.2, "kelly_fraction": 0.3},
             ]
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.decision.capital_optimizer.CapitalUtilizationOptimizer", DummyOptimizer
     )
@@ -203,12 +212,12 @@ def test_capital_utilization_endpoint(monkeypatch, client):
     assert "average_utilization" in res.get_json()
 
 
-def test_no_trade_decisions_endpoint(monkeypatch, client):
+def test_no_trade_decisions_endpoint(monkeypatch, client, test_settings):
     class DummyLogger:
         def get_no_trade_analysis(self, days_back=7):
             return {"count": 2}
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.infrastructure.decision_logger.NoTradeDecisionLogger", DummyLogger
     )
@@ -218,7 +227,7 @@ def test_no_trade_decisions_endpoint(monkeypatch, client):
     assert res.get_json()["count"] == 2
 
 
-def test_strategy_performance_endpoint(monkeypatch, client):
+def test_strategy_performance_endpoint(monkeypatch, client, test_settings):
     class DummyAnalyzer:
         def analyze_strategy_performance(self, strategy_name, days=30):
             return StrategyStats(
@@ -233,7 +242,7 @@ def test_strategy_performance_endpoint(monkeypatch, client):
                 trades_analyzed=10,
             )
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.decision.decision_history_analyzer.DecisionHistoryAnalyzer", DummyAnalyzer
     )
@@ -244,7 +253,7 @@ def test_strategy_performance_endpoint(monkeypatch, client):
     assert "strategies" in data
 
 
-def test_confidence_distribution_endpoint(monkeypatch, client):
+def test_confidence_distribution_endpoint(monkeypatch, client, test_settings):
     class DummyBucket:
         def __init__(self, value):
             self.value = value
@@ -260,7 +269,7 @@ def test_confidence_distribution_endpoint(monkeypatch, client):
         def get_bucket_statistics(self):
             return {DummyBucket("high"): DummyStats()}
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
         "app.decision.confidence_allocator.ConfidenceBucketAllocator", DummyAllocator
     )

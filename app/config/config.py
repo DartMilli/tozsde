@@ -3,11 +3,11 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
-# 1. Abszolút gyökér meghatározása (P0)
-# Ez a fájl: app/core/config.py -> szülő: app/core -> szülő: app -> szülő: ROOT
+# 1. Abszolut gyoker meghatarozasa (P0)
+# Ez a fajl: app/core/config.py -> szulo: app/core -> szulo: app -> szulo: ROOT
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-# 2. Környezeti változók betöltése
+# 2. Kornyezeti valtozok betoltese
 load_dotenv(BASE_DIR / ".env")
 
 EXCLUDED_TICKERS = ["OTP.BD", "MOL.BD", "RICHTER.BD"]
@@ -52,7 +52,7 @@ class Config:
 
     LOGGING_LEVEL = os.getenv("LOGGING_LEVEL")
 
-    # Útvonalak
+    # Utvonalak
     DATA_DIR = BASE_DIR / "app" / "data"
     LOG_DIR = BASE_DIR / "logs"
     MODEL_DIR = BASE_DIR / "models"
@@ -68,7 +68,7 @@ class Config:
 
     HISTORY_DIR = BASE_DIR / "decision_history"
 
-    # Adatbázis (P1 - Egységes DB)
+    # Adatbazis (P1 - Egyseges DB)
     DB_PATH = DATA_DIR / "market_data.db"
 
     # Common file paths (Path objects)
@@ -76,7 +76,7 @@ class Config:
     FAILED_DAYS_FILE_PATH = DATA_DIR / "failed_to_download.json"
     MODEL_TEST_RESULT_FILE_PATH = DATA_DIR / "model_test_result.json"
 
-    # Biztonság
+    # Biztonsag
     SECRET_KEY = os.getenv("SECRET_KEY", "dev_key_do_not_use_in_prod")
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # App password!
@@ -90,7 +90,7 @@ class Config:
     STRONG_WF_THRESHOLD = 0.7
 
     ACTION_LABELS = {
-        "hu": {0: "TARTÁS", 1: "VÉTEL", 2: "ELADÁS"},
+        "hu": {0: "TARTAS", 1: "VETEL", 2: "ELADAS"},
         "en": {0: "HOLD", 1: "BUY", 2: "SELL"},
     }
 
@@ -99,11 +99,11 @@ class Config:
     EMAIL_MAX_BODY_CHARS = int(os.getenv("EMAIL_MAX_BODY_CHARS", "5000"))
     EMAIL_MAX_DETAIL_LINES = int(os.getenv("EMAIL_MAX_DETAIL_LINES", "20"))
 
-    # Kereskedési beállítások (P2 - Tranzakciós költségek)
+    # Kereskedesi beallitasok (P2 - Tranzakcios koltsegek)
     INITIAL_CAPITAL = 10000
-    RISK = 0.02  # A portfólió 2%-át kockáztatjuk egy trade-en
-    TRANSACTION_FEE_PCT = 0.001  # 0.1% jutalék
-    MIN_SLIPPAGE_PCT = 0.0005  # 0.05% csúszás
+    RISK = 0.02  # A portfolio 2%-at kockaztatjuk egy trade-en
+    TRANSACTION_FEE_PCT = 0.001  # 0.1% jutalek
+    MIN_SLIPPAGE_PCT = 0.0005  # 0.05% csuszas
     SPREAD_PCT = 0.0005  # 0.05%
 
     RELIABILITY_PERIOD_DAYS = 30
@@ -142,15 +142,15 @@ class Config:
     COOLDOWN_MAX_TRADES = 2
     DRAWDOWN_LOOKBACK = 3
 
-    MAX_VIX_THRESHOLD = 30.0  # Efelett pánik van a piacon
+    MAX_VIX_THRESHOLD = 30.0  # Efelett panik van a piacon
 
-    # Walk-Forward paraméterek (P5)
-    TRAIN_WINDOW_MONTHS = 12  # 1 év tanulás
-    TEST_WINDOW_MONTHS = 3  # 3 hónap tesztelés
-    WINDOW_STEP_MONTHS = 2  # 2 havonta lépünk előre
+    # Walk-Forward parameterek (P5)
+    TRAIN_WINDOW_MONTHS = 12  # 1 ev tanulas
+    TEST_WINDOW_MONTHS = 3  # 3 honap teszteles
+    WINDOW_STEP_MONTHS = 2  # 2 havonta lepunk elore
     WF_STABILITY_CONSTANT = 10
 
-    # tanulási adatok és optimalizációs paraméterek
+    # tanulasi adatok es optimalizacios parameterek
     START_DATE = "2020-01-01"
     END_DATE = datetime.today().strftime("%Y-%m-%d")
 
@@ -236,7 +236,7 @@ def _enforce_secret_key_policy():
             raise RuntimeError("SECRET_KEY must be set in production environment")
 
 
-# Inicializáláskor futtatjuk
+# Inicializalaskor futtatjuk
 try:
     from app.config.pi_config import apply_pi_config
 

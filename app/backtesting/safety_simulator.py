@@ -3,7 +3,7 @@ def simulate_safety_policy(
     policy: dict,
 ) -> dict:
     """
-    P8.6 – Counterfactual safety simulation
+    P8.6 - Counterfactual safety simulation
     """
 
     total_reward_all = 0.0

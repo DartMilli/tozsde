@@ -2,12 +2,12 @@ import json
 import sqlite3
 from pathlib import Path
 from datetime import datetime, timedelta
+from dataclasses import replace
 
 import pytest
 
 from app.infrastructure.error_reporter import ErrorReporter, ErrorSeverity
 from app.infrastructure.health_check import HealthChecker
-from app.config.config import Config
 
 
 def test_error_reporter_basic_flow(tmp_path):
@@ -35,17 +35,15 @@ def test_error_reporter_basic_flow(tmp_path):
     assert deleted >= 0
 
 
-def test_health_checker_basic(monkeypatch, tmp_path):
+def test_health_checker_basic(monkeypatch, tmp_path, test_settings):
     db_path = tmp_path / "health.db"
     conn = sqlite3.connect(str(db_path))
     conn.execute("CREATE TABLE IF NOT EXISTS dummy (id INTEGER)")
     conn.commit()
     conn.close()
 
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-    monkeypatch.setattr(Config, "LOG_DIR", tmp_path)
-
-    checker = HealthChecker()
+    settings = replace(test_settings, DB_PATH=db_path, LOG_DIR=tmp_path)
+    checker = HealthChecker(settings=settings)
 
     class DummyResponse:
         def getcode(self):

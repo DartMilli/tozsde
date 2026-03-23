@@ -5,7 +5,8 @@ import numpy as np
 import io
 from datetime import datetime, timedelta
 
-from app.data_access import data_loader
+from app.data_access import data_loader, get_settings, set_settings as set_data_settings
+from dataclasses import replace
 
 
 def _make_df(start_date, days=5):
@@ -28,7 +29,7 @@ def test_load_data_uses_db_when_fresh(monkeypatch):
     """Should not download when DB is recent enough."""
     end = datetime(2025, 1, 10).date()
     start = datetime(2024, 12, 1).date()
-    warmup_start = start - timedelta(days=data_loader.Config.WARMUP_DAYS)
+    warmup_start = start - timedelta(days=get_settings().WARMUP_DAYS)
 
     df_db = _make_df(end - timedelta(days=4), days=5)
 
@@ -64,7 +65,7 @@ def test_load_data_downloads_when_missing(monkeypatch):
             self.calls += 1
             if self.calls == 1:
                 return pd.DataFrame()
-            return _make_df(start - timedelta(days=data_loader.Config.WARMUP_DAYS), days=10)
+            return _make_df(start - timedelta(days=get_settings().WARMUP_DAYS), days=10)
 
     dummy = DummyDM()
     monkeypatch.setattr(data_loader, "DataManager", lambda: dummy)
@@ -85,6 +86,7 @@ def test_load_data_downloads_when_missing(monkeypatch):
 
 def test_load_data_accepts_string_dates(monkeypatch):
     """Should accept YYYY-MM-DD strings for start/end."""
+
     class DummyDM:
         def load_ohlcv(self, ticker, start_date=None):
             return _make_df(datetime(2024, 1, 1), days=5)
@@ -98,6 +100,7 @@ def test_load_data_accepts_string_dates(monkeypatch):
 
 def test_download_and_save_data_handles_empty(monkeypatch):
     """Should return False on empty download."""
+
     class DummyDM:
         def save_ohlcv(self, ticker, df):
             raise AssertionError("save_ohlcv should not be called on empty df")
@@ -109,7 +112,12 @@ def test_download_and_save_data_handles_empty(monkeypatch):
 
     monkeypatch.setattr(data_loader.yf, "download", _fake_download)
 
-    assert data_loader.download_and_save_data("SPY", datetime(2025, 1, 1), datetime(2025, 1, 2)) is False
+    assert (
+        data_loader.download_and_save_data(
+            "SPY", datetime(2025, 1, 1), datetime(2025, 1, 2)
+        )
+        is False
+    )
 
 
 def test_download_and_save_data_success(monkeypatch):
@@ -130,7 +138,12 @@ def test_download_and_save_data_success(monkeypatch):
 
     monkeypatch.setattr(data_loader.yf, "download", _fake_download)
 
-    assert data_loader.download_and_save_data("SPY", datetime(2025, 1, 1), datetime(2025, 1, 4)) is True
+    assert (
+        data_loader.download_and_save_data(
+            "SPY", datetime(2025, 1, 1), datetime(2025, 1, 4)
+        )
+        is True
+    )
     assert saved["called"] is True
     assert saved["ticker"] == "SPY"
 
@@ -154,6 +167,7 @@ def test_get_market_volatility_index_from_db(monkeypatch):
 
 def test_get_market_volatility_index_download_fallback(monkeypatch):
     """Should download VIX when not in DB, then fallback to DB if download fails."""
+
     class DummyDM:
         def get_market_data(self, symbol, days=1):
             return []
@@ -215,7 +229,7 @@ def test_get_supported_tickers_and_list():
     assert "VOO" in keys
 
 
-def test_run_full_download_downloads_missing_days(monkeypatch):
+def test_run_full_download_downloads_missing_days(monkeypatch, test_settings, tmp_path):
     """Should call download_and_save_data for missing trading days."""
     dates = pd.date_range(start="2025-01-01", periods=3, freq="D")
     apple_df = pd.DataFrame({"Close": [100, 101, 102]}, index=dates)
@@ -225,7 +239,7 @@ def test_run_full_download_downloads_missing_days(monkeypatch):
 
     monkeypatch.setattr(data_loader.yf, "download", _fake_yf_download)
 
-    def _fake_load_data(ticker, start, end):
+    def _fake_load_data(ticker, start, end, **kwargs):
         # Return only the first day to force missing days
         return apple_df.iloc[:1]
 
@@ -239,19 +253,22 @@ def test_run_full_download_downloads_missing_days(monkeypatch):
 
     monkeypatch.setattr(data_loader, "download_and_save_data", _fake_download_and_save)
 
-    class DummyConfig:
-        TICKERS = ["AAA", "BBB"]
-        START_DATE = "2025-01-01"
-        END_DATE = "2025-01-03"
-        FAILED_DAYS_FILE_PATH = "fails.json"
-
-    monkeypatch.setattr(data_loader, "Config", DummyConfig)
+    settings = replace(
+        test_settings,
+        TICKERS=["AAA", "BBB"],
+        START_DATE="2025-01-01",
+        END_DATE="2025-01-03",
+        FAILED_DAYS_FILE_PATH=tmp_path / "fails.json",
+    )
+    set_data_settings(settings)
 
     # Avoid writing to real file
     monkeypatch.setattr(data_loader.json, "dump", lambda *args, **kwargs: None)
-    monkeypatch.setattr(data_loader, "open", lambda *args, **kwargs: io.StringIO(), raising=False)
+    monkeypatch.setattr(
+        data_loader, "open", lambda *args, **kwargs: io.StringIO(), raising=False
+    )
 
-    data_loader.run_full_download()
+    data_loader.run_full_download(settings=settings)
 
     # 2 tickers * 2 missing days = 4 calls
     assert calls["count"] == 4

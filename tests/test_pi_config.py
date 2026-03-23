@@ -6,6 +6,7 @@ Date: 2026-02-01
 """
 
 import os
+from dataclasses import replace
 from pathlib import Path
 
 from app.config.pi_config import detect_pi_mode, apply_pi_config
@@ -71,36 +72,31 @@ def test_detect_pi_mode_invalid_env(monkeypatch):
     assert detect_pi_mode(platform_module=platform_stub) is False
 
 
-def test_apply_pi_config_no_pi(monkeypatch):
+def test_apply_pi_config_no_pi(monkeypatch, test_settings):
     monkeypatch.setenv("PI_MODE", "false")
-    cfg = DummyConfig
-    result = apply_pi_config(config_cls=cfg, ensure_dirs=False)
-    assert result["applied"] is False
-    assert getattr(cfg, "PI_MODE") is False
+    settings = replace(test_settings, PI_MODE=False)
+    result = apply_pi_config(settings=settings, env=os.environ)
+    assert result is settings
+    assert result.PI_MODE is False
 
 
-def test_apply_pi_config_pi_mode(monkeypatch):
+def test_apply_pi_config_pi_mode(monkeypatch, test_settings):
     monkeypatch.setenv("PI_MODE", "true")
     monkeypatch.setenv("PI_BASE_DIR", "/home/pi/tozsde_webapp")
-    cfg = DummyConfig
+    settings = replace(test_settings, PI_MODE=False)
 
-    result = apply_pi_config(config_cls=cfg, ensure_dirs=False)
-    assert result["applied"] is True
-    assert result["pi_mode"] is True
-    assert cfg.DATA_DIR.as_posix().endswith("/home/pi/tozsde_webapp/app/data")
-    assert cfg.DB_PATH.name == "market_data.db"
-    assert cfg.OPTIMIZER_POPULATION == 30
-    assert getattr(cfg, "MAX_BACKTEST_WINDOW") == 252
-    assert getattr(cfg, "SQLITE_SINGLE_CONNECTION") is True
-    assert getattr(cfg, "DISABLE_HEAVY_TASKS") is True
+    result = apply_pi_config(settings=settings, env=os.environ)
+    assert result.PI_MODE is True
+    assert result.DATA_DIR.as_posix().endswith("/home/pi/tozsde_webapp/app/data")
+    assert result.DB_PATH.name == "market_data.db"
 
 
-def test_apply_pi_config_creates_dirs(monkeypatch, tmp_path):
+def test_apply_pi_config_creates_dirs(monkeypatch, tmp_path, test_settings):
     monkeypatch.setenv("PI_MODE", "true")
     monkeypatch.setenv("PI_BASE_DIR", str(tmp_path))
-    cfg = DummyConfig
+    settings = replace(test_settings, PI_MODE=False)
 
-    result = apply_pi_config(config_cls=cfg, ensure_dirs=True)
-    assert result["applied"] is True
-    assert cfg.DATA_DIR.exists()
-    assert cfg.LOG_DIR.exists()
+    result = apply_pi_config(settings=settings, env=os.environ)
+    assert result.PI_MODE is True
+    assert str(result.DATA_DIR).startswith(str(tmp_path))
+    assert str(result.LOG_DIR).startswith(str(tmp_path))

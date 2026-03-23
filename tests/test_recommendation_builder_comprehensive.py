@@ -11,8 +11,8 @@ Tests:
 - weighted_ensemble_decision() logic
 - Edge cases and boundary conditions
 
-Coverage Target: recommendation_builder 32% → 70%+
-                decision_builder 41% → 75%+
+Coverage Target: recommendation_builder 32% -> 70%+
+                decision_builder 41% -> 75%+
 """
 
 import pytest
@@ -349,7 +349,7 @@ class TestExplanationNoTradeScenarios:
 
         result = build_explanation(payload, decision)
 
-        assert "CHAOTIC" in result["hu"] or "eltérnek" in result["hu"]
+        assert "CHAOTIC" in result["hu"] or "elternek" in result["hu"]
         assert "CHAOTIC" in result["en"] or "divergent" in result["en"]
 
 

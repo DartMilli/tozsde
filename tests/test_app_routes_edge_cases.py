@@ -2,12 +2,13 @@
 
 from io import BytesIO
 from datetime import datetime
+from dataclasses import replace
 
 import pandas as pd
 import pytest
 
+import app.ui.app as ui_app
 from app.ui.app import app
-from app.config.config import Config
 
 
 @pytest.fixture
@@ -204,12 +205,16 @@ def test_admin_health_unauthorized(client):
     assert res.status_code == 401
 
 
-def test_admin_health_authorized(monkeypatch, client):
+def test_admin_health_authorized(monkeypatch, client, test_settings):
+    from app.ui import set_settings as set_ui_settings
+
     class DummyMetrics:
         def get_health_status(self):
             return {"status": "healthy"}
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    new_settings = replace(test_settings, ADMIN_API_KEY="key")
+    set_ui_settings(new_settings)
+    monkeypatch.setattr(ui_app, "settings", new_settings)
     monkeypatch.setattr(
         "app.infrastructure.metrics.get_metrics", lambda: DummyMetrics()
     )
@@ -219,7 +224,9 @@ def test_admin_health_authorized(monkeypatch, client):
     assert res.get_json()["status"] == "healthy"
 
 
-def test_admin_metrics_recent(monkeypatch, client):
+def test_admin_metrics_recent(monkeypatch, client, test_settings):
+    from app.ui import set_settings as set_ui_settings
+
     class DummyMetrics:
         def get_recent_metrics(self, hours=24):
             return {"total_executions": 1}
@@ -227,7 +234,9 @@ def test_admin_metrics_recent(monkeypatch, client):
         def get_health_status(self):
             return {"status": "healthy"}
 
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+    new_settings = replace(test_settings, ADMIN_API_KEY="key")
+    set_ui_settings(new_settings)
+    monkeypatch.setattr(ui_app, "settings", new_settings)
     monkeypatch.setattr(
         "app.infrastructure.metrics.get_metrics", lambda: DummyMetrics()
     )
@@ -238,7 +247,11 @@ def test_admin_metrics_recent(monkeypatch, client):
     assert "metrics" in data
 
 
-def test_admin_force_rebalance_authorized(monkeypatch, client):
-    monkeypatch.setattr(Config, "ADMIN_API_KEY", "key")
+def test_admin_force_rebalance_authorized(monkeypatch, client, test_settings):
+    from app.ui import set_settings as set_ui_settings
+
+    new_settings = replace(test_settings, ADMIN_API_KEY="key")
+    set_ui_settings(new_settings)
+    monkeypatch.setattr(ui_app, "settings", new_settings)
     res = client.post("/admin/force-rebalance", headers={"X-Admin-Key": "key"})
     assert res.status_code == 200

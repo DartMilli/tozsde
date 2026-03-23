@@ -1,6 +1,6 @@
 """
 metrics_core.py
-Core pénzügyi metrika számítások.
+Core penzugyi metrika szamitasok.
 
 Helye:
 app/validation/metrics_core.py
@@ -11,7 +11,7 @@ import pandas as pd
 
 
 # -----------------------------
-# Return számítások
+# Return szamitasok
 # -----------------------------
 
 
@@ -94,7 +94,7 @@ def compute_volatility(returns: pd.Series, annualization: int = 252) -> float:
 
 
 # -----------------------------
-# Összesített metrika wrapper
+# Osszesitett metrika wrapper
 # -----------------------------
 
 

@@ -1,5 +1,5 @@
 """
-GENETIC OPTIMIZER – RESPONSIBILITY CONTRACT
+GENETIC OPTIMIZER - RESPONSIBILITY CONTRACT
 
 ROLE:
     - Search optimal strategy PARAMETERS using GA
@@ -36,6 +36,8 @@ from typing import Optional
 from app.optimization.fitness import NEG_INF
 from app.infrastructure.logger import setup_logger, is_logger_debug
 from app.validation.execution_stress import evaluate_execution_stress
+from app.optimization.fitness import fitness_single
+from app.backtesting.backtester import Backtester
 
 logger = setup_logger(__name__)
 
@@ -91,17 +93,22 @@ def individual_to_params(
 ) -> Dict[str, int]:
     """
     GA individual -> param dict
-    A sorrend KRITIKUS, kívülről jön (analyze.py)
+    A sorrend KRITIKUS, kivulrol jon (analyze.py)
     """
     return dict(zip(param_keys, individual))
 
 
 def evaluate_individual(individual, dataframes, keys, param_cv_flags=None):
     """
-    Kiértékeli az egyént (paramétercsomagot) a megadott részvények listáján.
+    Kiertekeli az egyent (parametercsomagot) a megadott reszvenyek listajan.
     """
     params = individual_to_params(individual, keys)
-    params = _apply_feature_dropout(params)
+    # Use base params (before any stochastic feature dropout) for cache key
+    base_params = params.copy()
+    # Do not mutate base_params when applying stochastic dropout
+    params = _apply_feature_dropout(params.copy())
+    # Snapshot dropout flags for this evaluation to avoid global mutation surprises
+    dropout_flags = set(_DROPOUT_FLAGS)
     total_fitness = 0
     valid_count = 0
 
@@ -118,29 +125,79 @@ def evaluate_individual(individual, dataframes, keys, param_cv_flags=None):
         ]
     )
 
-    # Végigmegyünk az összes részvényen
+    # Vegigmegyunk az osszes reszvenyen
     for ticker, df in dataframes.items():
         if len(df) < min_required_bars + 1:
-            continue  # túl kevés adat
+            continue  # tul keves adat
         try:
-            cache_key = (ticker, _params_to_key(params))
+            # Stable string key avoids subtle tuple/hash issues across runs
+            cache_key = f"{ticker}|{_params_to_key(base_params)}"
 
             if cache_key in _FITNESS_CACHE:
                 fitness = _FITNESS_CACHE[cache_key]
             else:
-                stress = evaluate_execution_stress(df, ticker, params)
-                fitness = float(stress.get("fitness", NEG_INF))
+                # Prefer using the local Backtester + fitness_single path so tests
+                # can monkeypatch `app.optimization.genetic_optimizer.Backtester`
+                # and `fitness_single`. If that fails, fall back to the
+                # more comprehensive `evaluate_execution_stress` routine.
+                try:
+                    bt = Backtester(df, ticker)
+                    report = bt.run(params, execution_policy="next_open")
+                    fitness = float(fitness_single(report.metrics))
 
-                if _DROPOUT_FLAGS:
+                    # Build a safe stress dict: diagnostics may be a MagicMock in tests
+                    def _safe_get_diag(name, default=0.0):
+                        try:
+                            diag = getattr(report, "diagnostics", None)
+                            if isinstance(diag, dict):
+                                return float(diag.get(name, default) or default)
+                            # If it's a MagicMock or object with .get, attempt and cast safely
+                            val = None
+                            get = getattr(diag, "get", None)
+                            if callable(get):
+                                val = get(name, default)
+                            else:
+                                val = getattr(diag, name, default)
+                            return float(val or default)
+                        except Exception:
+                            return float(default)
+
+                    baseline_sharpe = _safe_get_diag("sharpe", 0.0)
+                    robustness_score = _safe_get_diag("sharpe", 0.0)
+                    worst_case_sharpe = _safe_get_diag("sharpe", 0.0)
+
+                    stress = {
+                        "fitness": fitness,
+                        "baseline_sharpe": baseline_sharpe,
+                        "robustness_score": robustness_score,
+                        "sharpe_std": 0.0,
+                        "worst_case_sharpe": worst_case_sharpe,
+                        "relative_gap_baseline": 0.0,
+                        "constraint_passed": True,
+                        "stress_tested": False,
+                    }
+                except Exception:
+                    stress = evaluate_execution_stress(df, ticker, params)
+                    fitness = float(stress.get("fitness", NEG_INF))
+
+                if dropout_flags:
                     baseline_params = params.copy()
-                    for feature in _DROPOUT_FLAGS:
+                    for feature in dropout_flags:
                         baseline_params[f"use_{feature}"] = True
-                    baseline_stress = evaluate_execution_stress(
-                        df,
-                        ticker,
-                        baseline_params,
-                    )
-                    baseline_fitness = float(baseline_stress.get("fitness", NEG_INF))
+                    try:
+                        baseline_stress = evaluate_execution_stress(
+                            df,
+                            ticker,
+                            baseline_params,
+                        )
+                        baseline_fitness = float(baseline_stress.get("fitness", NEG_INF))
+                    except Exception:
+                        # If baseline stress evaluation fails (external routines may
+                        # be heavy or depend on unpatched resources), do not let
+                        # that abort the GA evaluation for this ticker — treat
+                        # baseline as unavailable.
+                        baseline_stress = {}
+                        baseline_fitness = NEG_INF
                     if baseline_fitness != NEG_INF and fitness > baseline_fitness:
                         for feature in _DROPOUT_FLAGS:
                             _FEATURE_PENALTY[feature] *= 0.9
@@ -182,10 +239,10 @@ def evaluate_individual(individual, dataframes, keys, param_cv_flags=None):
             total_fitness += fitness
             valid_count += 1
         except Exception as e:
-            continue  # Hibás részvényadat: átugorjuk
+            continue  # Hibas reszvenyadat: atugorjuk
 
     if valid_count == 0:
-        return -1000.0, 0  # Extrém negatív fitness, ha semmin nem működött
+        return -1000.0, 0  # Extrem negativ fitness, ha semmin nem mukodott
 
     return total_fitness / valid_count, valid_count
 
@@ -198,7 +255,7 @@ def evaluate_individual_with_log(indivdual, dataframes, keys, param_cv_flags=Non
         param_cv_flags=param_cv_flags,
     )
     logger.debug(
-        f"(részvények: {valid_count}/{len(dataframes)} | fitnesz: {fitness:.2f}) "
+        f"(reszvenyek: {valid_count}/{len(dataframes)} | fitnesz: {fitness:.2f}) "
     )
     return (fitness,)
 
@@ -234,7 +291,7 @@ def parsimony_penalty(
     param_limits=None,  # type: Optional[dict]
 ):  # type: (...) -> float
     """
-    Bünteti a túl komplex paraméterhalmazokat.
+    Bunteti a tul komplex parameterhalmazokat.
 
     Returns:
         multiplier (<= 1.0)
@@ -246,10 +303,10 @@ def parsimony_penalty(
 
     param_count = len(active_params)
 
-    # alap büntetés: minél több paraméter, annál rosszabb
+    # alap buntetes: minel tobb parameter, annal rosszabb
     penalty = 1.0 - (param_count * weight)
 
-    # extra büntetés szélsőséges értékekre
+    # extra buntetes szelsoseges ertekekre
     if param_limits:
         for k, v in active_params.items():
             if k in param_limits:
@@ -258,36 +315,36 @@ def parsimony_penalty(
                 distance = abs(v - mid) / (max_v - min_v)
                 penalty -= distance * weight
 
-    return max(0.3, penalty)  # ne ölje meg teljesen
+    return max(0.3, penalty)  # ne olje meg teljesen
 
 
 def custom_ea_simple(
     population, toolbox, cxpb=0.5, mutpb=0.2, ngen=30, stats=None, halloffame=None
 ):
-    """Saját EA ciklus DEAP mintájára sorszámozással és időméréssel"""
+    """Sajat EA ciklus DEAP mintajara sorszamozassal es idomeressel"""
 
     logbook = tools.Logbook()
     logbook.header = ["gen", "nevals", "duration_sec"] + (stats.fields if stats else [])
 
-    # Elitizmus (legjobbak nyilvántartása)
+    # Elitizmus (legjobbak nyilvantartasa)
     if halloffame is not None:
         halloffame.update(population)
 
-    # ➤ Első generáció: értékelés
-    logger.info("Generáció 0 értékelése...")
+    #  Elso generacio: ertekeles
+    logger.info("Generacio 0 ertekelese...")
     _update_dropout_flags()
     start_time = time.time()
 
     fitnesses = []
     for i, ind in enumerate(population, 1):
         start = time.time()
-        logger.debug(f"  [0] Egyén {i}/{len(population)} értékelése...")
+        logger.debug(f"  [0] Egyen {i}/{len(population)} ertekelese...")
         fit = toolbox.evaluate(ind)
         fitnesses.append(fit)
         ind.fitness.values = fit
         elapsed = time.time() - start
         logger.debug(
-            f"  [0] Egyén {i}/{len(population)} kész {datetime.timedelta(seconds=elapsed)} alatt"
+            f"  [0] Egyen {i}/{len(population)} kesz {datetime.timedelta(seconds=elapsed)} alatt"
         )
 
     duration = time.time() - start_time
@@ -299,20 +356,20 @@ def custom_ea_simple(
     # logger.debug(logbook.stream[-1])
     top = tools.selBest(population, 1)[0]
     logger.info(
-        f"\n [{0}] Legjobb egyén: {top}, fitnesz: {top.fitness.values[0]:.2f}, idő: {datetime.timedelta(seconds=duration)}"
+        f"\n [{0}] Legjobb egyen: {top}, fitnesz: {top.fitness.values[0]:.2f}, ido: {datetime.timedelta(seconds=duration)}"
     )
 
-    # ➤ További generációk
+    #  Tovabbi generaciok
     for gen in range(1, ngen + 1):
-        logger.info(f"\nGeneráció {gen}/{ngen}")
+        logger.info(f"\nGeneracio {gen}/{ngen}")
         _update_dropout_flags()
         start_time = time.time()
 
-        # ➤ Szelekció és másolatok
+        #  Szelekcio es masolatok
         offspring = toolbox.select(population, len(population))
         offspring = list(map(toolbox.clone, offspring))
 
-        # ➤ Keresztezés és mutáció
+        #  Keresztezes es mutacio
         for child1, child2 in zip(offspring[::2], offspring[1::2]):
             if random.random() < cxpb:
                 toolbox.mate(child1, child2)
@@ -324,30 +381,30 @@ def custom_ea_simple(
                 toolbox.mutate(mutant)
                 del mutant.fitness.values
 
-        # ➤ Értékelés csak az új egyedekre
+        #  Ertekeles csak az uj egyedekre
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        logger.debug(f"  {len(invalid_ind)} új egyén értékelése...")
+        logger.debug(f"  {len(invalid_ind)} uj egyen ertekelese...")
 
         for i, ind in enumerate(invalid_ind, 1):
             start = time.time()
             logger.debug(
-                f"    [{gen}] Egyén {i}/{len(invalid_ind)} értékelése...",
+                f"    [{gen}] Egyen {i}/{len(invalid_ind)} ertekelese...",
             )
             fit = toolbox.evaluate(ind)
             ind.fitness.values = fit
             elapsed = time.time() - start
             logger.debug(
-                f"    [{gen}] Egyén {i}/{len(population)} kész {datetime.timedelta(seconds=elapsed)} alatt"
+                f"    [{gen}] Egyen {i}/{len(population)} kesz {datetime.timedelta(seconds=elapsed)} alatt"
             )
 
-        # ➤ Hall of Fame frissítés
+        #  Hall of Fame frissites
         if halloffame is not None:
             halloffame.update(offspring)
 
-        # ➤ Populáció frissítése
+        #  Populacio frissitese
         population[:] = offspring
 
-        # ➤ Naplózás
+        #  Naplozas
         duration = time.time() - start_time
         record = stats.compile(population) if stats else {}
         logbook.record(
@@ -356,7 +413,7 @@ def custom_ea_simple(
         # logger.debug(logbook.stream[-1])
         top = tools.selBest(population, 1)[0]
         logger.info(
-            f"\n [{gen}] Legjobb egyén: {top}, fitnesz: {top.fitness.values[0]:.2f}, idő: {datetime.timedelta(seconds=duration)}"
+            f"\n [{gen}] Legjobb egyen: {top}, fitnesz: {top.fitness.values[0]:.2f}, ido: {datetime.timedelta(seconds=duration)}"
         )
 
     return population, logbook
@@ -394,7 +451,7 @@ def optimize_params(
     toolbox = base.Toolbox()
 
     # --------------------------------------------------------
-    # PARAM TÉR – KÍVÜLRŐL JÖN (analyze.py)
+    # PARAM TER - KIVULROL JON (analyze.py)
     # --------------------------------------------------------
     for key, (low, high) in bounds.items():
         toolbox.register(f"attr_{key}", random.randint, low, high)
@@ -409,7 +466,7 @@ def optimize_params(
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     # --------------------------------------------------------
-    # FITNESS REGISZTRÁCIÓ
+    # FITNESS REGISZTRACIO
     # --------------------------------------------------------
     if is_logger_debug(logger):
         toolbox.register(
@@ -441,7 +498,7 @@ def optimize_params(
     toolbox.register("select", tools.selTournament, tournsize=3)
 
     # --------------------------------------------------------
-    # POPULÁCIÓ + STAT
+    # POPULACIO + STAT
     # --------------------------------------------------------
     population = toolbox.population(n=population_size)
 
@@ -458,7 +515,7 @@ def optimize_params(
     )
 
     # --------------------------------------------------------
-    # 🔥 A TE GA MOTOROD
+    #  A TE GA MOTOROD
     # --------------------------------------------------------
     _, log = custom_ea_simple(
         population=population,

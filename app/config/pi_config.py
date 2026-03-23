@@ -1,6 +1,5 @@
 """
 Raspberry Pi specific configuration helpers.
-
 This module detects Pi/ARM environments and applies conservative
 resource settings suitable for low-power hardware. It is safe to
 import on non-Pi machines; by default no changes are applied unless
@@ -14,7 +13,9 @@ import os
 import platform
 from pathlib import Path
 
-from app.config.config import Config
+from dataclasses import replace
+
+from app.config.settings import Settings
 
 
 def _parse_bool(value: str):
@@ -81,62 +82,37 @@ def _build_pi_paths(base_dir: Path):
 
 
 def apply_pi_config(
-    config_cls=Config,
+    settings: Settings,
     env=os.environ,
     platform_module=platform,
     model_path=Path("/proc/device-tree/model"),
-    ensure_dirs=False,
 ):
-    """
-    Apply Pi-specific overrides to a Config class.
-
-    Returns:
-        dict: {"pi_mode": bool, "applied": bool, "base_dir": str, "overrides": dict}
-    """
-    pi_mode = detect_pi_mode(env=env, platform_module=platform_module, model_path=model_path)
-
-    result = {
-        "pi_mode": pi_mode,
-        "applied": False,
-        "base_dir": None,
-        "overrides": {},
-    }
-
+    """Return Settings with Pi-specific overrides applied."""
+    pi_mode = detect_pi_mode(
+        env=env, platform_module=platform_module, model_path=model_path
+    )
     if not pi_mode:
-        setattr(config_cls, "PI_MODE", False)
-        return result
+        return settings
 
     base_dir = Path(env.get("PI_BASE_DIR", "/home/pi/tozsde_webapp"))
     overrides = _build_pi_paths(base_dir)
 
-    # Apply paths
-    for key, value in overrides.items():
-        setattr(config_cls, key, value)
-
-    # Update dependent file paths
-    config_cls.DB_PATH = config_cls.DATA_DIR / "market_data.db"
-    config_cls.PARAMS_FILE_PATH = config_cls.DATA_DIR / "optimized_params.json"
-    config_cls.FAILED_DAYS_FILE_PATH = config_cls.DATA_DIR / "failed_to_download.json"
-    config_cls.MODEL_TEST_RESULT_FILE_PATH = config_cls.DATA_DIR / "model_test_result.json"
-
-    # Resource-conservative settings
-    setattr(config_cls, "PI_MODE", True)
-    setattr(config_cls, "MAX_BACKTEST_WINDOW", 252)
-    config_cls.OPTIMIZER_POPULATION = min(getattr(config_cls, "OPTIMIZER_POPULATION", 50), 30)
-    setattr(config_cls, "SQLITE_SINGLE_CONNECTION", True)
-    setattr(config_cls, "DISABLE_HEAVY_TASKS", True)
-
-    if ensure_dirs:
-        for d in overrides.values():
-            try:
-                d.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                pass
-
-    result["applied"] = True
-    result["base_dir"] = str(base_dir)
-    result["overrides"] = {k: str(v) for k, v in overrides.items()}
-    return result
+    return replace(
+        settings,
+        PI_MODE=True,
+        DATA_DIR=overrides["DATA_DIR"],
+        LOG_DIR=overrides["LOG_DIR"],
+        MODEL_DIR=overrides["MODEL_DIR"],
+        CHART_DIR=overrides["CHART_DIR"],
+        TENSORBOARD_DIR=overrides["TENSORBOARD_DIR"],
+        MODEL_RELIABILITY_DIR=overrides["MODEL_RELIABILITY_DIR"],
+        DECISION_LOG_DIR=overrides["DECISION_LOG_DIR"],
+        DECISION_OUTCOME_DIR=overrides["DECISION_OUTCOME_DIR"],
+        HISTORY_DIR=overrides["HISTORY_DIR"],
+        DB_PATH=overrides["DATA_DIR"] / "market_data.db",
+        PARAMS_FILE_PATH=overrides["DATA_DIR"] / "optimized_params.json",
+        FAILED_DAYS_FILE_PATH=overrides["DATA_DIR"] / "failed_to_download.json",
+    )
 
 
 __all__ = ["detect_pi_mode", "apply_pi_config"]

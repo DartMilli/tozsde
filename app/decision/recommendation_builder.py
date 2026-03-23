@@ -1,8 +1,15 @@
-from app.config.config import Config
-from app.decision.decision_builder import compute_decision_quality
+from app.bootstrap.build_settings import build_settings
+from app.core.decision.recommendation_builder import (
+    build_explanation as core_build_explanation,
+    build_recommendation as core_build_recommendation,
+)
 
 
-def build_recommendation(payload: dict) -> dict:
+def _get_settings(settings):
+    return settings or build_settings()
+
+
+def build_recommendation(payload: dict, settings=None) -> dict:
     """
     POLICY LAYER
 
@@ -13,57 +20,19 @@ def build_recommendation(payload: dict) -> dict:
         - structured trading decision (no side effects)
     """
 
-    avg_confidence = payload["avg_confidence"]
-    avg_wf_score = payload["avg_wf_score"]
-    action_code = payload["action_code"]
-    ensemble_quality = payload["ensemble_quality"]
-
-    # --- Defaults ---
-    original_action = action_code
-    action_code = action_code
-    action_label = Config.ACTION_LABELS[Config.LANG][action_code]
-    strength = "NORMAL"
-
-    no_trade = False
-    no_trade_reason = None
-
-    # --- NO-TRADE override ---
-    if avg_confidence < Config.CONFIDENCE_NO_TRADE_THRESHOLD:
-        no_trade = True
-        no_trade_reason = "LOW_CONFIDENCE"
-        action_code = 0
-        action_label = Config.ACTION_LABELS[Config.LANG][0]
-        strength = "NO_TRADE"
-
-    # --- Strength classification (only if BUY / SELL) ---
-    if not no_trade and action_code in (1, 2):
-        if (
-            avg_confidence >= Config.STRONG_CONFIDENCE_THRESHOLD
-            and avg_wf_score is not None
-            and avg_wf_score >= Config.STRONG_WF_THRESHOLD
-            and ensemble_quality == "STABLE"
-        ):
-            strength = "STRONG"
-        elif avg_confidence < Config.WEAK_CONFIDENCE_THRESHOLD:
-            strength = "WEAK"
-
-    quality_score = compute_decision_quality(payload)
-
-    return {
-        "action_code": action_code,  # 0 / 1 / 2
-        "action": action_label,  # BUY / SELL / HOLD
-        "strength": strength,  # STRONG / NORMAL / WEAK / NO_TRADE
-        "confidence": avg_confidence,
-        "wf_score": avg_wf_score,
-        "ensemble_quality": ensemble_quality,
-        "quality_score": quality_score,
-        "no_trade": no_trade,
-        "no_trade_reason": no_trade_reason,
-        "original_action": original_action,
-    }
+    cfg = _get_settings(settings)
+    action_labels = getattr(cfg, "ACTION_LABELS")[getattr(cfg, "LANG")]
+    return core_build_recommendation(
+        payload=payload,
+        action_labels=action_labels,
+        confidence_no_trade_threshold=getattr(cfg, "CONFIDENCE_NO_TRADE_THRESHOLD"),
+        strong_confidence_threshold=getattr(cfg, "STRONG_CONFIDENCE_THRESHOLD"),
+        weak_confidence_threshold=getattr(cfg, "WEAK_CONFIDENCE_THRESHOLD"),
+        strong_wf_threshold=getattr(cfg, "STRONG_WF_THRESHOLD"),
+    )
 
 
-def build_explanation(payload: dict, decision: dict) -> dict:
+def build_explanation(payload: dict, decision: dict, settings=None) -> dict:
     """
     EXPLANATION LAYER
 
@@ -71,104 +40,10 @@ def build_explanation(payload: dict, decision: dict) -> dict:
     based strictly on an already finalized decision.
     """
 
-    ticker = payload["ticker"]
-    avg_conf = payload.get("avg_confidence")
-    avg_wf = payload.get("avg_wf_score")
-    ensemble_quality = payload.get("ensemble_quality")
-    votes = payload.get("model_votes", [])
-
-    action = decision["action"]
-    strength = decision["strength"]
-    quality_score = decision.get("quality_score", 0.0)
-
-    # --- Reason flags ---
-    reasons_hu = []
-    reasons_en = []
-
-    # --- NO TRADE / POLICY OVERRIDE ---
-    if decision.get("no_trade"):
-        reason = decision.get("no_trade_reason", "POLICY_OVERRIDE")
-        original_action = decision.get("original_action")
-
-        reasons_hu.append(
-            f"A rendszer nem engedte a kereskedést (policy ok: {reason})."
-        )
-        reasons_en.append(f"Trading was blocked by policy (reason: {reason}).")
-
-        if original_action is not None:
-            orig_label = Config.ACTION_LABELS[Config.LANG][original_action]
-            reasons_hu.append(f"Eredeti modell jelzés: {orig_label}.")
-            reasons_en.append(f"Original model signal: {orig_label}.")
-
-    # --- Walk-forward stability ---
-    if not decision.get("no_trade") and avg_wf is not None and avg_wf < 0.4:
-        reasons_hu.append(f"A walk-forward stabilitás alacsony (WF={avg_wf:.2f}).")
-        reasons_en.append(f"Walk-forward stability is low (WF={avg_wf:.2f}).")
-
-    # --- Ensemble quality ---
-    if ensemble_quality == "CHAOTIC":
-        reasons_hu.append("A modellek jelzései erősen eltérnek egymástól.")
-        reasons_en.append("Model signals are highly divergent.")
-
-    # --- Default positive explanation ---
-    if not reasons_hu:
-        reasons_hu.append("A modellek konzisztens és stabil jelzést adtak.")
-        reasons_en.append("Models provided consistent and stable signals.")
-
-    # --- Vote breakdown (data-driven, identical HU / EN) ---
-    vote_lines = []
-    for mv in votes:
-        wf = mv.get("wf_score")
-        wf_str = f"{wf:.2f}" if wf is not None else "n/a"
-
-        vote_lines.append(
-            f"{mv.get('model_name', mv.get('model_path', 'model'))} → "
-            f"{mv['action_label']} "
-            f"(conf={mv['confidence']:.2f}, wf={wf_str})"
-        )
-
-    # --- Header blocks ---
-    avg_conf_str = f"{avg_conf:.2f}" if avg_conf is not None else "n/a"
-    avg_wf_str = f"{avg_wf:.2f}" if avg_wf is not None else "n/a"
-    
-    header_hu = (
-        f"{ticker}: {strength} {action}\n"
-        f"Összbizalom: {avg_conf_str}, "
-        f"WF: {avg_wf_str}, "
-        f"Ensemble: {ensemble_quality}, "
-        f"Minőség pontszám: {quality_score:.2f}\n"
+    cfg = _get_settings(settings)
+    action_labels = getattr(cfg, "ACTION_LABELS")[getattr(cfg, "LANG")]
+    return core_build_explanation(
+        payload=payload,
+        decision=decision,
+        action_labels=action_labels,
     )
-
-    header_en = (
-        f"{ticker}: {strength} {action}\n"
-        f"Confidence: {avg_conf_str}, "
-        f"WF: {avg_wf_str}, "
-        f"Ensemble: {ensemble_quality}, "
-        f"Decision quality score: {quality_score:.2f}\n"
-    )
-
-    explanation_hu = (
-        header_hu
-        + "\nIndoklás:\n- "
-        + "\n- ".join(reasons_hu)
-        + "\n\nModellek szavazatai:\n- "
-        + "\n- ".join(vote_lines)
-    )
-
-    explanation_en = (
-        header_en
-        + "\nRationale:\n- "
-        + "\n- ".join(reasons_en)
-        + "\n\nModel votes:\n- "
-        + "\n- ".join(vote_lines)
-    )
-
-    return {
-        "hu": explanation_hu,
-        "en": explanation_en,
-        "meta": {
-            "reasons_hu": reasons_hu,
-            "reasons_en": reasons_en,
-            "quality_score": quality_score,
-        },
-    }

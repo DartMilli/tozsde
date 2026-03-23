@@ -12,11 +12,16 @@ from pathlib import Path
 
 from app.analysis.analyzer import get_params
 from app.backtesting.backtester import Backtester
-from app.config.config import Config
+from app.validation import get_settings
 from app.data_access.data_loader import load_data
-from app.data_access.data_manager import DataManager
+from app.infrastructure.repositories import DataManagerRepository
 from app.validation.metrics_core import compute_sharpe
 from app.validation.utils import get_validation_ticker, get_validation_window
+
+try:
+    dm = DataManagerRepository()
+except Exception:
+    dm = DataManagerRepository()
 
 
 def _run_period_reversal_test(ticker: str) -> dict:
@@ -34,7 +39,7 @@ def _run_period_reversal_test(ticker: str) -> dict:
             continue
         report = Backtester(df, ticker).run(
             params,
-            execution_policy=Config.EXECUTION_POLICY,
+            execution_policy=getattr(get_settings(), "EXECUTION_POLICY", "next_open"),
         )
         results.append(
             {
@@ -58,7 +63,8 @@ def _run_noise_injection_test(ticker: str) -> dict:
         return {"status": "no_data"}
 
     report = Backtester(df, ticker).run(
-        params, execution_policy=Config.EXECUTION_POLICY
+        params,
+        execution_policy=getattr(get_settings(), "EXECUTION_POLICY", "next_open"),
     )
     base_return = float(report.metrics.get("net_profit", 0.0))
 
@@ -70,7 +76,7 @@ def _run_noise_injection_test(ticker: str) -> dict:
 
     noisy_report = Backtester(noisy, ticker).run(
         params,
-        execution_policy=Config.EXECUTION_POLICY,
+        execution_policy=getattr(get_settings(), "EXECUTION_POLICY", "next_open"),
     )
     noisy_return = float(noisy_report.metrics.get("net_profit", 0.0))
 
@@ -86,9 +92,9 @@ def _run_noise_injection_test(ticker: str) -> dict:
 def run_rl_stress_tests() -> dict:
     ticker = get_validation_ticker()
     start, end = get_validation_window()
-    dm = DataManager()
+    # dm should be injected from DI root
 
-    model_dir = Path(Config.MODEL_DIR)
+    model_dir = Path(getattr(get_settings(), "MODEL_DIR", "."))
     model_glob = f"*{ticker}*.zip"
     if not model_dir.exists() or not any(model_dir.glob(model_glob)):
         return {"status": "NO_MODEL", "sharpe_std": None}

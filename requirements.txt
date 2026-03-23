@@ -9,7 +9,7 @@ multitasking>=0.0.11
 typing-extensions>=4.7.0
 
 # --- Machine Learning & RL ---
-# CPU-specifikus torch a NAS-hoz (kisebb méret, stabilabb futás)
+# CPU-specifikus torch a NAS-hoz (kisebb meret, stabilabb futas)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.2.0
 gymnasium>=0.29.0

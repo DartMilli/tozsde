@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -6,7 +7,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.config.config import Config
 from app.analysis.analyzer import get_params, compute_signals
 from app.decision.ensemble_quality import bucket_ensemble_quality, EnsembleQualityBucket
 from app.decision.decision_reliability import assess_decision_reliability
@@ -31,21 +31,25 @@ from app.reporting.audit_builder import build_audit_metadata
 import main
 
 
-def test_analyzer_get_params_with_file(tmp_path, monkeypatch):
+def test_analyzer_get_params_with_file(tmp_path, monkeypatch, test_settings):
+    from app.analysis import set_settings as set_analysis_settings
+
     params = {"TEST": {"bbands_stddev": "2.5", "sma_period": 10}}
     params_path = tmp_path / "params.json"
     params_path.write_text(json.dumps(params))
 
-    monkeypatch.setattr(Config, "PARAMS_FILE_PATH", params_path)
+    set_analysis_settings(replace(test_settings, PARAMS_FILE_PATH=params_path))
 
     loaded = get_params("TEST")
     assert loaded["bbands_stddev"] == 2.5
     assert loaded["sma_period"] == 10
 
 
-def test_analyzer_get_params_missing_file(tmp_path, monkeypatch):
+def test_analyzer_get_params_missing_file(tmp_path, monkeypatch, test_settings):
+    from app.analysis import set_settings as set_analysis_settings
+
     params_path = tmp_path / "missing.json"
-    monkeypatch.setattr(Config, "PARAMS_FILE_PATH", params_path)
+    set_analysis_settings(replace(test_settings, PARAMS_FILE_PATH=params_path))
     loaded = get_params("MISSING")
     assert "sma_period" in loaded
 
@@ -66,13 +70,14 @@ def test_ensemble_quality_buckets():
     }
 
 
-def test_decision_reliability_levels():
-    low = assess_decision_reliability(0.1, 0.2)
+def test_decision_reliability_levels(test_settings):
+    low = assess_decision_reliability(0.1, 0.2, settings=test_settings)
     assert low.trade_allowed is False
 
     strong = assess_decision_reliability(
-        Config.STRONG_CONFIDENCE_THRESHOLD + 0.05,
-        Config.STRONG_WF_THRESHOLD + 0.05,
+        test_settings.STRONG_CONFIDENCE_THRESHOLD + 0.05,
+        test_settings.STRONG_WF_THRESHOLD + 0.05,
+        settings=test_settings,
     )
     assert strong.trade_allowed is True
 
@@ -164,14 +169,21 @@ def test_history_store_load_range(monkeypatch):
     assert out[0]["action_code"] == 1
 
 
-def test_model_reliability_scores(tmp_path, monkeypatch):
+def test_model_reliability_scores(tmp_path, monkeypatch, test_settings):
+    from app.models import set_settings as set_model_settings
+
     decision_dir = tmp_path / "decision"
     outcome_dir = tmp_path / "outcome"
     decision_dir.mkdir()
     outcome_dir.mkdir()
 
-    monkeypatch.setattr(Config, "DECISION_LOG_DIR", decision_dir)
-    monkeypatch.setattr(Config, "DECISION_OUTCOME_DIR", outcome_dir)
+    model_settings = replace(
+        test_settings,
+        DECISION_LOG_DIR=decision_dir,
+        DECISION_OUTCOME_DIR=outcome_dir,
+        RELIABILITY_SOURCE="file",
+    )
+    set_model_settings(model_settings)
 
     day = "2026-02-01"
     (decision_dir / day).mkdir()
@@ -184,7 +196,7 @@ def test_model_reliability_scores(tmp_path, monkeypatch):
         json.dumps({"success": True, "future_return": 0.01})
     )
 
-    analyzer = ModelReliabilityAnalyzer()
+    analyzer = ModelReliabilityAnalyzer(settings=model_settings)
     scores = analyzer.analyze(
         "TEST", date.fromisoformat(day), date.fromisoformat(day), min_samples=1
     )
@@ -232,8 +244,10 @@ def test_data_manager_market_data_roundtrip(test_db, sample_df):
     assert len(rows) >= 1
 
 
-def test_audit_builder_metadata(monkeypatch):
-    monkeypatch.setattr(Config, "ENABLE_DRIFT_DETECTION", False)
+def test_audit_builder_metadata(monkeypatch, test_settings):
+    from app.reporting import audit_builder
+
+    audit_builder.set_settings(replace(test_settings, ENABLE_DRIFT_DETECTION=False))
     payload = {"ticker": "TEST", "model_votes": [], "volatility": 0.01}
     decision = {
         "action_code": 1,
@@ -268,31 +282,50 @@ def test_etf_allocator_mix_and_costs():
     assert classify_asset_type("VOO") == AssetType.ETF
 
 
-def test_main_weekly_and_monthly(monkeypatch):
-    monkeypatch.setattr(Config, "_TICKERS", ["TEST"])
+def test_main_weekly_and_monthly(monkeypatch, test_settings):
+    class DummyWeeklyUseCase:
+        def run(self, dry_run=False):
+            return {"status": "ok"}
 
-    class DummyAnalyzer:
-        def analyze(self, ticker, start, end):
-            return {"m": {"reliability_score": 0.5}}
-
-    monkeypatch.setattr("main.ModelReliabilityAnalyzer", DummyAnalyzer)
-    monkeypatch.setattr("main.save_reliability_scores", lambda *args, **kwargs: None)
+    class DummyMonthlyUseCase:
+        def run(self, dry_run=False):
+            return {"status": "ok"}
 
     monkeypatch.setattr(
-        "main.run_walk_forward", lambda ticker: {"normalized_score": 0.7}
+        main,
+        "_APP_CONTAINER",
+        type(
+            "C",
+            (),
+            {
+                "weekly_reliability": DummyWeeklyUseCase(),
+                "monthly_retraining": DummyMonthlyUseCase(),
+            },
+        )(),
     )
-    monkeypatch.setattr("main.train_rl_agent", lambda *args, **kwargs: None)
-    monkeypatch.setattr(Config, "ENABLE_RL", True)
 
     main.run_weekly(dry_run=False)
     main.run_monthly(dry_run=False)
 
 
 def test_main_manual_commands(monkeypatch):
+    class DummyWalkUseCase:
+        def run(self, ticker=None):
+            return {"status": "ok", "ticker": ticker}
+
+    class DummyTrainUseCase:
+        def run(self, ticker=None, **kwargs):
+            return {"status": "ok", "ticker": ticker}
+
     monkeypatch.setattr(
-        "main.run_walk_forward", lambda ticker: {"normalized_score": 0.7}
+        main,
+        "_APP_CONTAINER",
+        type(
+            "C",
+            (),
+            {"walk_forward": DummyWalkUseCase(), "train_rl": DummyTrainUseCase()},
+        )(),
     )
-    monkeypatch.setattr("main.train_rl_agent", lambda *args, **kwargs: None)
 
     main.run_walk_forward_manual("TEST")
     main.run_train_rl_manual("TEST")

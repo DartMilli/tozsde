@@ -4,27 +4,28 @@ import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
+from dataclasses import replace
 
 import pytest
 
 import app.infrastructure.health_check as health_check
+from app.infrastructure import set_settings as set_infrastructure_settings
 from app.infrastructure.health_check import HealthChecker
 
 
 @pytest.fixture
-def checker(tmp_path, monkeypatch):
+def checker(tmp_path, test_settings):
     log_dir = tmp_path / "logs"
     data_dir = tmp_path / "data"
-    log_dir.mkdir()
-    data_dir.mkdir()
+    log_dir.mkdir(exist_ok=True)
+    data_dir.mkdir(exist_ok=True)
     db_path = data_dir / "test.db"
 
-    mock_config = SimpleNamespace(LOG_DIR=log_dir, DB_PATH=db_path)
-    monkeypatch.setattr(health_check, "Config", mock_config)
+    settings = replace(test_settings, LOG_DIR=log_dir, DB_PATH=db_path)
+    set_infrastructure_settings(settings)
 
-    return HealthChecker()
+    return HealthChecker(settings=settings)
 
 
 def test_check_api_health_unexpected_exception(checker):

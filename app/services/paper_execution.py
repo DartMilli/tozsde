@@ -3,8 +3,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Dict, List
 
-from app.config.config import Config
-from app.data_access.data_manager import DataManager
+from app.config.build_settings import build_settings
 
 
 @dataclass
@@ -21,15 +20,18 @@ class PaperExecutionEngine:
     Simulated execution for paper trading mode.
     """
 
-    def __init__(self, dm: DataManager, logger):
+    def __init__(self, dm, logger, settings=None):
         self.dm = dm
         self.logger = logger
+        self.settings = settings
 
     def execute(self, decisions: List[Dict], as_of: date) -> None:
         state = self._load_latest_state()
         positions = state.get("positions", {})
-        cash = state.get("cash", Config.INITIAL_CAPITAL)
-        execution_policy = (Config.EXECUTION_POLICY or "next_open").lower()
+        cfg = self.settings or build_settings()
+        cash = state.get("cash", getattr(cfg, "INITIAL_CAPITAL"))
+        execution_policy = getattr(cfg, "EXECUTION_POLICY", "next_open")
+        execution_policy = (execution_policy or "next_open").lower()
         if execution_policy not in {"close_to_close", "next_open"}:
             execution_policy = "next_open"
 
@@ -115,7 +117,8 @@ class PaperExecutionEngine:
             pos.qty * exec_prices.get(pos.ticker, pos.entry_price)
             for pos in positions.values()
         )
-        pnl_pct = (equity - Config.INITIAL_CAPITAL) / Config.INITIAL_CAPITAL
+        initial_cap = getattr(cfg, "INITIAL_CAPITAL")
+        pnl_pct = (equity - initial_cap) / initial_cap
 
         portfolio_date = max(exec_dates) if exec_dates else as_of
 
@@ -163,11 +166,12 @@ class PaperExecutionEngine:
         return open_price, exec_date
 
     def _load_latest_state(self) -> Dict:
+        cfg = self.settings or build_settings()
         latest = self.dm.fetch_latest_portfolio_state(source="paper")
         if not latest:
-            return {"cash": Config.INITIAL_CAPITAL, "positions": {}}
+            return {"cash": getattr(cfg, "INITIAL_CAPITAL"), "positions": {}}
         return {
-            "cash": latest.get("cash", Config.INITIAL_CAPITAL),
+            "cash": latest.get("cash", getattr(cfg, "INITIAL_CAPITAL")),
             "positions": latest.get("positions", {}),
         }
 

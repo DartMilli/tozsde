@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.config.config import Config
+from app.validation import get_settings
 from app.data_access.data_loader import load_data
-from app.decision.position_sizer import PositionSizer
+from app.core.decision.position_sizer import PositionSizer
 from app.validation.metrics_core import compute_max_drawdown
 from app.validation.utils import get_validation_ticker, get_validation_window
 
@@ -40,10 +40,11 @@ def run_risk_stress_tests() -> dict:
 
 def _run_position_sizing_stress() -> dict:
     sizer = PositionSizer()
+    base_cap = float(get_settings().INITIAL_CAPITAL)
     scenarios = [
-        {"equity": Config.INITIAL_CAPITAL * 0.2, "confidence": 0.3, "wf": 0.4},
-        {"equity": Config.INITIAL_CAPITAL, "confidence": 0.6, "wf": 0.7},
-        {"equity": Config.INITIAL_CAPITAL * 10, "confidence": 0.9, "wf": 0.9},
+        {"equity": base_cap * 0.2, "confidence": 0.3, "wf": 0.4},
+        {"equity": base_cap, "confidence": 0.6, "wf": 0.7},
+        {"equity": base_cap * 10, "confidence": 0.9, "wf": 0.9},
     ]
     results = []
     violations = 0
@@ -60,7 +61,7 @@ def _run_position_sizing_stress() -> dict:
         allocation_pct = (
             res.final_size / scenario["equity"] if scenario["equity"] else 0
         )
-        if allocation_pct > Config.P6_POSITION_MAX_PCT + 1e-6:
+        if allocation_pct > float(get_settings().P6_POSITION_MAX_PCT) + 1e-6:
             violations += 1
         results.append(
             {

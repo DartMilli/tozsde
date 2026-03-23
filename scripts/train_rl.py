@@ -1,12 +1,13 @@
 import argparse
 from datetime import datetime
 
-from app.config.config import Config
+from app.config import get_conf
 from app.data_access.data_loader import ensure_data_cached
 from app.models.model_trainer import train_rl_agent
 
 
 def parse_args():
+    cfg = get_conf(None)
     parser = argparse.ArgumentParser(description="Train a single RL model")
     parser.add_argument("--ticker", required=True, help="Ticker symbol")
     parser.add_argument(
@@ -22,18 +23,18 @@ def parse_args():
     )
     parser.add_argument(
         "--start",
-        default=Config.START_DATE,
+        default=getattr(cfg, "START_DATE", None),
         help="Start date (YYYY-MM-DD)",
     )
     parser.add_argument(
         "--end",
-        default=Config.END_DATE,
+        default=getattr(cfg, "END_DATE", None),
         help="End date (YYYY-MM-DD)",
     )
     parser.add_argument(
         "--timesteps",
         type=int,
-        default=Config.RL_TIMESTEPS,
+        default=getattr(cfg, "RL_TIMESTEPS", 100000),
         help="Training timesteps",
     )
     parser.add_argument(

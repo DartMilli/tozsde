@@ -6,7 +6,8 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional
 
-from app.config.config import Config
+from app.governance import get_settings
+from app.bootstrap.build_settings import build_settings
 
 
 @dataclass
@@ -74,16 +75,21 @@ def evaluate_checklist(
 
     tests_failed = int(tests.get("failed", 0)) if isinstance(tests, dict) else 0
 
+    # Prefer DI settings, fallback to build_settings for tests
+    try:
+        cfg = get_settings()
+    except Exception:
+        cfg = build_settings()
     items.append(
         ChecklistItem(
             key="min_oos_sharpe",
             title="Minimum OOS Sharpe",
             required=True,
             passed=mean_oos_sharpe is not None
-            and mean_oos_sharpe >= Config.MIN_OOS_SHARPE,
+            and mean_oos_sharpe >= getattr(cfg, "MIN_OOS_SHARPE", 0.0),
             evidence={
                 "mean_oos_sharpe": mean_oos_sharpe,
-                "threshold": Config.MIN_OOS_SHARPE,
+                "threshold": getattr(cfg, "MIN_OOS_SHARPE", 0.0),
             },
         )
     )
@@ -176,7 +182,7 @@ def evaluate_checklist(
         )
     )
 
-    docs_dir = Config.REPORTS_DIR.parent / "docs" / "testing"
+    docs_dir = getattr(cfg, "REPORTS_DIR", Path(".")).parent / "docs" / "testing"
     go_live_text = _load_text(docs_dir / "go_live_checklist.md")
     plan_text = _load_text(docs_dir / "quant_validation_plan.md")
     manual_lines = _scan_manual_items(go_live_text)

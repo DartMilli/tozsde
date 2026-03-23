@@ -1,0 +1,9 @@
+from typing import Protocol, Any
+
+
+class IDecisionRepository(Protocol):
+    def save_decision(self, decision: dict) -> int: ...
+    def fetch_decision(self, decision_id: int) -> dict: ...
+    def fetch_decisions_for_ticker(
+        self, ticker: str, start_date: str, end_date: str
+    ) -> list[dict]: ...

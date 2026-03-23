@@ -151,7 +151,7 @@ Manualis lepes (offline szukseges).
 python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2022-01-10
 ```
 
-**Elfogadas:** HOLD döntesek, nincs trade, decision_source=fallback.
+**Elfogadas:** HOLD dontesek, nincs trade, decision_source=fallback.
 
 Statusz (2026-02-09): Keszen (fallback HOLD dontesek mentve).
 
@@ -185,7 +185,7 @@ Statusz (2026-02-10): Keszen (megszakitas + ujrafutas, nincs duplikacio).
 python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2022-01-31
 ```
 
-**Elfogadas:** napi egy döntes, portfolio state rendben.
+**Elfogadas:** napi egy dontes, portfolio state rendben.
 
 Statusz (2026-02-10): Keszen (21/21 munkanapra van dontes).
 
@@ -226,7 +226,7 @@ Status (2026-02-10): Implemented (GO_LIVE_METRICS logs).
 
 Status (2026-02-10): Verified GO_LIVE_METRICS appears in daily logs.
 
-🧠 SECTION 3 – Explainability & Trust
+ SECTION 3 - Explainability & Trust
 3.1 Decision Explainability Audit
 
 Task
@@ -288,7 +288,7 @@ TODO
 
 Status (2026-02-10): Manual review report generated.
 
-🧪 SECTION 4 – Validation & Monitoring
+ SECTION 4 - Validation & Monitoring
 4.1 Phase 5 Validation
 
 Task
@@ -339,7 +339,7 @@ TODO
 
 Status (2026-02-10): Determinism gate implemented; CI hook added (GitHub Actions workflow).
 
-🚀 SECTION 5 – Go-Live Readiness Gate
+ SECTION 5 - Go-Live Readiness Gate
 Final Checklist (ALL must be true)
 
  Cold start passes
@@ -385,8 +385,8 @@ Status (2026-02-10)
  Logs are actionable: OK (GO_LIVE_METRICS verified)
 
 GO / NO-GO Decision:
-✅ GO
-⬜ NO-GO
+ GO
+ NO-GO
 
 Recommendation (2026-02-10): GO for paper trading; recheck outcomes linkage once trades exist.
 
@@ -394,7 +394,7 @@ Magyar osszegzes (2026-02-10): GO paper trading-re; outcome ellenorzes ujra, ha 
 
 Notes:
 
-🧠 Usage Instruction for Copilot
+ Usage Instruction for Copilot
 
 Use this checklist as the authoritative source.
 For each task:

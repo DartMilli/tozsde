@@ -1,304 +1,149 @@
 import json
 from types import SimpleNamespace
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 
 import pandas as pd
 import pytest
 
 
-def test_run_daily_dry_run_success(monkeypatch):
+def test_run_daily_dry_run_success(monkeypatch, test_settings):
     import main
 
-    decision = {
-        "action_code": 1,
-        "action": "BUY",
-        "confidence": 0.8,
-        "wf_score": 0.6,
-        "strength": "NORMAL",
-        "ensemble_quality": "NORMAL",
-    }
+    calls = []
 
-    payload = {"ticker": "AAA", "decision": decision}
+    class FakeDailyPipeline:
+        def run(self, dry_run=False, ticker=None):
+            calls.append((dry_run, ticker))
+            return {"status": "ok"}
 
-    class FakeHistory:
-        def __init__(self):
-            self.saved = []
-
-        def save_decision(self, **kwargs):
-            self.saved.append(kwargs)
-
-    class FakeDM:
-        def __init__(self):
-            self.logged = []
-
-        def log_recommendation(self, **kwargs):
-            self.logged.append(kwargs)
-
-    monkeypatch.setattr(main, "HistoryStore", lambda: FakeHistory())
-    monkeypatch.setattr(main, "DataManager", lambda: FakeDM())
-    monkeypatch.setattr(
-        main, "generate_daily_recommendation_payload", lambda t, h: payload
-    )
-    monkeypatch.setattr(main, "build_explanation", lambda p, d: {"hu": "ok"})
-    monkeypatch.setattr(main, "build_audit_metadata", lambda p, d: {"source": "test"})
-    monkeypatch.setattr(main, "build_audit_summary", lambda a, p, d: "summary")
-    monkeypatch.setattr(main, "apply_decision_policy", lambda d, a: d)
     monkeypatch.setattr(
         main,
-        "allocate_capital",
-        lambda items: [{**items[0], "allocation_amount": 123.0}],
+        "_APP_CONTAINER",
+        type("C", (), {"daily_pipeline": FakeDailyPipeline()})(),
     )
-    monkeypatch.setattr(
-        main, "format_email_line", lambda explanation, decision, audit: "line"
-    )
-    monkeypatch.setattr(main, "send_email", lambda *args, **kwargs: None)
 
-    main.run_daily(dry_run=True, ticker="AAA")
+    result = main.run_daily(dry_run=True, ticker="AAA")
+    assert result == {"status": "ok"}
+    assert calls == [(True, "AAA")]
 
 
 def test_run_daily_error_alert(monkeypatch):
     import main
 
-    alerts = []
+    class FakeDailyPipeline:
+        def run(self, dry_run=False, ticker=None):
+            raise RuntimeError("boom")
 
-    monkeypatch.setattr(main, "HistoryStore", lambda: None)
-    monkeypatch.setattr(main, "DataManager", lambda: None)
     monkeypatch.setattr(
-        main, "generate_daily_recommendation_payload", lambda t, h: {"error": "boom"}
-    )
-    monkeypatch.setattr(
-        main.ErrorAlerter,
-        "alert",
-        lambda **kwargs: alerts.append(kwargs),
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"daily_pipeline": FakeDailyPipeline()})(),
     )
 
-    main.run_daily(dry_run=False, ticker="AAA")
-
-    assert alerts
+    with pytest.raises(RuntimeError):
+        main.run_daily(dry_run=False, ticker="AAA")
 
 
 def test_run_daily_no_candidates(monkeypatch):
     import main
 
-    monkeypatch.setattr(main, "HistoryStore", lambda: None)
-    monkeypatch.setattr(main, "DataManager", lambda: None)
+    class FakeDailyPipeline:
+        def run(self, dry_run=False, ticker=None):
+            return {"status": "no_candidates"}
+
     monkeypatch.setattr(
-        main, "generate_daily_recommendation_payload", lambda t, h: {"error": "boom"}
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"daily_pipeline": FakeDailyPipeline()})(),
     )
 
-    main.run_daily(dry_run=True, ticker="AAA")
+    result = main.run_daily(dry_run=True, ticker="AAA")
+    assert result == {"status": "no_candidates"}
 
 
 def test_run_daily_email_failure(monkeypatch):
     import main
 
-    decision = {
-        "action_code": 1,
-        "action": "BUY",
-        "confidence": 0.8,
-        "wf_score": 0.6,
-        "strength": "NORMAL",
-        "ensemble_quality": "NORMAL",
-    }
+    class FakeDailyPipeline:
+        def run(self, dry_run=False, ticker=None):
+            return {"status": "email_failed"}
 
-    payload = {"ticker": "AAA", "decision": decision}
-
-    class FakeHistory:
-        def save_decision(self, **kwargs):
-            return None
-
-    class FakeDM:
-        def log_recommendation(self, **kwargs):
-            return None
-
-    alerts = []
-
-    monkeypatch.setattr(main, "HistoryStore", lambda: FakeHistory())
-    monkeypatch.setattr(main, "DataManager", lambda: FakeDM())
-    monkeypatch.setattr(
-        main, "generate_daily_recommendation_payload", lambda t, h: payload
-    )
-    monkeypatch.setattr(main, "build_explanation", lambda p, d: {"hu": "ok"})
-    monkeypatch.setattr(main, "build_audit_metadata", lambda p, d: {"source": "test"})
-    monkeypatch.setattr(main, "build_audit_summary", lambda a, p, d: "summary")
-    monkeypatch.setattr(main, "apply_decision_policy", lambda d, a: d)
     monkeypatch.setattr(
         main,
-        "allocate_capital",
-        lambda items: [{**items[0], "allocation_amount": 123.0}],
-    )
-    monkeypatch.setattr(
-        main, "format_email_line", lambda explanation, decision, audit: "line"
-    )
-    monkeypatch.setattr(
-        main,
-        "send_email",
-        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("fail")),
-    )
-    monkeypatch.setattr(
-        main.ErrorAlerter, "alert", lambda **kwargs: alerts.append(kwargs)
+        "_APP_CONTAINER",
+        type("C", (), {"daily_pipeline": FakeDailyPipeline()})(),
     )
 
-    main.run_daily(dry_run=False, ticker="AAA")
-
-    assert alerts
+    result = main.run_daily(dry_run=False, ticker="AAA")
+    assert result == {"status": "email_failed"}
 
 
 def test_run_daily_build_recommendation(monkeypatch):
     import main
 
-    decision = {
-        "action_code": 1,
-        "action": "BUY",
-        "confidence": 0.8,
-        "wf_score": 0.6,
-        "strength": "NORMAL",
-        "ensemble_quality": "NORMAL",
-    }
+    class FakeDailyPipeline:
+        def run(self, dry_run=False, ticker=None):
+            return {"status": "built"}
 
-    payload = {
-        "ticker": "AAA",
-        "ensemble_quality": 0.5,
-        "wf_scores": [],
-        "model_votes": [],
-        "volatility": 0.01,
-    }
-
-    class FakeHistory:
-        def save_decision(self, **kwargs):
-            return None
-
-    class FakeDM:
-        def log_recommendation(self, **kwargs):
-            return None
-
-    monkeypatch.setattr(main, "HistoryStore", lambda: FakeHistory())
-    monkeypatch.setattr(main, "DataManager", lambda: FakeDM())
-    monkeypatch.setattr(
-        main, "generate_daily_recommendation_payload", lambda t, h: payload
-    )
-    monkeypatch.setattr(main, "build_recommendation", lambda p: decision)
-    monkeypatch.setattr(main, "build_explanation", lambda p, d: {"hu": "ok"})
-    monkeypatch.setattr(main, "build_audit_metadata", lambda p, d: {"source": "test"})
-    monkeypatch.setattr(main, "build_audit_summary", lambda a, p, d: "summary")
-    monkeypatch.setattr(main, "apply_decision_policy", lambda d, a: d)
     monkeypatch.setattr(
         main,
-        "allocate_capital",
-        lambda items: [{**items[0], "allocation_amount": 123.0}],
-    )
-    monkeypatch.setattr(
-        main, "format_email_line", lambda explanation, decision, audit: "line"
-    )
-    monkeypatch.setattr(
-        main.Config, "get_supported_tickers", staticmethod(lambda: ["AAA"])
+        "_APP_CONTAINER",
+        type("C", (), {"daily_pipeline": FakeDailyPipeline()})(),
     )
 
-    main.run_daily(dry_run=True)
+    result = main.run_daily(dry_run=True)
+    assert result == {"status": "built"}
 
 
 def test_run_daily_email_success(monkeypatch):
     import main
 
-    decision = {
-        "action_code": 1,
-        "action": "BUY",
-        "confidence": 0.8,
-        "wf_score": 0.6,
-        "strength": "NORMAL",
-        "ensemble_quality": "NORMAL",
-    }
+    class FakeDailyPipeline:
+        def run(self, dry_run=False, ticker=None):
+            return {"status": "email_sent"}
 
-    payload = {"ticker": "AAA", "decision": decision}
-
-    class FakeHistory:
-        def save_decision(self, **kwargs):
-            return None
-
-    class FakeDM:
-        def log_recommendation(self, **kwargs):
-            return None
-
-    sent = []
-
-    monkeypatch.setattr(main, "HistoryStore", lambda: FakeHistory())
-    monkeypatch.setattr(main, "DataManager", lambda: FakeDM())
-    monkeypatch.setattr(
-        main, "generate_daily_recommendation_payload", lambda t, h: payload
-    )
-    monkeypatch.setattr(main, "build_explanation", lambda p, d: {"hu": "ok"})
-    monkeypatch.setattr(main, "build_audit_metadata", lambda p, d: {"source": "test"})
-    monkeypatch.setattr(main, "build_audit_summary", lambda a, p, d: "summary")
-    monkeypatch.setattr(main, "apply_decision_policy", lambda d, a: d)
     monkeypatch.setattr(
         main,
-        "allocate_capital",
-        lambda items: [{**items[0], "allocation_amount": 123.0}],
+        "_APP_CONTAINER",
+        type("C", (), {"daily_pipeline": FakeDailyPipeline()})(),
     )
-    monkeypatch.setattr(
-        main, "format_email_line", lambda explanation, decision, audit: "line"
-    )
-    monkeypatch.setattr(main, "send_email", lambda *args, **kwargs: sent.append(args))
 
-    main.run_daily(dry_run=False, ticker="AAA")
-
-    assert sent
+    result = main.run_daily(dry_run=False, ticker="AAA")
+    assert result == {"status": "email_sent"}
 
 
 def test_run_daily_no_email_lines(monkeypatch):
     import main
 
-    decision = {
-        "action_code": 1,
-        "action": "BUY",
-        "confidence": 0.8,
-        "wf_score": 0.6,
-        "strength": "NORMAL",
-        "ensemble_quality": "NORMAL",
-    }
+    class FakeDailyPipeline:
+        def run(self, dry_run=False, ticker=None):
+            return {"status": "no_email_lines"}
 
-    payload = {"ticker": "AAA", "decision": decision, "explanation": {"hu": "ok"}}
-
-    class FakeHistory:
-        def save_decision(self, **kwargs):
-            return None
-
-    class FakeDM:
-        def log_recommendation(self, **kwargs):
-            return None
-
-    monkeypatch.setattr(main, "HistoryStore", lambda: FakeHistory())
-    monkeypatch.setattr(main, "DataManager", lambda: FakeDM())
-    monkeypatch.setattr(
-        main, "generate_daily_recommendation_payload", lambda t, h: payload
-    )
-    monkeypatch.setattr(main, "build_audit_metadata", lambda p, d: {"source": "test"})
-    monkeypatch.setattr(main, "apply_decision_policy", lambda d, a: d)
-    monkeypatch.setattr(main, "allocate_capital", lambda items: [])
     monkeypatch.setattr(
         main,
-        "send_email",
-        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("should not")),
+        "_APP_CONTAINER",
+        type("C", (), {"daily_pipeline": FakeDailyPipeline()})(),
     )
 
-    main.run_daily(dry_run=False, ticker="AAA")
+    result = main.run_daily(dry_run=False, ticker="AAA")
+    assert result == {"status": "no_email_lines"}
 
 
-def test_run_weekly_saves_scores(monkeypatch):
+def test_run_weekly_saves_scores(monkeypatch, test_settings):
     import main
 
     saved = []
 
-    class FakeAnalyzer:
-        def analyze(self, ticker, start, end):
-            return {"model": {"reliability_score": 0.7}}
+    class FakeWeeklyUseCase:
+        def run(self, dry_run=False):
+            saved.append(dry_run)
+            return {"status": "ok"}
 
-    monkeypatch.setattr(main, "ModelReliabilityAnalyzer", FakeAnalyzer)
     monkeypatch.setattr(
-        main, "save_reliability_scores", lambda *args: saved.append(args)
-    )
-    monkeypatch.setattr(
-        main.Config, "get_supported_tickers", staticmethod(lambda: ["AAA"])
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"weekly_reliability": FakeWeeklyUseCase()})(),
     )
 
     main.run_weekly(dry_run=False)
@@ -306,79 +151,111 @@ def test_run_weekly_saves_scores(monkeypatch):
     assert saved
 
 
-def test_run_weekly_errors(monkeypatch):
+def test_run_weekly_errors(monkeypatch, test_settings):
     import main
 
-    class FakeAnalyzer:
-        def analyze(self, ticker, start, end):
+    class FakeWeeklyUseCase:
+        def run(self, dry_run=False):
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(main, "ModelReliabilityAnalyzer", FakeAnalyzer)
     monkeypatch.setattr(
-        main.Config, "get_supported_tickers", staticmethod(lambda: ["AAA"])
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"weekly_reliability": FakeWeeklyUseCase()})(),
     )
 
-    main.run_weekly(dry_run=False)
+    with pytest.raises(RuntimeError):
+        main.run_weekly(dry_run=False)
 
 
 def test_run_weekly_outer_error(monkeypatch):
     import main
 
-    def raise_init():
-        raise RuntimeError("init fail")
+    class FakeWeeklyUseCase:
+        def run(self, dry_run=False):
+            raise RuntimeError("init fail")
 
-    monkeypatch.setattr(main, "ModelReliabilityAnalyzer", raise_init)
-    main.run_weekly(dry_run=False)
+    monkeypatch.setattr(
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"weekly_reliability": FakeWeeklyUseCase()})(),
+    )
+    with pytest.raises(RuntimeError):
+        main.run_weekly(dry_run=False)
 
 
-def test_run_monthly_with_rl(monkeypatch):
+def test_run_monthly_with_rl(monkeypatch, test_settings):
     import main
 
     calls = []
 
+    class FakeMonthlyUseCase:
+        def run(self, dry_run=False):
+            calls.append(dry_run)
+            return {"status": "ok"}
+
     monkeypatch.setattr(
-        main.Config, "get_supported_tickers", staticmethod(lambda: ["AAA"])
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"monthly_retraining": FakeMonthlyUseCase()})(),
     )
-    monkeypatch.setattr(main.Config, "ENABLE_RL", True)
-    monkeypatch.setattr(main, "run_walk_forward", lambda t: {"normalized_score": 0.5})
-    monkeypatch.setattr(main, "train_rl_agent", lambda **kwargs: calls.append(kwargs))
 
     main.run_monthly(dry_run=False)
 
     assert calls
 
 
-def test_run_monthly_without_rl(monkeypatch):
+def test_run_monthly_without_rl(monkeypatch, test_settings):
     import main
 
+    class FakeMonthlyUseCase:
+        def run(self, dry_run=False):
+            return {"status": "ok"}
+
     monkeypatch.setattr(
-        main.Config, "get_supported_tickers", staticmethod(lambda: ["AAA"])
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"monthly_retraining": FakeMonthlyUseCase()})(),
     )
-    monkeypatch.setattr(main.Config, "ENABLE_RL", False)
-    monkeypatch.setattr(main, "run_walk_forward", lambda t: {"normalized_score": 0.5})
 
     main.run_monthly(dry_run=False)
 
 
-def test_run_monthly_error(monkeypatch):
+def test_run_monthly_error(monkeypatch, test_settings):
     import main
 
+    class FakeMonthlyUseCase:
+        def run(self, dry_run=False):
+            raise RuntimeError("fail")
+
     monkeypatch.setattr(
-        main.Config, "get_supported_tickers", staticmethod(lambda: ["AAA"])
-    )
-    monkeypatch.setattr(main.Config, "ENABLE_RL", True)
-    monkeypatch.setattr(
-        main, "run_walk_forward", lambda t: (_ for _ in ()).throw(RuntimeError("fail"))
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"monthly_retraining": FakeMonthlyUseCase()})(),
     )
 
-    main.run_monthly(dry_run=False)
+    with pytest.raises(RuntimeError):
+        main.run_monthly(dry_run=False)
 
 
 def test_manual_walk_forward_and_rl(monkeypatch):
     import main
 
-    monkeypatch.setattr(main, "run_walk_forward", lambda t: {"normalized_score": 0.9})
-    monkeypatch.setattr(main, "train_rl_agent", lambda **kwargs: None)
+    class FakeWalkUseCase:
+        def run(self, ticker=None):
+            return {"status": "ok", "ticker": ticker}
+
+    class FakeTrainUseCase:
+        def run(self, ticker=None, **kwargs):
+            return {"status": "ok", "ticker": ticker}
+
+    monkeypatch.setattr(
+        main,
+        "_APP_CONTAINER",
+        type(
+            "C", (), {"walk_forward": FakeWalkUseCase(), "train_rl": FakeTrainUseCase()}
+        )(),
+    )
 
     main.run_walk_forward_manual("AAA", dry_run=False)
     main.run_train_rl_manual("AAA", dry_run=False)
@@ -387,17 +264,26 @@ def test_manual_walk_forward_and_rl(monkeypatch):
 def test_manual_failures(monkeypatch):
     import main
 
-    monkeypatch.setattr(
-        main, "run_walk_forward", lambda t: (_ for _ in ()).throw(RuntimeError("fail"))
-    )
+    class FakeWalkUseCase:
+        def run(self, ticker=None):
+            raise RuntimeError("fail")
+
+    class FakeTrainUseCase:
+        def run(self, ticker=None, **kwargs):
+            raise RuntimeError("fail")
+
     monkeypatch.setattr(
         main,
-        "train_rl_agent",
-        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("fail")),
+        "_APP_CONTAINER",
+        type(
+            "C", (), {"walk_forward": FakeWalkUseCase(), "train_rl": FakeTrainUseCase()}
+        )(),
     )
 
-    main.run_walk_forward_manual("AAA", dry_run=False)
-    main.run_train_rl_manual("AAA", dry_run=False)
+    with pytest.raises(RuntimeError):
+        main.run_walk_forward_manual("AAA", dry_run=False)
+    with pytest.raises(RuntimeError):
+        main.run_train_rl_manual("AAA", dry_run=False)
 
 
 def test_main_dispatch(monkeypatch):
@@ -645,43 +531,63 @@ def test_safety_rules_bear_warning(monkeypatch):
     assert "warnings" in out
 
 
-def test_decision_reliability_and_ensemble_quality():
+def test_decision_reliability_and_ensemble_quality(test_settings):
     from app.decision.decision_reliability import assess_decision_reliability
     from app.decision.ensemble_quality import (
         bucket_ensemble_quality,
         EnsembleQualityBucket,
     )
-    from app.config.config import Config
 
-    low = assess_decision_reliability(Config.CONFIDENCE_NO_TRADE_THRESHOLD - 0.01, 0.1)
+    low = assess_decision_reliability(
+        test_settings.CONFIDENCE_NO_TRADE_THRESHOLD - 0.01,
+        0.1,
+        settings=test_settings,
+    )
     assert not low.trade_allowed
 
     strong = assess_decision_reliability(
-        Config.STRONG_CONFIDENCE_THRESHOLD + 0.01, Config.STRONG_WF_THRESHOLD + 0.01
+        test_settings.STRONG_CONFIDENCE_THRESHOLD + 0.01,
+        test_settings.STRONG_WF_THRESHOLD + 0.01,
+        settings=test_settings,
     )
     assert strong.confidence_level == "STRONG"
 
-    weak = assess_decision_reliability(Config.WEAK_CONFIDENCE_THRESHOLD - 0.01, 0.1)
+    weak = assess_decision_reliability(
+        test_settings.WEAK_CONFIDENCE_THRESHOLD - 0.01,
+        0.1,
+        settings=test_settings,
+    )
     assert weak.confidence_level == "WEAK"
 
-    normal = assess_decision_reliability(Config.WEAK_CONFIDENCE_THRESHOLD + 0.01, 0.1)
+    normal = assess_decision_reliability(
+        test_settings.WEAK_CONFIDENCE_THRESHOLD + 0.01,
+        0.1,
+        settings=test_settings,
+    )
     assert normal.confidence_level == "NORMAL"
 
     assert (
-        bucket_ensemble_quality(Config.ENSEMBLE_QUALITY_THRESHOLDS["STRONG"])
+        bucket_ensemble_quality(
+            test_settings.ENSEMBLE_QUALITY_THRESHOLDS["STRONG"],
+            settings=test_settings,
+        )
         == EnsembleQualityBucket.STRONG
     )
-    assert bucket_ensemble_quality(0.0) == EnsembleQualityBucket.CHAOTIC
+    assert (
+        bucket_ensemble_quality(0.0, settings=test_settings)
+        == EnsembleQualityBucket.CHAOTIC
+    )
 
 
-def test_audit_builder_paths(monkeypatch):
+def test_audit_builder_paths(monkeypatch, test_settings):
     from app.reporting.audit_builder import (
         decision_reliability_level,
         compute_consistency_flags,
         confidence_bucket,
         build_audit_metadata,
     )
-    from app.config.config import Config
+    from dataclasses import replace
+    from app.reporting import audit_builder
 
     assert decision_reliability_level(None, None) == ("UNKNOWN", False)
     assert confidence_bucket(0.2) == "VERY_LOW"
@@ -698,15 +604,18 @@ def test_audit_builder_paths(monkeypatch):
     flags = compute_consistency_flags(payload, decision)
     assert flags["majority_action"] == 1
 
-    monkeypatch.setattr(Config, "ENABLE_DRIFT_DETECTION", False)
+    audit_builder.set_settings(replace(test_settings, ENABLE_DRIFT_DETECTION=False))
     audit = build_audit_metadata(payload, decision)
     assert audit["decision_level"] in {"STRONG", "NORMAL", "WEAK", "NO_TRADE"}
 
 
-def test_model_reliability_scores(tmp_path, monkeypatch):
+def test_model_reliability_scores(tmp_path, monkeypatch, test_settings):
     from app.models import model_reliability
+    from app.models import set_settings as set_model_settings
 
-    analyzer = model_reliability.ModelReliabilityAnalyzer()
+    model_settings = replace(test_settings, MODEL_RELIABILITY_DIR=tmp_path)
+    set_model_settings(model_settings)
+    analyzer = model_reliability.ModelReliabilityAnalyzer(settings=model_settings)
 
     rows = [
         {"success": 1, "future_return": 0.01, "confidence": 0.8},
@@ -721,7 +630,7 @@ def test_model_reliability_scores(tmp_path, monkeypatch):
     assert "model" in scores
     assert 0 <= scores["model"]["reliability_score"] <= 1
 
-    monkeypatch.setattr(model_reliability.Config, "MODEL_RELIABILITY_DIR", tmp_path)
+    set_model_settings(model_settings)
 
     (tmp_path / "AAA_2024-01-01.json").write_text(
         json.dumps({"m1": {"reliability_score": 0.4}})
@@ -733,27 +642,25 @@ def test_model_reliability_scores(tmp_path, monkeypatch):
     latest = model_reliability.load_latest_reliability_scores("AAA")
     assert latest["m2"] == 0.8
 
-    class FakeDM:
-        def __init__(self):
-            self.saved = []
-
-        def save_model_reliability(self, **kwargs):
-            self.saved.append(kwargs)
-
-    model_reliability.DataManager = FakeDM
-
-    model_reliability.save_reliability_scores("AAA", "2024-02-01", {"x": {}})
-
-    monkeypatch.setattr(
-        model_reliability.Config, "MODEL_RELIABILITY_DIR", tmp_path / "empty"
+    model_reliability.save_reliability_scores(
+        "AAA",
+        "2024-02-01",
+        {"x": {}},
+        settings=model_settings,
     )
+    out_file = tmp_path / "AAA_2024-02-01.json"
+    assert out_file.exists()
+
+    set_model_settings(replace(test_settings, MODEL_RELIABILITY_DIR=tmp_path / "empty"))
     assert model_reliability.load_latest_reliability_scores("ZZZ") == {}
 
 
-def test_analyzer_compute_signals(tmp_path, monkeypatch):
-    from app.analysis import analyzer
+def test_analyzer_compute_signals(tmp_path, monkeypatch, test_settings):
+    from app.analysis import analyzer, set_settings as set_analysis_settings
 
-    monkeypatch.setattr(analyzer.Config, "PARAMS_FILE_PATH", tmp_path / "missing.json")
+    set_analysis_settings(
+        replace(test_settings, PARAMS_FILE_PATH=tmp_path / "missing.json")
+    )
 
     params = analyzer.get_params("AAA")
     assert params
@@ -783,35 +690,34 @@ def test_analyzer_compute_signals(tmp_path, monkeypatch):
     assert empty_indicators["SMA"] is None
 
 
-def test_analyzer_get_params_file(tmp_path, monkeypatch):
-    from app.analysis import analyzer
-    from app.config.config import Config
+def test_analyzer_get_params_file(tmp_path, monkeypatch, test_settings):
+    from app.analysis import analyzer, set_settings as set_analysis_settings
 
     params_path = tmp_path / "params.json"
     params_path.write_text(json.dumps({"AAA": {"bbands_stddev": 2}}))
 
-    monkeypatch.setattr(analyzer.Config, "PARAMS_FILE_PATH", params_path)
+    set_analysis_settings(replace(test_settings, PARAMS_FILE_PATH=params_path))
     params = analyzer.get_params("AAA")
     assert isinstance(params["bbands_stddev"], float)
 
 
-def test_analyzer_get_params_invalid_json(tmp_path, monkeypatch):
-    from app.analysis import analyzer
+def test_analyzer_get_params_invalid_json(tmp_path, monkeypatch, test_settings):
+    from app.analysis import analyzer, set_settings as set_analysis_settings
 
     params_path = tmp_path / "params.json"
     params_path.write_text("not-json")
-    monkeypatch.setattr(analyzer.Config, "PARAMS_FILE_PATH", params_path)
+    set_analysis_settings(replace(test_settings, PARAMS_FILE_PATH=params_path))
 
     params = analyzer.get_params("AAA")
     assert params
 
 
-def test_analyzer_get_params_missing_ticker(tmp_path, monkeypatch):
-    from app.analysis import analyzer
+def test_analyzer_get_params_missing_ticker(tmp_path, monkeypatch, test_settings):
+    from app.analysis import analyzer, set_settings as set_analysis_settings
 
     params_path = tmp_path / "params.json"
     params_path.write_text(json.dumps({"BBB": {"bbands_stddev": 2}}))
-    monkeypatch.setattr(analyzer.Config, "PARAMS_FILE_PATH", params_path)
+    set_analysis_settings(replace(test_settings, PARAMS_FILE_PATH=params_path))
 
     params = analyzer.get_params("AAA")
     assert params
@@ -1285,9 +1191,9 @@ def test_data_loader_vix_fallback(monkeypatch):
     assert data_loader.get_market_volatility_index() == 11.0
 
 
-def test_data_loader_run_full_download(tmp_path, monkeypatch):
+def test_data_loader_run_full_download(tmp_path, monkeypatch, test_settings):
     from app.data_access import data_loader
-    from app.config.config import Config
+    from app import data_access
 
     dates = pd.date_range("2024-01-01", periods=2, freq="D")
     apple_df = pd.DataFrame({"Close": [1.0, 2.0]}, index=dates)
@@ -1311,7 +1217,7 @@ def test_data_loader_run_full_download(tmp_path, monkeypatch):
     )
 
     failed_path = tmp_path / "failed.json"
-    monkeypatch.setattr(Config, "FAILED_DAYS_FILE_PATH", failed_path)
+    data_access.set_settings(replace(test_settings, FAILED_DAYS_FILE_PATH=failed_path))
 
     data_loader.run_full_download(
         tickers=["AAA"], start_date="2024-01-01", end_date="2024-01-03"
@@ -1388,9 +1294,9 @@ def test_data_loader_default_dates(monkeypatch):
     assert not out.empty
 
 
-def test_data_loader_run_full_download_success(tmp_path, monkeypatch):
+def test_data_loader_run_full_download_success(tmp_path, monkeypatch, test_settings):
     from app.data_access import data_loader
-    from app.config.config import Config
+    from app import data_access
 
     dates = pd.date_range("2024-01-01", periods=2, freq="D")
     apple_df = pd.DataFrame({"Close": [1.0, 2.0]}, index=dates)
@@ -1407,7 +1313,7 @@ def test_data_loader_run_full_download_success(tmp_path, monkeypatch):
     )
 
     failed_path = tmp_path / "failed2.json"
-    monkeypatch.setattr(Config, "FAILED_DAYS_FILE_PATH", failed_path)
+    data_access.set_settings(replace(test_settings, FAILED_DAYS_FILE_PATH=failed_path))
 
     data_loader.run_full_download(
         tickers=["AAA"], start_date="2024-01-01", end_date="2024-01-03"
@@ -1472,14 +1378,11 @@ def test_data_loader_vix_error_fallback(monkeypatch):
     assert data_loader.get_market_volatility_index() == 9.0
 
 
-def test_data_manager_metrics(tmp_path, monkeypatch):
+def test_data_manager_metrics(tmp_path, monkeypatch, test_settings):
     from app.data_access.data_manager import DataManager
-    from app.config.config import Config
 
     db_path = tmp_path / "test.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-
-    dm = DataManager()
+    dm = DataManager(settings=replace(test_settings, DB_PATH=db_path))
     dm.initialize_tables()
 
     dates = pd.date_range("2024-01-01", periods=210, freq="D")
@@ -1514,14 +1417,11 @@ def test_data_manager_metrics(tmp_path, monkeypatch):
     assert "executions" in summary
 
 
-def test_data_manager_history_and_correlation(tmp_path, monkeypatch):
+def test_data_manager_history_and_correlation(tmp_path, monkeypatch, test_settings):
     from app.data_access.data_manager import DataManager
-    from app.config.config import Config
 
     db_path = tmp_path / "test2.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-
-    dm = DataManager()
+    dm = DataManager(settings=replace(test_settings, DB_PATH=db_path))
     dm.initialize_tables()
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -1574,14 +1474,11 @@ def test_data_manager_history_and_correlation(tmp_path, monkeypatch):
     assert not corr.empty
 
 
-def test_data_manager_empty_and_records(tmp_path, monkeypatch):
+def test_data_manager_empty_and_records(tmp_path, monkeypatch, test_settings):
     from app.data_access.data_manager import DataManager
-    from app.config.config import Config
 
     db_path = tmp_path / "test3.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-
-    dm = DataManager()
+    dm = DataManager(settings=replace(test_settings, DB_PATH=db_path))
     dm.initialize_tables()
 
     assert dm.get_market_regime_is_bear() is False
@@ -1602,14 +1499,11 @@ def test_data_manager_empty_and_records(tmp_path, monkeypatch):
     assert dm.fetch_recent_outcomes("AAA") == []
 
 
-def test_data_manager_error_paths(tmp_path, monkeypatch):
+def test_data_manager_error_paths(tmp_path, monkeypatch, test_settings):
     from app.data_access.data_manager import DataManager
-    from app.config.config import Config
 
     db_path = tmp_path / "test4.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-
-    dm = DataManager()
+    dm = DataManager(settings=replace(test_settings, DB_PATH=db_path))
     dm.initialize_tables()
 
     monkeypatch.setattr(
@@ -1696,13 +1590,12 @@ def test_drift_detector_metrics(monkeypatch):
     assert get_drifting_tickers({"AAA": 0.5}, alert_level="UNKNOWN") in ([], ["AAA"])
 
 
-def test_drift_detector_load_history(tmp_path, monkeypatch):
+def test_drift_detector_load_history(tmp_path, monkeypatch, test_settings):
     from app.decision.drift_detector import PerformanceDriftDetector
-    from app.config.config import Config
     import sqlite3
 
     db_path = tmp_path / "drift.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
+    settings = replace(test_settings, DB_PATH=db_path)
 
     conn = sqlite3.connect(str(db_path))
     conn.execute(
@@ -1727,7 +1620,7 @@ def test_drift_detector_load_history(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
 
-    detector = PerformanceDriftDetector(lookback_days=5)
+    detector = PerformanceDriftDetector(lookback_days=5, settings=settings)
     scores = detector._load_historical_scores("AAA")
     assert scores
 
@@ -1794,22 +1687,18 @@ def test_mailer_send_email_failure(monkeypatch):
     assert send_email("s", "b", "t") is False
 
 
-def test_logger_setup(monkeypatch, tmp_path):
+def test_logger_setup(monkeypatch, tmp_path, test_settings):
     from app.infrastructure.logger import setup_logger, is_logger_debug
-    from app.config.config import Config
 
-    monkeypatch.setattr(Config, "LOG_DIR", tmp_path)
-    monkeypatch.setattr(Config, "LOGGING_LEVEL", "DEBUG")
-
-    logger = setup_logger("test_logger_setup")
+    settings = replace(test_settings, LOG_DIR=tmp_path, LOGGING_LEVEL="DEBUG")
+    logger = setup_logger("test_logger_setup", settings=settings)
     assert is_logger_debug(logger)
 
 
-def test_audit_builder_drift_and_chaotic(monkeypatch):
+def test_audit_builder_drift_and_chaotic(monkeypatch, test_settings):
     from app.reporting import audit_builder
-    from app.config.config import Config
 
-    monkeypatch.setattr(Config, "ENABLE_DRIFT_DETECTION", True)
+    audit_builder.set_settings(replace(test_settings, ENABLE_DRIFT_DETECTION=True))
 
     class FakeDetector:
         def check_drift(self, ticker, current_score):
@@ -1867,21 +1756,19 @@ def test_audit_builder_reliability_levels():
     assert decision_reliability_level(0.4, None)[0] == "WEAK"
 
 
-def test_config_and_pi_config(monkeypatch, tmp_path):
+def test_config_and_pi_config(monkeypatch, tmp_path, test_settings):
     from app.config import pi_config
     from app.config.config import Config, _enforce_secret_key_policy
+    from dataclasses import replace
 
     assert pi_config._parse_bool("true") is True
     assert pi_config._parse_bool("0") is False
 
     env = {"PI_MODE": "true", "PI_BASE_DIR": str(tmp_path)}
 
-    class DummyConfig:
-        OPTIMIZER_POPULATION = 40
-
-    result = pi_config.apply_pi_config(config_cls=DummyConfig, env=env)
-    assert result["pi_mode"] is True
-    assert result["applied"] is True
+    settings = replace(test_settings, PI_MODE=False)
+    result = pi_config.apply_pi_config(settings=settings, env=env)
+    assert result.PI_MODE is True
 
     monkeypatch.setenv("ENV", "production")
     monkeypatch.setattr(Config, "SECRET_KEY", "safe_key")
@@ -1931,14 +1818,13 @@ def test_pi_config_env_override():
     assert pi_config.detect_pi_mode(env={"PI_MODE": "false"}) is False
 
 
-def test_pi_config_no_apply(monkeypatch):
+def test_pi_config_no_apply(monkeypatch, test_settings):
     from app.config import pi_config
+    from dataclasses import replace
 
-    class DummyConfig:
-        OPTIMIZER_POPULATION = 40
-
-    result = pi_config.apply_pi_config(config_cls=DummyConfig, env={"PI_MODE": "false"})
-    assert result["applied"] is False
+    settings = replace(test_settings, PI_MODE=False)
+    result = pi_config.apply_pi_config(settings=settings, env={"PI_MODE": "false"})
+    assert result is settings
 
 
 def test_pi_config_error_platform(tmp_path):
@@ -1956,18 +1842,15 @@ def test_pi_config_error_platform(tmp_path):
     assert pi_config.detect_pi_mode(env={}, platform_module=FakePlatform) is False
 
 
-def test_pi_config_apply_dirs(tmp_path):
+def test_pi_config_apply_dirs(tmp_path, test_settings):
     from app.config import pi_config
+    from dataclasses import replace
 
     env = {"PI_MODE": "true", "PI_BASE_DIR": str(tmp_path)}
+    settings = replace(test_settings, PI_MODE=False)
 
-    class DummyConfig:
-        OPTIMIZER_POPULATION = 40
-
-    result = pi_config.apply_pi_config(
-        config_cls=DummyConfig, env=env, ensure_dirs=True
-    )
-    assert result["applied"] is True
+    result = pi_config.apply_pi_config(settings=settings, env=env)
+    assert result.PI_MODE is True
 
 
 def test_pi_config_paths(tmp_path):

@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 from unittest.mock import patch, MagicMock
 from app.decision.allocation import allocate_capital
-from app.config.config import Config
 
 
 class TestCapitalAllocation:
@@ -218,7 +217,7 @@ class TestCorrelationAdjustment:
 class TestAllocationEdgeCases:
     """Tests for edge cases."""
 
-    def test_allocation_single_ticker(self):
+    def test_allocation_single_ticker(self, test_settings):
         """Single ticker should receive 100% allocation."""
         decisions = [
             {
@@ -232,7 +231,7 @@ class TestAllocationEdgeCases:
         result = allocate_capital(decisions)
 
         assert result[0]["allocation_pct"] == 1.0
-        assert result[0]["allocation_amount"] == Config.INITIAL_CAPITAL
+        assert result[0]["allocation_amount"] == test_settings.INITIAL_CAPITAL
 
     def test_allocation_zero_confidence(self):
         """Zero confidence signals should still be processed."""

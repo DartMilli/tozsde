@@ -1,4 +1,4 @@
-// === Ábrák és indikátorok betöltése ===
+// === Abrak es indikatorok betoltese ===
 function showChart(imageUrl, clickedElement) {
     const imageElement = document.getElementById('chart-image');
     const descriptionElement = document.getElementById('chart-description');
@@ -24,13 +24,13 @@ function showChart(imageUrl, clickedElement) {
         loadingSpinner.style.display = 'none';
         imageElement.style.display = 'block';
 
-        // paramétereket az URL-ből
+        // parametereket az URL-bol
         const urlParams = new URLSearchParams(imageElement.src.split('?')[1]);
         const ticker = urlParams.get("ticker");
         const start = urlParams.get("start");
         const end = urlParams.get("end");
 
-        // === Riport gomb beállítása ===
+        // === Riport gomb beallitasa ===
         const reportButtonContainer = document.getElementById('report-button-container');
         const reportButton = document.getElementById('view-report-button');
 
@@ -39,7 +39,7 @@ function showChart(imageUrl, clickedElement) {
 
         reportButtonContainer.style.display = 'block';
 
-        // === Indikátor leírások betöltése ===
+        // === Indikator leirasok betoltese ===
         try {
             const response = await fetch('/indicators');
             const data = await response.json();
@@ -53,23 +53,23 @@ function showChart(imageUrl, clickedElement) {
                 section.innerHTML = `
                     <h3 id="header-${id}" onclick="toggleTable('${id}')">
                         ${key + " - " + ind.name}
-                        <span class="toggle-icon" id="icon-${id}">▶</span>
+                        <span class="toggle-icon" id="icon-${id}"></span>
                     </h3>
                     <table id="${id}" class="indicator-table">
                         <tr><th>Amit mutat</th><td>${ind.shows}</td></tr>
-                        <tr><th>Használat</th><td>${ind.used_for.map(i => `• ${i}`).join('<br>')}</td></tr>
-                        <tr><th>Szignálok</th><td>${ind.signals.map(i => `• ${i}`).join('<br>')}</td></tr>
-                        <tr><th>Erősségek</th><td>${ind.strengths.map(i => `✓ ${i}`).join('<br>')}</td></tr>
-                        <tr><th>Gyengeségek</th><td>${ind.weaknesses.map(i => `✗ ${i}`).join('<br>')}</td></tr>
+                        <tr><th>Hasznalat</th><td>${ind.used_for.map(i => `- ${i}`).join('<br>')}</td></tr>
+                        <tr><th>Szignalok</th><td>${ind.signals.map(i => `- ${i}`).join('<br>')}</td></tr>
+                        <tr><th>Erossegek</th><td>${ind.strengths.map(i => `v ${i}`).join('<br>')}</td></tr>
+                        <tr><th>Gyengesegek</th><td>${ind.weaknesses.map(i => `x ${i}`).join('<br>')}</td></tr>
                     </table>
                 `;
                 indicatorContainer.appendChild(section);
             }
         } catch (error) {
-            indicatorContainer.innerHTML = "<p>Nem sikerült betölteni az indikátorokat.</p>";
+            indicatorContainer.innerHTML = "<p>Nem sikerult betolteni az indikatorokat.</p>";
         }
 
-        // === Ajánlás történet lekérése ===
+        // === Ajanlas tortenet lekerese ===
         const historySection = document.getElementById("history-section");
         const historyTableBody = document.querySelector("#history-table tbody");
         const historyTitle = document.getElementById("history-title");
@@ -90,13 +90,13 @@ function showChart(imageUrl, clickedElement) {
                     historyTableBody.appendChild(tr);
                 });
 
-                historyTitle.textContent = `${ticker} - Ajánlások (${start} – ${end})`;
+                historyTitle.textContent = `${ticker} - Ajanlasok (${start} - ${end})`;
                 historySection.style.display = "block";
             } else {
                 historySection.style.display = "none";
             }
         } catch (error) {
-            console.error("Ajánlás történet betöltése sikertelen:", error);
+            console.error("Ajanlas tortenet betoltese sikertelen:", error);
             historySection.style.display = "none";
         }
     };
@@ -104,7 +104,7 @@ function showChart(imageUrl, clickedElement) {
     imageElement.onerror = () => {
         loadingSpinner.style.display = 'none';
         imageElement.src = '';
-        imageElement.alt = 'Grafikon betöltése sikertelen.';
+        imageElement.alt = 'Grafikon betoltese sikertelen.';
         imageElement.style.display = 'block';
     };
 }
@@ -116,11 +116,11 @@ function toggleTable(id) {
 
     if (table.style.display === 'none' || table.style.display === '') {
         table.style.display = 'table';
-        icon.textContent = '▼';
+        icon.textContent = '';
         header.classList.remove('collapsed');
     } else {
         table.style.display = 'none';
-        icon.textContent = '▶';
+        icon.textContent = '';
         header.classList.add('collapsed');
     }
 }
@@ -203,7 +203,7 @@ function updateSliderUI(movedSlider) {
         months += 12;
     }
     const totalMonths = years * 12 + months;
-    diffLabel.textContent = `(${totalMonths} hónap, ${days} nap)`;
+    diffLabel.textContent = `(${totalMonths} honap, ${days} nap)`;
 
     const totalRange = sliderStart.max - sliderStart.min;
     const startPercent = (startVal / totalRange) * 100;

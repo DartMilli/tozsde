@@ -7,7 +7,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import sqlite3
-from app.config.config import Config
+from app.config import get_conf
 
 
 def main() -> int:
@@ -34,7 +34,8 @@ def main() -> int:
         query += " AND date(dh.timestamp) <= date(?)"
         params.append(args.end_date)
 
-    with sqlite3.connect(str(Config.DB_PATH)) as conn:
+    cfg = get_conf(None)
+    with sqlite3.connect(str(getattr(cfg, "DB_PATH"))) as conn:
         rows = conn.execute(query, params).fetchall()
 
     total = len(rows)

@@ -3,7 +3,7 @@ from collections import defaultdict
 
 def calibrate_safety_thresholds(training_rows: list[dict]) -> dict:
     """
-    P8.5 – Empirical safety calibration
+    P8.5 - Empirical safety calibration
     """
 
     # --- confidence threshold ---

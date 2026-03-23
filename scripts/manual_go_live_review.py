@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.config.config import Config
+from app.config import get_conf
 from app.analysis.explainability_linter import lint_explanation
 from app.notifications.email_formatter import format_email_detail, format_email_summary
 from app.reporting.audit_builder import build_audit_summary
@@ -27,7 +27,8 @@ def _load_rows(query: str, params: List[Any]) -> List[Dict]:
 def _connection():
     import sqlite3
 
-    return sqlite3.connect(str(Config.DB_PATH))
+    cfg = get_conf(None)
+    return sqlite3.connect(str(getattr(cfg, "DB_PATH")))
 
 
 def _json_load(raw: Any) -> Dict:

@@ -21,7 +21,10 @@ class MarketDataFetcher:
 class ModelEnsembleRunner:
     """Thin wrapper for model loading/inference."""
 
-    def __init__(self, model_dir, env_class: Any):
+    def __init__(self, model_dir=None, env_class: Any = None, settings=None):
+        model_dir = model_dir or (
+            getattr(settings, "MODEL_DIR", None) if settings is not None else None
+        )
         self._runner = RLModelEnsembleRunner(model_dir=model_dir, env_class=env_class)
 
     def run_ensemble(self, df, ticker: str, top_n: int = 3, debug: bool = True):

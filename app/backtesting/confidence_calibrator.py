@@ -3,7 +3,7 @@ from collections import defaultdict
 
 def calibrate_confidence(training_rows: list[dict]) -> dict:
     """
-    P8.4 – Empirical confidence recalibration
+    P8.4 - Empirical confidence recalibration
     """
 
     buckets = defaultdict(list)

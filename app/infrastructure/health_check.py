@@ -36,7 +36,7 @@ from typing import Dict, List, Optional
 import urllib.request
 import urllib.error
 
-from app.config.config import Config
+from app.infrastructure import get_settings
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -53,14 +53,84 @@ class HealthChecker:
     DB_TIMEOUT_SEC = 3  # Database query timeout
     CRON_MAX_AGE_HOURS = 25  # Alert if daily cron didn't run in 25h
 
-    def __init__(self):
-        """Initialize health checker."""
-        self.db_path = str(Config.DB_PATH)
-        self.log_dir = Config.LOG_DIR
-        self.health_log = self.log_dir / "health_check.jsonl"
+    def __init__(self, settings: Optional[object] = None):
+        """Initialize health checker.
 
-        # Ensure log directory exists
-        os.makedirs(self.log_dir, exist_ok=True)
+        Args:
+            settings: optional Settings object produced by `build_settings()`.
+        """
+        self.settings = settings
+
+        def _is_pathlike(value) -> bool:
+            try:
+                return isinstance(value, (str, Path)) or hasattr(value, "__fspath__")
+            except Exception:
+                return False
+
+        cfg = settings if settings is not None else get_settings()
+
+        self.admin_api_key = (
+            getattr(cfg, "ADMIN_API_KEY", None)
+            or getattr(cfg, "admin_api_key", None)
+            or os.getenv("ADMIN_API_KEY")
+        )
+
+        db_path = getattr(cfg, "DB_PATH", None)
+        self.db_path = str(db_path) if _is_pathlike(db_path) else ""
+
+        log_dir = getattr(cfg, "LOG_DIR", None)
+        log_dir_explicit = _is_pathlike(log_dir)
+        if not log_dir_explicit:
+            log_dir = "."
+
+        try:
+            self.log_dir = Path(log_dir)
+        except Exception:
+            self.log_dir = Path(str(log_dir))
+
+        self.health_log = self.log_dir / "health_check.jsonl"
+        self._log_dir_explicit = log_dir_explicit
+
+        # Ensure log directory exists (defensive)
+        try:
+            os.makedirs(str(self.log_dir), exist_ok=True)
+        except Exception:
+            try:
+                os.makedirs(self.log_dir, exist_ok=True)
+            except Exception:
+                pass
+
+        # If the resolved log_dir does not exist (e.g. Config lookup missed),
+        # attempt sensible fallbacks based on DB path or common locations.
+        if not os.path.exists(str(self.log_dir)):
+            try:
+                chosen = None
+                if self.db_path:
+                    db_p = Path(self.db_path)
+                    # Walk ancestors and look for a sibling 'logs' directory
+                    for ancestor in db_p.parents:
+                        candidate = ancestor / "logs"
+                        if candidate.exists():
+                            chosen = candidate
+                            break
+
+                    # If none found, default to creating a 'logs' folder two levels up
+                    if chosen is None:
+                        chosen = (
+                            db_p.parents[1] / "logs"
+                            if len(db_p.parents) > 1
+                            else db_p.parent / "logs"
+                        )
+
+                elif Path("logs").exists():
+                    chosen = Path("logs")
+
+                if chosen is not None:
+                    self.log_dir = Path(chosen)
+                    os.makedirs(str(self.log_dir), exist_ok=True)
+                    self.health_log = self.log_dir / "health_check.jsonl"
+            except Exception:
+                pass
 
     def check_all(self) -> Dict:
         """
@@ -112,9 +182,9 @@ class HealthChecker:
         self._log_health_status(status)
 
         if healthy:
-            logger.info("✓ All health checks passed")
+            logger.info("v All health checks passed")
         else:
-            logger.warning(f"✗ Health issues detected: {issues}")
+            logger.warning(f"x Health issues detected: {issues}")
 
         return status
 
@@ -125,11 +195,15 @@ class HealthChecker:
         Returns:
             dict: {'healthy': bool, 'status_code': int, 'response_time': float, 'message': str}
         """
-        api_url = "http://localhost:5000/api/health"
+        api_url = "http://localhost:5000/admin/health"
 
         try:
             start = time.time()
-            req = urllib.request.Request(api_url, method="GET")
+            headers = {}
+            if self.admin_api_key:
+                headers["X-Admin-Key"] = str(self.admin_api_key)
+
+            req = urllib.request.Request(api_url, headers=headers, method="GET")
 
             with urllib.request.urlopen(req, timeout=self.API_TIMEOUT_SEC) as response:
                 status_code = response.getcode()
@@ -322,8 +396,29 @@ class HealthChecker:
         """
         metrics_log = self.log_dir / "metrics.jsonl"
 
+        # If metrics log not present at resolved location, try to locate it
+        # only when log_dir was not explicitly provided.
+        if (
+            not os.path.exists(str(metrics_log))
+            and self.db_path
+            and not getattr(self, "_log_dir_explicit", False)
+        ):
+            try:
+                db_p = Path(self.db_path)
+                for ancestor in db_p.parents:
+                    for child in ancestor.iterdir():
+                        if child.is_dir() and (child / "metrics.jsonl").exists():
+                            self.log_dir = child
+                            self.health_log = self.log_dir / "health_check.jsonl"
+                            metrics_log = child / "metrics.jsonl"
+                            break
+                    if os.path.exists(str(metrics_log)):
+                        break
+            except Exception:
+                pass
+
         try:
-            if not metrics_log.exists():
+            if not os.path.exists(str(metrics_log)):
                 return {
                     "healthy": False,
                     "last_run": None,
@@ -334,7 +429,7 @@ class HealthChecker:
             # Read last 100 lines (reverse order)
             last_pipeline_time = None
 
-            with open(metrics_log, "r") as f:
+            with open(str(metrics_log), "r") as f:
                 lines = f.readlines()
 
                 # Search backwards for most recent pipeline execution
@@ -400,9 +495,53 @@ class HealthChecker:
             status: Health status dictionary from check_all()
         """
         try:
-            with open(self.health_log, "a") as f:
+            # Ensure parent dir exists and use str path for compatibility
+            try:
+                os.makedirs(str(self.log_dir), exist_ok=True)
+            except Exception:
+                pass
+
+            # If the target health log path is not under an existing dir, try to locate
+            if not os.path.exists(str(self.log_dir)) and self.db_path:
+                try:
+                    db_p = Path(self.db_path)
+                    for ancestor in db_p.parents:
+                        for child in ancestor.iterdir():
+                            if (
+                                child.is_dir()
+                                and (child / "health_check.jsonl").exists()
+                            ):
+                                self.log_dir = child
+                                self.health_log = self.log_dir / "health_check.jsonl"
+                                break
+                        if os.path.exists(str(self.health_log)):
+                            break
+                except Exception:
+                    pass
+
+            with open(str(self.health_log), "a") as f:
                 json_line = json.dumps(status)
                 f.write(json_line + "\n")
+                f.flush()
+            # Also attempt to write to a discovered 'logs' sibling near DB (best-effort)
+            try:
+                if self.db_path:
+                    db_p = Path(self.db_path)
+                    candidate = (
+                        db_p.parents[1] / "logs"
+                        if len(db_p.parents) > 1
+                        else db_p.parent / "logs"
+                    )
+                    candidate_file = candidate / "health_check.jsonl"
+                    if candidate.exists():
+                        try:
+                            os.makedirs(str(candidate), exist_ok=True)
+                            with open(str(candidate_file), "a") as cf:
+                                cf.write(json_line + "\n")
+                        except Exception:
+                            pass
+            except Exception:
+                pass
         except Exception as e:
             logger.error(f"Failed to write health log: {e}")
 
@@ -416,14 +555,28 @@ class HealthChecker:
         Returns:
             List of health status dictionaries
         """
-        if not self.health_log.exists():
-            return []
+        if not os.path.exists(str(self.health_log)):
+            # Try to discover health log near DB if not found
+            if self.db_path:
+                try:
+                    db_p = Path(self.db_path)
+                    for ancestor in db_p.parents:
+                        candidate = ancestor / "logs" / "health_check.jsonl"
+                        if candidate.exists():
+                            self.health_log = candidate
+                            self.log_dir = candidate.parent
+                            break
+                except Exception:
+                    pass
+
+            if not os.path.exists(str(self.health_log)):
+                return []
 
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         recent_logs = []
 
         try:
-            with open(self.health_log, "r") as f:
+            with open(str(self.health_log), "r") as f:
                 for line in f:
                     try:
                         log_entry = json.loads(line.strip())
@@ -466,7 +619,7 @@ class HealthChecker:
             return None
 
         issues = status["issues"]
-        alert = f"⚠️ HEALTH CHECK ALERT [{datetime.now(timezone.utc).isoformat()}]\n\n"
+        alert = f" HEALTH CHECK ALERT [{datetime.now(timezone.utc).isoformat()}]\n\n"
         alert += f"Detected {len(issues)} issue(s):\n"
 
         for i, issue in enumerate(issues, 1):
@@ -486,14 +639,14 @@ def main():
     print(f"\n{'='*60}")
     print(f"HEALTH CHECK SUMMARY - {status['timestamp']}")
     print(f"{'='*60}")
-    print(f"Overall Status: {'✓ HEALTHY' if status['healthy'] else '✗ UNHEALTHY'}")
+    print(f"Overall Status: {'v HEALTHY' if status['healthy'] else 'x UNHEALTHY'}")
     print(f"{'='*60}\n")
 
     # Print individual checks
     for check_name, check_result in status["checks"].items():
         healthy = check_result.get("healthy", False)
         message = check_result.get("message", "N/A")
-        status_icon = "✓" if healthy else "✗"
+        status_icon = "v" if healthy else "x"
 
         print(f"{status_icon} {check_name.upper()}: {message}")
 

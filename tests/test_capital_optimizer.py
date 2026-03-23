@@ -58,7 +58,7 @@ class TestKellyCriterion:
             avg_loss=100.0
         )
         
-        # Kelly % = (0.5 * 150 - 0.5 * 100) / 150 ≈ 0.167
+        # Kelly % = (0.5 * 150 - 0.5 * 100) / 150  0.167
         assert kelly == pytest.approx(0.167, rel=0.01)
     
     def test_kelly_clamped_to_max(self, optimizer):
@@ -227,7 +227,7 @@ class TestDiversificationScoring:
         
         score = optimizer._calculate_diversification_score(positions)
         
-        # HHI = (1/3)^2 + (1/3)^2 + (1/3)^2 ≈ 0.333
+        # HHI = (1/3)^2 + (1/3)^2 + (1/3)^2  0.333
         assert score == pytest.approx(1.0/3, rel=0.01)
     
     def test_herfindahl_single_position(self, optimizer):

@@ -7,9 +7,14 @@ from typing import Dict, List
 
 import numpy as np
 
-from app.data_access.data_manager import DataManager
+from app.infrastructure.repositories import DataManagerRepository
 from app.validation.utils import get_validation_ticker
-from app.config.config import Config
+from app.validation import get_settings
+
+try:
+    dm = DataManagerRepository()
+except Exception:
+    dm = DataManagerRepository()
 
 
 def _collect_param_variance(results: List[Dict]) -> Dict[str, float]:
@@ -58,7 +63,7 @@ def _collect_param_cv(results: List[Dict]) -> Dict[str, float]:
 
 def run_ga_robustness_tests() -> dict:
     ticker = get_validation_ticker()
-    dm = DataManager()
+    # dm should be injected from DI root
 
     query = """
         SELECT result_json, computed_at
@@ -84,7 +89,7 @@ def run_ga_robustness_tests() -> dict:
     if not results:
         return {"status": "no_data", "ticker": ticker}
 
-    if Config.AGGREGATION_MODE == "latest_only":
+    if get_settings().AGGREGATION_MODE == "latest_only":
         if results:
             latest = max(results, key=lambda r: r.get("computed_at") or "")
             run_id = latest.get("wf_run_id")

@@ -4,7 +4,7 @@ def build_training_row(
     overconfidence_cases: list[dict],
 ) -> dict:
     """
-    P8.3 – Build one training row from replay + history record
+    P8.3 - Build one training row from replay + history record
     """
 
     ts = record["timestamp"]

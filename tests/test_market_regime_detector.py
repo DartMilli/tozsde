@@ -1,5 +1,5 @@
 """
-Tests for Market Regime Detector (P8 — Learning System)
+Tests for Market Regime Detector (P8 - Learning System)
 
 Tests regime detection, volatility calculation, trend analysis,
 and regime transition detection.

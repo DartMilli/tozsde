@@ -43,12 +43,15 @@ python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker 
 curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 ```
 
-### 6) Health Check Script Uses /api/health
-**Cause:** Default health_check.sh points to /api/health.
+### 6) Legacy Health Check Script Uses /api/health
+**Cause:** A legacy/custom script still points to /api/health.
 
 **Fix:**
-- Update the script to use /admin/health and add X-Admin-Key.
-- Or provide a compatible endpoint in your deployment (if you choose).
+- Use `/admin/health` and add `X-Admin-Key`.
+- Recommended check:
+```bash
+curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
+```
 
 ### 7) SQLite Database Locked
 **Fix:**
@@ -118,12 +121,11 @@ python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker 
 curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 ```
 
-### 6) Health check script /api/health-et hasznal
-**Ok:** a health_check.sh alapertelmezetten /api/health-et hiv.
+### 6) Legacy health check script /api/health-et hasznal
+**Ok:** egy legacy/custom script meg /api/health-et hiv.
 
 **Megoldas:**
 - Modositsd /admin/health-re es adj hozza X-Admin-Key-t.
-- Vagy tegyel kompatibilis endpointot a deployba (ha ezt valasztod).
 
 ### 7) SQLite locked
 **Megoldas:**
@@ -132,7 +134,7 @@ curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 
 ### 8) Adatbetoltesi hiba
 **Megoldas:**
-- Ellenorizd a ticker nevét.
+- Ellenorizd a ticker nevet.
 - Ellenorizd a halozatot.
 - Offline modban csak cache-t hasznalj.
 
@@ -152,20 +154,20 @@ taskkill /PID <PID> /F
 
 4. **Test endpoints individually:**
    ```bash
-   curl http://localhost:5000/admin/performance/summary
-   curl http://localhost:5000/admin/errors/summary
+   curl http://localhost:5000/admin/performance/summary -H "X-Admin-Key: <key>"
+   curl http://localhost:5000/admin/errors/summary -H "X-Admin-Key: <key>"
    ```
 
 ---
 
-## 🔍 Diagnostic Commands
+##  Diagnostic Commands
 
 ### System Health Check
 ```bash
 # Full system check
 pytest tests/ -v
 python -m app.infrastructure.health_check
-curl http://localhost:5000/admin/health
+curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 ```
 
 ### Database Integrity
@@ -190,7 +192,7 @@ python -c "from app.infrastructure.error_reporter import ErrorReporter; r=ErrorR
 
 ---
 
-## 📞 Getting Help
+##  Getting Help
 
 ### 1. **Check Logs First**
 ```bash
@@ -208,9 +210,9 @@ pytest tests/ -vv --tb=short
 ```
 
 ### 3. **Check Documentation**
-- [SPRINTS.md](../SPRINTS.md) - Complete feature history
-- [README.md](../README.md) - Project overview
-- [RASPBERRY_PI_SETUP_GUIDE.md](../deployment/RASPBERRY_PI_SETUP_GUIDE.md) - Deployment guide
+- [SPRINTS.md](SPRINTS.md) - Complete feature history
+- [README.md](README.md) - Project overview
+- [RASPBERRY_PI_SETUP_GUIDE.md](deployment/RASPBERRY_PI_SETUP_GUIDE.md) - Deployment guide
 
 ### 4. **Common Log Locations**
 - **Application:** `logs/app.log`
@@ -220,7 +222,7 @@ pytest tests/ -vv --tb=short
 
 ---
 
-## 🛠️ Advanced Debugging
+##  Advanced Debugging
 
 ### Enable Debug Mode
 ```python
@@ -258,7 +260,7 @@ conn.close()
 
 ---
 
-## ✅ Prevention Best Practices
+##  Prevention Best Practices
 
 1. **Always use virtual environment**
 2. **Run tests before deployment**
@@ -271,34 +273,33 @@ conn.close()
 
 ---
 
-## 📊 Status Indicators
+##  Status Indicators
 
 ### Healthy System
-- ✅ All tests passing (359/359)
-- ✅ API responds < 500ms
-- ✅ No critical errors (24h)
-- ✅ Disk space > 20%
-- ✅ Memory usage < 80%
-- ✅ Daily pipeline completes
-- ✅ Cron jobs executing
+-  Test suite passes on latest local run
+-  API responds < 500ms
+-  No critical errors (24h)
+-  Disk space > 20%
+-  Memory usage < 80%
+-  Daily pipeline completes
+-  Cron jobs executing
 
 ### Warning Signs
-- ⚠️ Test failures increasing
-- ⚠️ API response time > 1s
-- ⚠️ Critical errors present
-- ⚠️ Disk space < 20%
-- ⚠️ Memory usage > 80%
-- ⚠️ Pipeline taking > 10 min
+-  Test failures increasing
+-  API response time > 1s
+-  Critical errors present
+-  Disk space < 20%
+-  Memory usage > 80%
+-  Pipeline taking > 10 min
 
 ### Critical Issues
-- 🚨 System crash/restart
-- 🚨 Database corruption
-- 🚨 No trades for 3+ days
-- 🚨 Error rate > 100/hour
-- 🚨 Disk full
-- 🚨 Memory leak detected
+-  System crash/restart
+-  Database corruption
+-  No trades for 3+ days
+-  Error rate > 100/hour
+-  Disk full
+-  Memory leak detected
 
 ---
 
-**Last Updated:** 2026-02-02  
-**Version:** 1.0 (Sprint 9)
+**Last Updated:** 2026-03-22

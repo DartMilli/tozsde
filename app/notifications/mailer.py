@@ -22,10 +22,10 @@ def send_email(subject, body, to_email):
             server.starttls()
             server.login(user, password)
             server.send_message(msg)
-        logger.info(f"{subject} e-mail elküldve")
+        logger.info(f"{subject} e-mail elkuldve")
         return True
     except Exception as e:
-        logger.error(f"Email küldés hiba: {e}", exc_info=True)
+        logger.error(f"Email kuldes hiba: {e}", exc_info=True)
         return False
 
 

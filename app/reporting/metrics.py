@@ -31,7 +31,7 @@ class BacktestReport:
 # class BacktestMetrics:
 #     net_profit: float
 #     max_drawdown: float  # %
-#     winrate: float  # 0–1
+#     winrate: float  # 0-1
 #     trade_count: int
 #     sharpe: Optional[float]
 #

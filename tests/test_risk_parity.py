@@ -10,10 +10,10 @@ Tests for:
 
 import pytest
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+from dataclasses import replace
 
 from app.decision.risk_parity import RiskParityAllocator, apply_risk_parity
-from app.config.config import Config
 
 
 class TestRiskParityAllocator:
@@ -148,9 +148,10 @@ class TestInverseVolatilityWeights:
 class TestAllocationApplication:
     """Test capital allocation application."""
 
-    def test_apply_allocation_amounts(self):
+    def test_apply_allocation_amounts(self, test_settings):
         """Verify allocation amounts are applied to decisions."""
-        allocator = RiskParityAllocator()
+        settings = replace(test_settings, INITIAL_CAPITAL=100000)
+        allocator = RiskParityAllocator(settings=settings)
 
         decisions = [
             {"ticker": "VOO", "action_code": 1, "action": "BUY", "confidence": 0.8},
@@ -160,8 +161,7 @@ class TestAllocationApplication:
         weights = np.array([0.6, 0.4])
         tradeable_indices = [0, 1]
 
-        with patch("app.config.config.Config.INITIAL_CAPITAL", 100000):
-            result = allocator._apply_allocation(decisions, weights, tradeable_indices)
+        result = allocator._apply_allocation(decisions, weights, tradeable_indices)
 
         # Capital * 0.95 * weight = allocation
         capital = 100000 * 0.95
@@ -219,9 +219,10 @@ class TestFullAllocation:
         # Should return unchanged
         assert result[0].get("allocation_amount") is None, "No allocation for no-trade"
 
-    def test_allocate_multiple_tickers(self):
+    def test_allocate_multiple_tickers(self, test_settings):
         """Verify full allocation with multiple tickers."""
-        allocator = RiskParityAllocator()
+        settings = replace(test_settings, INITIAL_CAPITAL=100000)
+        allocator = RiskParityAllocator(settings=settings)
 
         decisions = [
             {"ticker": "VOO", "action_code": 1, "action": "BUY", "confidence": 0.8},
@@ -237,8 +238,7 @@ class TestFullAllocation:
             "QQQ": 100.0 + np.cumsum(np.random.normal(0, 1.5, 50)),  # High vol
         }
 
-        with patch("app.config.config.Config.INITIAL_CAPITAL", 100000):
-            result = allocator.allocate(decisions, price_history)
+        result = allocator.allocate(decisions, price_history)
 
         # All should have allocations
         assert result[0]["allocation_amount"] > 0
@@ -252,7 +252,7 @@ class TestFullAllocation:
 class TestConvenienceFunction:
     """Test apply_risk_parity convenience function."""
 
-    def test_apply_risk_parity_function(self):
+    def test_apply_risk_parity_function(self, test_settings, monkeypatch):
         """Verify apply_risk_parity convenience function works."""
         decisions = [
             {"ticker": "VOO", "action_code": 1, "action": "BUY", "confidence": 0.8},
@@ -262,8 +262,9 @@ class TestConvenienceFunction:
             "VOO": np.array([100.0 + i for i in range(50)]),
         }
 
-        with patch("app.config.config.Config.INITIAL_CAPITAL", 100000):
-            result = apply_risk_parity(decisions, price_history)
+        settings = replace(test_settings, INITIAL_CAPITAL=100000)
+        monkeypatch.setattr("app.decision.risk_parity.build_settings", lambda: settings)
+        result = apply_risk_parity(decisions, price_history)
 
         assert "allocation_amount" in result[0], "Should apply allocation"
         assert result[0]["allocation_amount"] > 0, "Allocation should be positive"

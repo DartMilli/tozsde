@@ -5,16 +5,16 @@ from app.analysis.analyzer import compute_signals, get_params
 
 def sanitize_dataframe(df: pd.DataFrame, index_col: str = "date") -> pd.DataFrame:
     """
-    Megtisztítja a DataFrame-et:
-    - Biztosítja, hogy csak az elvárt oszlopok maradjanak
-    - Minden értéket float/int típusra konvertál
-    - Eltávolítja az érvénytelen (NaN) sorokat
-    - Dátumindexet állít be, ha szükséges
+    Megtisztitja a DataFrame-et:
+    - Biztositja, hogy csak az elvart oszlopok maradjanak
+    - Minden erteket float/int tipusra konvertal
+    - Eltavolitja az ervenytelen (NaN) sorokat
+    - Datumindexet allit be, ha szukseges
     """
 
     expected_cols = ["Open", "High", "Low", "Close", "Volume"]
 
-    # Csak a várt oszlopokat tartjuk meg
+    # Csak a vart oszlopokat tartjuk meg
     df = df.copy()
     if index_col in df.columns:
         df[index_col] = pd.to_datetime(df[index_col], errors="coerce")
@@ -22,7 +22,7 @@ def sanitize_dataframe(df: pd.DataFrame, index_col: str = "date") -> pd.DataFram
 
     df = df[[col for col in expected_cols if col in df.columns]]
 
-    # Konvertálás számokra
+    # Konvertalas szamokra
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
@@ -33,7 +33,7 @@ def sanitize_dataframe(df: pd.DataFrame, index_col: str = "date") -> pd.DataFram
 
 
 def prepare_df(df, ticker, params=None):
-    """Indikátorokat hozzáad a df-hez a RL környezethez."""
+    """Indikatorokat hozzaad a df-hez a RL kornyezethez."""
     if params is None:
         params_to_use = get_params(ticker)
     else:

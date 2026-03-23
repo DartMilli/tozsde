@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Development Mode Runner — Enhanced Version
+Development Mode Runner - Enhanced Version
 
 Multi-mode development launcher supporting:
   - Flask API server (debug mode)
@@ -20,12 +20,12 @@ Usage Examples:
   python run_dev.py --loglevel DEBUG            # Debug logging
 
 Features:
-  ✅ Multiple execution modes (Flask, Pipeline, Both)
-  ✅ Dry-run support (test without side effects)
-  ✅ Custom logging levels
-  ✅ Auto hot-reload for Flask
-  ✅ Graceful shutdown handling
-  ✅ Development-specific configuration
+   Multiple execution modes (Flask, Pipeline, Both)
+   Dry-run support (test without side effects)
+   Custom logging levels
+   Auto hot-reload for Flask
+   Graceful shutdown handling
+   Development-specific configuration
 
 Environment Variables:
   FLASK_ENV=development              # Enable dev features
@@ -43,15 +43,15 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.config.config import Config
+from app.compat.legacy_config import Config
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # FLASK DEVELOPMENT SERVER
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_flask_dev(port: int = 5000):
@@ -61,7 +61,6 @@ def run_flask_dev(port: int = 5000):
     Args:
         port: Port to listen on (default: 5000)
     """
-    # TODO: Implement
     logger.info(f"Starting Flask dev server on http://localhost:{port}")
     logger.info("Debug mode: ON (auto-reload enabled)")
     logger.info("Press Ctrl+C to stop")
@@ -71,7 +70,9 @@ def run_flask_dev(port: int = 5000):
         os.environ["FLASK_ENV"] = "development"
         os.environ["FLASK_DEBUG"] = "1"
 
-        from app.ui.app import app
+        from app.interfaces.web.ui_app import build_default_ui_app
+
+        app = build_default_ui_app(ensure_dirs=False)
 
         app.run(
             debug=True, host="0.0.0.0", port=port, use_reloader=True, use_debugger=True
@@ -83,9 +84,9 @@ def run_flask_dev(port: int = 5000):
         sys.exit(1)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # MAIN PIPELINE
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_pipeline_dev(dry_run: bool = False, ticker: str = None):
@@ -116,9 +117,9 @@ def run_pipeline_dev(dry_run: bool = False, ticker: str = None):
         sys.exit(1)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # WALK-FORWARD OPTIMIZATION
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_walk_forward_dev(ticker: str):
@@ -140,9 +141,9 @@ def run_walk_forward_dev(ticker: str):
         sys.exit(1)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # RL AGENT TRAINING
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_train_rl_dev(ticker: str):
@@ -165,9 +166,9 @@ def run_train_rl_dev(ticker: str):
         sys.exit(1)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # COMBINED MODE (FLASK + PIPELINE)
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def run_both_dev(port: int = 5000):
@@ -197,7 +198,7 @@ def run_both_dev(port: int = 5000):
     try:
         # Start threads
         flask_thread.start()
-        logger.info(f"✓ Flask server started on port {port}")
+        logger.info(f"v Flask server started on port {port}")
 
         # Small delay to prevent race conditions
         import time
@@ -205,7 +206,7 @@ def run_both_dev(port: int = 5000):
         time.sleep(2)
 
         pipeline_thread.start()
-        logger.info("✓ Pipeline runner started")
+        logger.info("v Pipeline runner started")
 
         # Keep main thread alive
         while True:
@@ -219,9 +220,9 @@ def run_both_dev(port: int = 5000):
         sys.exit(1)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # CLI ARGUMENT PARSER
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def parse_arguments():
@@ -294,9 +295,9 @@ Examples:
     return parser.parse_args()
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+#
 # MAIN ENTRY POINT
-# ═════════════════════════════════════════════════════════════════════════════
+#
 
 
 def main():
@@ -313,7 +314,7 @@ def main():
 
     logger.info("=" * 80)
     logger.info(
-        f"TOZSDE Development Runner — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        f"TOZSDE Development Runner - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
     logger.info(f"Mode: {args.mode.upper()}")
     logger.info(f"Environment: {args.env.upper()}")

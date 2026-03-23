@@ -5,6 +5,24 @@ models/
 tensorboard/
 .venv/
 validation_reports/
+decision_history/
+diagnostics/
+reports/
+backups/
+
+app/data/*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+htmlcov/
+
+.pytest_cache/
+.mypy_cache/
+
+.coverage
+.coverage.*
+coverage.json
 
 __pycache__/
 *.py[cod]

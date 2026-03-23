@@ -32,7 +32,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from app.config.config import Config
+from app.infrastructure import get_settings
+
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -48,27 +49,56 @@ class BackupManager:
     BACKUP_DIR_NAME = "backups"
 
     def __init__(
-        self, db_path: Optional[Path] = None, backup_dir: Optional[Path] = None
+        self,
+        db_path: Optional[Path] = None,
+        backup_dir: Optional[Path] = None,
+        settings: Optional[object] = None,
     ):
         """
         Initialize backup manager.
 
         Args:
-            db_path: Path to database file (defaults to Config.DB_PATH)
+            db_path: Path to database file (defaults to settings.database_path)
             backup_dir: Path to backup directory (defaults to <project_root>/backups)
         """
-        self.db_path = db_path or Config.DB_PATH
+        # Allow injecting a Settings object; fall back to legacy Config via helper
+        self.settings = settings
+
+        cfg = settings or get_settings()
+
+        if db_path:
+            self.db_path = Path(db_path)
+        else:
+            db_from_settings = None
+            if settings is not None and hasattr(settings, "DB_PATH"):
+                db_from_settings = getattr(settings, "DB_PATH")
+            db_from_cfg = getattr(cfg, "DB_PATH", None) if cfg is not None else None
+            db_val = db_from_settings or db_from_cfg
+            self.db_path = Path(db_val) if db_val is not None else Path("")
 
         # Default backup directory is project root / backups
         if backup_dir:
-            self.backup_dir = backup_dir
+            self.backup_dir = Path(backup_dir)
         else:
-            # Get project root (2 levels up from Config.DATA_DIR)
-            project_root = Config.DATA_DIR.parent
+            data_dir = None
+            if settings is not None and hasattr(settings, "DATA_DIR"):
+                data_dir = getattr(settings, "DATA_DIR")
+            elif cfg is not None:
+                data_dir = getattr(cfg, "DATA_DIR", None)
+
+            if data_dir:
+                project_root = Path(data_dir).parent
+            else:
+                project_root = Path(".")
+
             self.backup_dir = project_root / self.BACKUP_DIR_NAME
 
         # Ensure backup directory exists
-        os.makedirs(self.backup_dir, exist_ok=True)
+        try:
+            os.makedirs(self.backup_dir, exist_ok=True)
+        except Exception:
+            # defensive: path may be a Path object convertible to str
+            os.makedirs(str(self.backup_dir), exist_ok=True)
 
     def backup_database(self) -> Dict:
         """
@@ -89,6 +119,17 @@ class BackupManager:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S%f")
         backup_filename = f"market_data_backup_{timestamp}.db"
         backup_path = self.backup_dir / backup_filename
+        if backup_path.exists():
+            suffix = 1
+            while True:
+                candidate = self.backup_dir / (
+                    f"market_data_backup_{timestamp}_{suffix}.db"
+                )
+                if not candidate.exists():
+                    backup_path = candidate
+                    backup_filename = candidate.name
+                    break
+                suffix += 1
 
         logger.info(f"Starting database backup to {backup_path}...")
 
@@ -389,7 +430,7 @@ class BackupManager:
             # Restore backup
             shutil.copy2(backup_path, target_path)
 
-            logger.info(f"✓ Database restored successfully from {backup_path.name}")
+            logger.info(f"v Database restored successfully from {backup_path.name}")
 
             return {"success": True, "restored_path": str(target_path), "error": None}
 
@@ -506,18 +547,18 @@ def main():
         backup_path = Path(args.verify)
         result = manager.verify_backup(backup_path)
         if result["valid"]:
-            print(f"✓ Backup valid: {backup_path.name} ({result['tables']} tables)")
+            print(f"v Backup valid: {backup_path.name} ({result['tables']} tables)")
         else:
-            print(f"✗ Backup invalid: {result['error']}")
+            print(f"x Backup invalid: {result['error']}")
             exit(1)
 
     elif args.restore:
         backup_path = Path(args.restore)
         result = manager.restore_backup(backup_path)
         if result["success"]:
-            print(f"✓ Database restored from {backup_path.name}")
+            print(f"v Database restored from {backup_path.name}")
         else:
-            print(f"✗ Restore failed: {result['error']}")
+            print(f"x Restore failed: {result['error']}")
             exit(1)
 
     else:

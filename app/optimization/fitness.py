@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from app.config.config import Config
 from app.reporting.metrics import WalkForwardMetrics
 
 
@@ -97,7 +96,7 @@ def normalize_wf_score(
     raw_fitness: float, stability_constant: float | None = None
 ) -> float:
     if stability_constant is None:
-        stability_constant = float(Config.WF_STABILITY_CONSTANT)
+        stability_constant = float(settings.wf_stability_constant)
 
     if not isinstance(raw_fitness, (int, float)):
         return 0.0

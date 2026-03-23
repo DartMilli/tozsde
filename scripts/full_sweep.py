@@ -1,7 +1,7 @@
 import argparse
 
 from app.backtesting.walk_forward import run_walk_forward
-from app.config.config import Config
+from app.config import get_conf
 from app.data_access.data_loader import ensure_data_cached
 from app.analysis.analyzer import get_params
 from app.infrastructure.logger import setup_logger
@@ -69,13 +69,16 @@ def _parse_model_types(value: str):
 
 def main():
     args = parse_args()
-    tickers = [args.ticker] if args.ticker else Config.get_supported_tickers()
+    cfg = get_conf(None)
+    tickers = [args.ticker] if args.ticker else cfg.get_supported_tickers()
 
     if args.mode == "minimal":
         model_types = _parse_model_types(args.model_types)
         for ticker in tickers:
             if not ensure_data_cached(
-                ticker, start=Config.START_DATE, end=Config.END_DATE
+                ticker,
+                start=getattr(cfg, "START_DATE", None),
+                end=getattr(cfg, "END_DATE", None),
             ):
                 raise SystemExit(f"cache_status: incomplete ({ticker})")
             wf_summary = run_walk_forward(ticker)
@@ -95,10 +98,10 @@ def main():
                 train_rl_agent(
                     ticker=ticker,
                     model_type=model_type,
-                    start=Config.START_DATE,
-                    end=Config.END_DATE,
+                    start=getattr(cfg, "START_DATE", None),
+                    end=getattr(cfg, "END_DATE", None),
                     params=params,
-                    timesteps=Config.RL_TIMESTEPS,
+                    timesteps=getattr(cfg, "RL_TIMESTEPS", 100000),
                     reward_strategy=args.reward_strategy,
                     wf_score=wf_score,
                     wf_summary=wf_summary,
@@ -113,7 +116,9 @@ def main():
         return
 
     for ticker in tickers:
-        if not ensure_data_cached(ticker, start=Config.START_DATE, end=Config.END_DATE):
+        start_date = getattr(cfg, "START_DATE", None)
+        end_date = getattr(cfg, "END_DATE", None)
+        if not ensure_data_cached(ticker, start=start_date, end=end_date):
             raise SystemExit(f"cache_status: incomplete ({ticker})")
         run_walk_forward(ticker)
 

@@ -1,5 +1,5 @@
 """
-WALK FORWARD OPTIMIZER – RESPONSIBILITY CONTRACT
+WALK FORWARD OPTIMIZER - RESPONSIBILITY CONTRACT
 
 ROLE:
     - Control TIME
@@ -41,7 +41,8 @@ from app.analysis.analyzer import get_params
 from app.backtesting.backtester import Backtester
 from app.data_access.data_loader import ensure_data_cached, load_data
 from app.analysis.analyzer import param_bounds, save_params_for_ticker
-from app.config.config import Config
+from app.backtesting import get_settings
+from app.infrastructure.repositories import DataManagerRepository
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -113,7 +114,7 @@ class WalkForwardOptimizer:
             test_df = self.df.iloc[start : start + self.test_window]
 
             # -------------------------
-            # 🔥 GA HÍVÁS ITT
+            #  GA HIVAS ITT
             # -------------------------
             narrowed_bounds = _narrow_bounds(base_bounds, current_center, cv_flags)
 
@@ -141,7 +142,7 @@ class WalkForwardOptimizer:
                 fold_worst_case.append(float(worst_case))
 
             # -------------------------
-            # OOS validáció
+            # OOS validacio
             # -------------------------
 
             bt = Backtester(test_df, self.ticker)
@@ -209,11 +210,11 @@ class WalkForwardOptimizer:
         )
 
         if wf_result.raw_fitness == NEG_INF:
-            logger.warning("Invalid WF fitness – unstable strategy")
+            logger.warning("Invalid WF fitness - unstable strategy")
             return None
 
         if len(results) < 3:
-            logger.warning("Too few WF windows – WF is not interpretable")
+            logger.warning("Too few WF windows - WF is not interpretable")
             return None
 
         total_windows = len(results)
@@ -303,26 +304,28 @@ class WalkForwardOptimizer:
         }
 
 
-def run_walk_forward(ticker: str):
+def run_walk_forward(ticker: str, metrics_repo=None):
     """Cron convenience wrapper.
 
-    - Betölti a teljes historikus adatot
-    - Config hónap-alapú ablakait ~21 trading day/hó közelítéssel bar-számra váltja
-    - Meghívja a WalkForwardOptimizer-t és visszaadja a WF összefoglalót
+    - Betolti a teljes historikus adatot
+    - Config honap-alapu ablakait ~21 trading day/ho kozelitessel bar-szamra valtja
+    - Meghivja a WalkForwardOptimizer-t es visszaadja a WF osszefoglalot
     """
 
-    if not ensure_data_cached(ticker, start=Config.START_DATE, end=Config.END_DATE):
-        logger.error(
-            f"{ticker}: data cache incomplete for {Config.START_DATE} -> {Config.END_DATE}"
-        )
+    cfg = get_settings()
+
+    start_date = getattr(cfg, "START_DATE", None)
+    end_date = getattr(cfg, "END_DATE", None)
+    if not ensure_data_cached(ticker, start=start_date, end=end_date):
+        logger.error(f"{ticker}: data cache incomplete for {start_date} -> {end_date}")
         return None
 
-    df = load_data(ticker, start=Config.START_DATE, end=Config.END_DATE)
+    df = load_data(ticker, start=start_date, end=end_date)
 
     days_per_month = 21
-    train_window = int(Config.TRAIN_WINDOW_MONTHS * days_per_month)
-    test_window = int(Config.TEST_WINDOW_MONTHS * days_per_month)
-    step_size = int(Config.WINDOW_STEP_MONTHS * days_per_month)
+    train_window = int(getattr(cfg, "TRAIN_WINDOW_MONTHS", 12) * days_per_month)
+    test_window = int(getattr(cfg, "TEST_WINDOW_MONTHS", 3) * days_per_month)
+    step_size = int(getattr(cfg, "WINDOW_STEP_MONTHS", 1) * days_per_month)
 
     wf = WalkForwardOptimizer(
         ticker=ticker,
@@ -333,8 +336,8 @@ def run_walk_forward(ticker: str):
         step_size=step_size,
         verbose=False,
         ga_config={
-            "population_size": Config.OPTIMIZER_POPULATION,
-            "ngen": Config.OPTIMIZER_GENERATIONS,
+            "population_size": getattr(cfg, "OPTIMIZER_POPULATION", 50),
+            "ngen": getattr(cfg, "OPTIMIZER_GENERATIONS", 30),
             "cxpb": 0.7,
             "mutpb": 0.2,
         },
@@ -346,12 +349,11 @@ def run_walk_forward(ticker: str):
         result["wf_run_id"] = str(uuid.uuid4())
         result["wf_run_at"] = datetime.now(timezone.utc).isoformat()
         try:
-            from app.data_access.data_manager import DataManager
             import json
 
-            DataManager().save_walk_forward_result(
-                ticker=ticker,
-                result_json=json.dumps(result, default=str),
+            repo = metrics_repo or DataManagerRepository(settings=cfg)
+            repo.save_walk_forward_result(
+                ticker=ticker, result_json=json.dumps(result, default=str)
             )
         except Exception:
             pass

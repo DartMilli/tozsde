@@ -12,7 +12,7 @@ from app.analysis.analyzer import compute_signals, get_params
 from app.backtesting.backtester import Backtester
 from app.backtesting.equity_engine import EquityEngine
 from app.backtesting.execution_utils import normalize_action
-from app.config.config import Config
+from app.validation import get_settings
 from app.validation.execution_stress import evaluate_execution_stress
 from app.validation.bias_metrics import compare_execution_modes
 
@@ -29,7 +29,7 @@ class ExecutionVariant:
     HYBRID_TEST = "hybrid_test"
 
 
-DRIFT_STATE_PATH = Path(Config.LOG_DIR) / "execution_drift_state.json"
+DRIFT_STATE_PATH = Path(get_settings().LOG_DIR) / "execution_drift_state.json"
 
 
 def _trade_indices(df, ticker: str, params: dict) -> List:
@@ -166,7 +166,7 @@ def compute_execution_drift(df, ticker: str, params: dict | None = None) -> Dict
     exit_drift = hybrid_metrics["total_return"] - close_metrics["total_return"]
 
     stress_metrics = None
-    if Config.ENABLE_EXECUTION_STRESS:
+    if get_settings().ENABLE_EXECUTION_STRESS:
         stress_metrics = evaluate_execution_stress(
             df,
             ticker,

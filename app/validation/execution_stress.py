@@ -12,7 +12,7 @@ from app.analysis.analyzer import compute_signals, get_params
 from app.backtesting.backtester import Backtester
 from app.backtesting.equity_engine import EquityEngine
 from app.backtesting.execution_utils import normalize_action
-from app.config.config import Config
+from app.validation import get_settings
 from app.validation.bias_metrics import compare_execution_modes
 
 
@@ -155,7 +155,7 @@ def evaluate_execution_stress(
         params = get_params(ticker)
 
     if enable_stress is None:
-        enable_stress = Config.ENABLE_EXECUTION_STRESS
+        enable_stress = getattr(get_settings(), "ENABLE_EXECUTION_STRESS", False)
 
     trades = _trade_indices(df, ticker, params)
     if not trades:
@@ -279,8 +279,8 @@ def evaluate_execution_stress(
         mean_oos_sharpe,
         relative_gap_baseline,
         worst_case_sharpe,
-        min_sharpe=Config.MIN_OOS_SHARPE,
-        max_relative_gap=Config.MAX_RELATIVE_GAP,
+        min_sharpe=get_settings().MIN_OOS_SHARPE,
+        max_relative_gap=get_settings().MAX_RELATIVE_GAP,
     )
 
     if baseline_trade_count < 40:

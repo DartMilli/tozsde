@@ -9,9 +9,14 @@ from typing import Optional
 
 import numpy as np
 
-from app.data_access.data_manager import DataManager
+from app.infrastructure.repositories import DataManagerRepository
 from app.validation.trade_quality_analysis import analyze_trade_quality
 from app.validation.utils import get_validation_ticker
+
+try:
+    dm = DataManagerRepository()
+except Exception:
+    dm = DataManagerRepository()
 
 
 def _load_validation_report(path: str) -> dict:
@@ -35,7 +40,7 @@ def _latest_report_path() -> Optional[str]:
 
 
 def _load_latest_walk_forward_result(ticker: str) -> Optional[dict]:
-    dm = DataManager()
+    # dm should be injected from DI root
     query = """
         SELECT result_json
         FROM walk_forward_results

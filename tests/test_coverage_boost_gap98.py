@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -129,7 +130,7 @@ def test_config_tickers_and_secret_policy(monkeypatch):
         _enforce_secret_key_policy()
 
 
-def test_pi_config_branches(monkeypatch, tmp_path):
+def test_pi_config_branches(monkeypatch, tmp_path, test_settings):
     from app.config import pi_config
 
     class FakePlatform:
@@ -147,17 +148,15 @@ def test_pi_config_branches(monkeypatch, tmp_path):
         Path, "mkdir", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("fail"))
     )
     result = pi_config.apply_pi_config(
-        config_cls=type("C", (), {"OPTIMIZER_POPULATION": 50}),
+        replace(test_settings, PI_MODE=False),
         env={"PI_MODE": "true", "PI_BASE_DIR": str(tmp_path)},
-        ensure_dirs=True,
     )
-    assert result["applied"] is True
+    assert result.PI_MODE is True
 
 
-def test_data_loader_and_manager_branches(monkeypatch, tmp_path):
+def test_data_loader_and_manager_branches(monkeypatch, tmp_path, test_settings):
     from app.data_access import data_loader
     from app.data_access.data_manager import DataManager
-    from app.config.config import Config
 
     class FakeDM:
         def save_ohlcv(self, ticker, df):
@@ -175,8 +174,7 @@ def test_data_loader_and_manager_branches(monkeypatch, tmp_path):
     )
 
     db_path = tmp_path / "dm.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-    dm = DataManager()
+    dm = DataManager(settings=replace(test_settings, DB_PATH=db_path))
     dm.initialize_tables()
 
     dates = pd.date_range("2024-01-01", periods=5, freq="D")
@@ -293,58 +291,61 @@ def test_capital_optimizer_branches(tmp_path, monkeypatch):
     assert optimizer_zero.estimate_max_drawdown({"AAA": 1.0}, volatility_avg=0.2) == 0.0
 
 
-def test_decision_history_analyzer_branches(tmp_path, monkeypatch):
+def test_decision_history_analyzer_branches(tmp_path, test_settings):
+    from app.decision import set_settings
     from app.decision.decision_history_analyzer import DecisionHistoryAnalyzer
-    from app.config.config import Config
 
     db_path = tmp_path / "history.db"
-    monkeypatch.setattr(Config, "DB_PATH", db_path)
-
-    conn = sqlite3.connect(str(db_path))
-    conn.execute(
-        """
-        CREATE TABLE decision_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            ticker TEXT,
-            action_code INTEGER,
-            audit_data TEXT
-        )
-        """
-    )
-
-    now = datetime.now()
-    rows = []
-    for i in range(6):
-        outcome = {"pnl_pct": 0.1 if i % 2 == 0 else -0.05}
-        audit = {
-            "strategy": "MA_CROSS",
-            "outcome": outcome,
-            "confidence": 0.8 if i % 2 == 0 else 0.3,
-        }
-        rows.append(
-            ((now - timedelta(days=i)).isoformat(), "AAA", 1, json.dumps(audit))
+    settings = replace(test_settings, DB_PATH=db_path)
+    set_settings(settings)
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            """
+            CREATE TABLE decision_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                ticker TEXT,
+                action_code INTEGER,
+                audit_data TEXT
+            )
+            """
         )
 
-    conn.executemany(
-        "INSERT INTO decision_history (timestamp, ticker, action_code, audit_data) VALUES (?, ?, ?, ?)",
-        rows,
-    )
-    conn.commit()
-    conn.close()
+        now = datetime.now()
+        rows = []
+        for i in range(6):
+            outcome = {"pnl_pct": 0.1 if i % 2 == 0 else -0.05}
+            audit = {
+                "strategy": "MA_CROSS",
+                "outcome": outcome,
+                "confidence": 0.8 if i % 2 == 0 else 0.3,
+            }
+            rows.append(
+                ((now - timedelta(days=i)).isoformat(), "AAA", 1, json.dumps(audit))
+            )
 
-    analyzer = DecisionHistoryAnalyzer()
-    stats = analyzer.analyze_strategy_performance("MA_CROSS", days=90)
-    assert stats.total_trades >= 1
+        conn.executemany(
+            "INSERT INTO decision_history (timestamp, ticker, action_code, audit_data) VALUES (?, ?, ?, ?)",
+            rows,
+        )
+        conn.commit()
+        conn.close()
 
-    reliability = analyzer.analyze_ticker_reliability("AAA", days=90)
-    assert reliability.total_decisions >= 1
+        analyzer = DecisionHistoryAnalyzer(settings=settings)
+        stats = analyzer.analyze_strategy_performance("MA_CROSS", days=90)
+        assert stats.total_trades >= 1
 
-    rolling = analyzer.compute_rolling_metrics(window_days=5, total_days=90)
-    assert isinstance(rolling, pd.DataFrame)
+        reliability = analyzer.analyze_ticker_reliability("AAA", days=90)
+        assert reliability.total_decisions >= 1
 
-    assert analyzer.get_best_strategy(days=90, min_trades=1) is not None
-    assert analyzer.get_worst_strategy(days=90, min_trades=1) is not None
+        rolling = analyzer.compute_rolling_metrics(window_days=5, total_days=90)
+        assert isinstance(rolling, pd.DataFrame)
+
+        assert analyzer.get_best_strategy(days=90, min_trades=1) is not None
+        assert analyzer.get_worst_strategy(days=90, min_trades=1) is not None
+    finally:
+        set_settings(test_settings)
 
 
 def test_decision_logger_details(tmp_path):

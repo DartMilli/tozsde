@@ -11,31 +11,31 @@
     <h1>{{ report.meta.ticker }} - Backtest Riport</h1>
 
     <div class="chart-container" style="min-height: 400px;">
-        <img src="data:image/png;base64,{{ equity_image }}" alt="Teljesítmény grafikon (Equity curve)">
+        <img src="data:image/png;base64,{{ equity_image }}" alt="Teljesitmeny grafikon (Equity curve)">
     </div>
 
     <div class="chart-container" style="min-height: 400px;">
-        <img src="data:image/png;base64,{{ drawdown_image }}" alt="Teljesítmény grafikon (Drawdawn curve)">
+        <img src="data:image/png;base64,{{ drawdown_image }}" alt="Teljesitmeny grafikon (Drawdawn curve)">
     </div>
 
     <div id="indicator-table-container">
         <div class="indicator-section">
-            <h3>Teljesítménymutatók</h3>
+            <h3>Teljesitmenymutatok</h3>
             <table class="indicator-table" style="display: table;">
                 <tr>
                     <th>Teljes hozam</th>
                     <td>{{ "%.2f"|format(report.metrics.net_profit) }} %</td>
                 </tr>
                 <tr>
-                    <th>Sharpe ráta (évesített)</th>
+                    <th>Sharpe rata (evesitett)</th>
                     <td>{{ "%.2f"|format(report.metrics.sharpe) }}</td>
                 </tr>
                 <tr>
-                    <th>Maximális visszaesés</th>
+                    <th>Maximalis visszaeses</th>
                     <td>{{ "%.2f"|format(report.metrics.max_drawdown) }} %</td>
                 </tr>
                 <tr>
-                    <th>Kötések száma</th>
+                    <th>Kotesek szama</th>
                     <td>{{ report.metrics.trade_count }}</td>
                 </tr>
                 <tr>
@@ -47,10 +47,10 @@
     </div>
 
     <div class="indicator-section">
-        <h3>Trade minőség</h3>
+        <h3>Trade minoseg</h3>
         <table class="indicator-table">
             <tr>
-                <th>Átlagos trade hozam</th>
+                <th>Atlagos trade hozam</th>
                 <td>{{ "%.2f"|format(report.metrics.avg_trade_return) }} %</td>
             </tr>
             <tr>
@@ -63,14 +63,14 @@
     {% set status = "OK" %}
     {% if report.metrics.sharpe < 0.5 or report.metrics.max_drawdown < -30 %} {% set status="GYENGE" %} {% elif
         report.metrics.sharpe> 1.5 and report.metrics.max_drawdown > -15 %}
-        {% set status = "ERŐS" %}
+        {% set status = "EROS" %}
         {% endif %}
 
         <div class="status-badge status-{{ status|lower }}">
             {{ status }}
         </div>
 
-        <h3>Alkalmazott paraméterek</h3>
+        <h3>Alkalmazott parameterek</h3>
         <ul>
             {% for key, value in report.meta.params.items() %}
             <li><strong>{{ key }}:</strong> {{ value }}</li>

@@ -1,31 +1,33 @@
 import yfinance as yf
 from datetime import datetime, timedelta
-from app.data_access.data_manager import DataManager
+from app.infrastructure.repositories.sqlite_metrics_repository import (
+    SqliteMetricsRepository,
+)
 
 
 def update_macro_context():
-    """Letölti a VIX-et és a 13-hetes kincstárjegy hozamot (Risk-free rate)."""
-    dm = DataManager()
+    """Letolti a VIX-et es a 13-hetes kincstarjegy hozamot (Risk-free rate)."""
+    metrics_repo = SqliteMetricsRepository()
     symbols = {"^VIX": "VOLATILITY", "^IRX": "RISK_FREE_RATE"}
 
     for sym, category in symbols.items():
         ticker = yf.Ticker(sym)
         df = ticker.history(period="5d")
         if not df.empty:
-            with dm.connection() as conn:
-                for idx, row in df.iterrows():
-                    conn.execute(
-                        """INSERT OR REPLACE INTO market_metadata 
-                                 (symbol, date, value) VALUES (?, ?, ?)""",
-                        (category, idx.strftime("%Y-%m-%d"), row["Close"]),
-                    )
+            for idx, row in df.iterrows():
+                metrics_repo.save_metrics(
+                    {
+                        "symbol": category,
+                        "date": idx.strftime("%Y-%m-%d"),
+                        "value": row["Close"],
+                    }
+                )
 
 
 def get_risk_free_rate():
-    """Visszaadja az aktuális évesített kockázatmentes hozamot (decimálisban)."""
-    dm = DataManager()
-    with dm.connection() as conn:
-        res = conn.execute(
-            "SELECT value FROM market_metadata WHERE symbol='RISK_FREE_RATE' ORDER BY date DESC LIMIT 1"
-        ).fetchone()
-        return (res[0] / 100.0) if res else 0.045  # Fallback 4.5%
+    """Visszaadja az aktualis evesitett kockazatmentes hozamot (decimalisban)."""
+    metrics_repo = SqliteMetricsRepository()
+    res = metrics_repo.fetch_metrics("RISK_FREE_RATE", None, None)
+    if res and len(res) > 0:
+        return res[0]["value"] / 100.0
+    return 0.045  # Fallback 4.5%

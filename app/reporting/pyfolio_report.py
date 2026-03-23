@@ -1,5 +1,5 @@
 """
-PyFolio Integration Module (P9 — Bonus Analysis)
+PyFolio Integration Module (P9 - Bonus Analysis)
 
 Responsibility:
     - Generate comprehensive performance analysis using PyFolio

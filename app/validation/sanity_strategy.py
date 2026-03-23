@@ -3,20 +3,24 @@
 from __future__ import annotations
 
 from app.backtesting.backtester import Backtester
-from app.config.config import Config
+from app.validation import get_settings
 from app.infrastructure.logger import setup_logger
 from app.validation.errors import ExecutionPipelineError
 
 logger = setup_logger(__name__)
 
+# Use validation package DI helper for settings
+from app.validation import get_settings as _get_settings  # noqa: F401
+
 
 def run_sanity_backtest(df, every_n: int = 50, hold_bars: int = 10) -> dict:
+    base_capital = float(get_settings().INITIAL_CAPITAL)
     if df is None or df.empty:
         return {
             "expected_trades": 0,
             "executed_trades": 0,
-            "capital_start": float(Config.INITIAL_CAPITAL),
-            "capital_end": float(Config.INITIAL_CAPITAL),
+            "capital_start": base_capital,
+            "capital_end": base_capital,
         }
 
     signals = ["HOLD"] * len(df)
@@ -70,6 +74,6 @@ def run_sanity_backtest(df, every_n: int = 50, hold_bars: int = 10) -> dict:
     return {
         "expected_trades": expected_trades,
         "executed_trades": executed_trades,
-        "capital_start": audit.get("capital_start", float(Config.INITIAL_CAPITAL)),
-        "capital_end": audit.get("capital_end", float(Config.INITIAL_CAPITAL)),
+        "capital_start": audit.get("capital_start", base_capital),
+        "capital_end": audit.get("capital_end", base_capital),
     }

@@ -4,6 +4,9 @@ from pathlib import Path
 import json
 
 from app.config.config import Config
+from dataclasses import replace
+from app.backtesting import set_settings as set_backtesting_settings
+from app.models import set_settings as set_model_settings
 from app.decision.recommendation_builder import build_recommendation, build_explanation
 from app.backtesting.backtester import Backtester
 import app.backtesting.backtester as backtester_module
@@ -30,49 +33,23 @@ def test_p0_deterministic_recommendation_output():
 
 
 def test_p0_failure_one_ticker_does_not_abort(monkeypatch):
-    events = {"allocate_calls": 0}
+    calls = []
 
-    def fake_payload(ticker, history):
-        if ticker == "BAD":
-            raise ValueError("boom")
-        return {
-            "ticker": ticker,
-            "model_votes": [],
-            "volatility": 0.02,
-            "decision": {
-                "action_code": 1,
-                "action": "BUY",
-                "strength": "NORMAL",
-                "confidence": 0.7,
-                "wf_score": 0.8,
-                "ensemble_quality": 0.6,
-                "quality_score": 0.5,
-                "no_trade": False,
-                "no_trade_reason": None,
-                "original_action": 1,
-            },
-            "explanation": {"hu": "ok", "en": "ok"},
-            "ensemble_quality": 0.6,
-        }
+    class FakeDailyPipeline:
+        def run(self, dry_run=False, ticker=None):
+            calls.append((dry_run, ticker))
+            return {"ok": True}
 
-    def fake_allocate(candidates):
-        events["allocate_calls"] += 1
-        return candidates
-
-    monkeypatch.setattr(main, "generate_daily_recommendation_payload", fake_payload)
-    monkeypatch.setattr(main, "allocate_capital", fake_allocate)
     monkeypatch.setattr(
-        main.HistoryStore, "save_decision", lambda *args, **kwargs: None
-    )
-    monkeypatch.setattr(
-        main.DataManager, "log_recommendation", lambda *args, **kwargs: None
+        main,
+        "_APP_CONTAINER",
+        type("C", (), {"daily_pipeline": FakeDailyPipeline()})(),
     )
 
-    monkeypatch.setattr(Config, "get_supported_tickers", lambda: ["BAD", "GOOD"])
+    result = main.run_daily(dry_run=True)
 
-    main.run_daily(dry_run=True)
-
-    assert events["allocate_calls"] == 1
+    assert result == {"ok": True}
+    assert calls == [(True, None)]
 
 
 def test_p1_recommendation_upsert_is_idempotent(test_db):
@@ -89,7 +66,7 @@ def test_p1_recommendation_upsert_is_idempotent(test_db):
     assert count == 1
 
 
-def test_p2_transaction_costs_reduce_net_profit(monkeypatch, sample_df):
+def test_p2_transaction_costs_reduce_net_profit(monkeypatch, sample_df, test_settings):
     def fake_signals(df, ticker, params, return_series=False):
         signals = ["BUY", "SELL"] + ["HOLD"] * (len(df) - 2)
         return signals, {}
@@ -114,15 +91,23 @@ def test_p2_transaction_costs_reduce_net_profit(monkeypatch, sample_df):
         "stoch_d": 3,
     }
 
-    monkeypatch.setattr(Config, "TRANSACTION_FEE_PCT", 0.0001)
-    monkeypatch.setattr(Config, "MIN_SLIPPAGE_PCT", 0.0001)
-    monkeypatch.setattr(Config, "SPREAD_PCT", 0.0001)
-    low_cost_report = Backtester(df, "TEST").run(params)
+    low_cost_settings = replace(
+        test_settings,
+        TRANSACTION_FEE_PCT=0.0001,
+        MIN_SLIPPAGE_PCT=0.0001,
+        SPREAD_PCT=0.0001,
+    )
+    set_backtesting_settings(low_cost_settings)
+    low_cost_report = Backtester(df, "TEST", settings=low_cost_settings).run(params)
 
-    monkeypatch.setattr(Config, "TRANSACTION_FEE_PCT", 0.01)
-    monkeypatch.setattr(Config, "MIN_SLIPPAGE_PCT", 0.01)
-    monkeypatch.setattr(Config, "SPREAD_PCT", 0.01)
-    high_cost_report = Backtester(df, "TEST").run(params)
+    high_cost_settings = replace(
+        test_settings,
+        TRANSACTION_FEE_PCT=0.01,
+        MIN_SLIPPAGE_PCT=0.01,
+        SPREAD_PCT=0.01,
+    )
+    set_backtesting_settings(high_cost_settings)
+    high_cost_report = Backtester(df, "TEST", settings=high_cost_settings).run(params)
 
     assert (
         high_cost_report.metrics["net_profit"] < low_cost_report.metrics["net_profit"]
@@ -191,14 +176,18 @@ def test_p2_indicator_cache_preserves_output(sample_df):
     assert np.allclose(first, second, equal_nan=True)
 
 
-def test_p6_reliability_degradation_detectable(tmp_path, monkeypatch):
+def test_p6_reliability_degradation_detectable(tmp_path, monkeypatch, test_settings):
     decision_dir = tmp_path / "decision_logs"
     outcome_dir = tmp_path / "decision_outcomes"
-    decision_dir.mkdir(parents=True)
-    outcome_dir.mkdir(parents=True)
+    decision_dir.mkdir(parents=True, exist_ok=True)
+    outcome_dir.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(Config, "DECISION_LOG_DIR", decision_dir)
-    monkeypatch.setattr(Config, "DECISION_OUTCOME_DIR", outcome_dir)
+    model_settings = replace(
+        test_settings,
+        DECISION_LOG_DIR=decision_dir,
+        DECISION_OUTCOME_DIR=outcome_dir,
+    )
+    set_model_settings(model_settings)
 
     ticker = "TEST"
     model_path = "model_a.zip"
@@ -233,7 +222,7 @@ def test_p6_reliability_degradation_detectable(tmp_path, monkeypatch):
             )
         )
 
-    analyzer = ModelReliabilityAnalyzer()
+    analyzer = ModelReliabilityAnalyzer(settings=model_settings)
     scores = analyzer.analyze(
         ticker=ticker,
         start=date.fromisoformat(good_day),
@@ -334,7 +323,7 @@ def test_p9_restart_tolerates_state_persistence(test_db):
     dm = test_db
     dm.log_recommendation("TEST", "BUY", 0.7, params={"p": 1})
 
-    dm2 = DataManager()
+    dm2 = DataManager(settings=test_db.settings)
     today = date.today().isoformat()
     with dm2.connection() as conn:
         count = conn.execute(

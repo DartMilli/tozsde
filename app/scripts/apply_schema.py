@@ -1,5 +1,5 @@
 """
-P4.2 – DB Schema Apply Script
+P4.2 - DB Schema Apply Script
 
 Responsibility:
     - Create / migrate database schema
@@ -11,16 +11,20 @@ Usage:
     python -m app.scripts.apply_schema
 """
 
-from app.data_access.data_manager import DataManager
+from app.infrastructure.repositories import DataManagerRepository as DataManager
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
-def apply_schema():
+def apply_schema(dm: DataManager | None = None, settings=None):
     logger.info("Applying DB schema...")
     try:
-        dm = DataManager()
+        if dm is None:
+            try:
+                dm = DataManager(settings=settings)
+            except TypeError:
+                dm = DataManager()
         dm.initialize_tables()
         logger.info("DB schema applied successfully")
 

@@ -6,8 +6,12 @@
 - README.md: full project overview, CLI usage, validation and ops notes (Windows IDE quick start).
 
 ### Core References
+- MIGRATION_COMPLETED.md: single-file completion marker for full architecture migration closure.
 - SPRINTS.md: sprint history and historical delivery timeline.
 - ARCH_REVIEW.md: architecture review with current addendum.
+- COMPATIBILITY_CONTRACT_FREEZE.md: Phase 7.1 frozen compatibility surfaces and change protocol.
+- PHASE7_DEPRECATION_PATH.md: controlled shim retirement sequence and rollback plan.
+- USE_CASE_CONTRACTS.md: unified application use-case input/output contract.
 - FAQ.md: common questions and operational guidance.
 - TROUBLESHOOTING_GUIDE.md: diagnosis and fixes.
 
@@ -27,7 +31,6 @@ See testing/TEST_STATUS_REPORT.md for the latest test counts and coverage.
 
 ## Magyar
 
-### Belepes
 ### Belepes
 - README.md: teljes attekintes, CLI, validacio, ops (Windows IDE quick start).
 

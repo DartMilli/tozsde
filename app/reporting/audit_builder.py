@@ -2,10 +2,26 @@ from collections import Counter
 import datetime
 from typing import Optional, Tuple
 
-from app.config.config import Config
-from app.decision.ensemble_quality import bucket_ensemble_quality
-from app.decision.volatility_bucket import bucket_volatility
+from app.config.build_settings import build_settings
+from app.core.decision.ensemble_quality import bucket_ensemble_quality
+from app.core.decision.volatility_bucket import bucket_volatility
 from app.infrastructure.logger import setup_logger
+
+# DI: injected settings (set by composition root). If not injected, fall back
+# to build_settings to keep tests working.
+_settings = None
+
+
+def set_settings(s):
+    global _settings
+    _settings = s
+
+
+def get_settings():
+    if _settings is not None:
+        return _settings
+    return build_settings()
+
 
 logger = setup_logger(__name__)
 
@@ -15,7 +31,7 @@ def decision_reliability_level(
     wf_score,  # type: Optional[float]
 ):  # type: (...) -> Tuple[str, bool]
     """
-    P7.1.1 – Descriptive decision reliability
+    P7.1.1 - Descriptive decision reliability
     Returns: (decision_level, trade_allowed)
     """
     if confidence is None:
@@ -35,7 +51,7 @@ def decision_reliability_level(
 
 def compute_consistency_flags(payload: dict, decision: dict) -> dict:
     """
-    P4.5 – Consistency & audit flags
+    P4.5 - Consistency & audit flags
     """
 
     votes = payload.get("model_votes", [])
@@ -44,17 +60,16 @@ def compute_consistency_flags(payload: dict, decision: dict) -> dict:
     vote_counter = Counter(actions)
     majority_action = vote_counter.most_common(1)[0][0] if vote_counter else None
 
+    cfg = get_settings()
     flags = {
         "majority_action": majority_action,
         "majority_action_label": (
-            Config.ACTION_LABELS[Config.LANG][majority_action]
+            cfg.ACTION_LABELS[cfg.LANG][majority_action]
             if majority_action is not None
             else None
         ),
         "executed_action": decision["action_code"],
-        "executed_action_label": Config.ACTION_LABELS[Config.LANG][
-            decision["action_code"]
-        ],
+        "executed_action_label": cfg.ACTION_LABELS[cfg.LANG][decision["action_code"]],
         "matches_majority": majority_action == decision["action_code"],
         "was_policy_override": decision.get("no_trade", False),
     }
@@ -102,7 +117,8 @@ def build_audit_metadata(payload: dict, decision: dict) -> dict:
 
     # --- Drift detection integration (optional) ---
     drift_status = None
-    if Config.ENABLE_DRIFT_DETECTION:
+    cfg = get_settings()
+    if cfg.ENABLE_DRIFT_DETECTION:
         try:
             from app.decision.drift_detector import PerformanceDriftDetector
 

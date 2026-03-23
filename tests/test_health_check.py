@@ -14,6 +14,7 @@ import os
 import pytest
 import sqlite3
 import tempfile
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
@@ -39,14 +40,14 @@ def temp_dirs():
 
 
 @pytest.fixture
-def health_checker(temp_dirs):
+def health_checker(temp_dirs, test_settings):
     """Create HealthChecker instance with temporary paths."""
-    with patch("app.infrastructure.health_check.Config") as mock_config:
-        mock_config.LOG_DIR = temp_dirs["log_dir"]
-        mock_config.DB_PATH = temp_dirs["db_path"]
-
-        checker = HealthChecker()
-        return checker
+    settings = replace(
+        test_settings,
+        LOG_DIR=temp_dirs["log_dir"],
+        DB_PATH=temp_dirs["db_path"],
+    )
+    return HealthChecker(settings=settings)
 
 
 # --- API Health Check Tests ---

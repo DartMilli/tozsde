@@ -1,36 +1,38 @@
 import json
 import pandas as pd
 from datetime import datetime, timedelta
-from app.data_access.data_manager import DataManager
+from app.infrastructure.repositories import DataManagerRepository
 
 
 class OutcomeEvaluator:
     """
-    P8 modul: Végignézi a múltbeli döntéseket, és kiszámolja,
-    hogy nyereségesek voltak-e (Realized PnL).
-    Ezzel valósul meg a visszacsatolás (Feedback Loop).
+    P8 modul: Vegignezi a multbeli donteseket, es kiszamolja,
+    hogy nyeresegesek voltak-e (Realized PnL).
+    Ezzel valosul meg a visszacsatolas (Feedback Loop).
     """
 
-    def __init__(self):
-        self.dm = DataManager()
+    def __init__(self, outcomes_repo=None, settings=None):
+        self.dm = outcomes_repo
+        if self.dm is None:
+            self.dm = DataManagerRepository(settings=settings)
 
     def evaluate_past_decisions(self, lookback_days=30, hold_period=10):
         """
-        Frissíti a history-t az eredményekkel.
-        Csak a VÉTELI (action_code=1) döntéseket vizsgálja.
+        Frissiti a history-t az eredmenyekkel.
+        Csak a VETELI (action_code=1) donteseket vizsgalja.
         """
-        print("Múltbeli döntések kiértékelése...")
+        print("Multbeli dontesek kiertekelese...")
 
-        # 1. Lekérjük az elmúlt időszak döntéseit
+        # 1. Lekerjuk az elmult idoszak donteseit
         end_date = datetime.now()
         start_date = end_date - timedelta(days=lookback_days)
 
-        # Mivel a DataManager.get_history_range tickerenként kér,
-        # itt egy nyers SQL hatékonyabb lenne az összes ticker-re.
-        # De tartsuk be a rétegeket: iteráljunk a configban lévő tickereken (vagy kérjünk egy újat a DM-től).
-        # Egyszerűsítés: Feltételezzük, hogy van egy listánk, vagy bővítjük a DM-et.
+        # Mivel a DataManager.get_history_range tickerenkent ker,
+        # itt egy nyers SQL hatekonyabb lenne az osszes ticker-re.
+        # De tartsuk be a retegeket: iteraljunk a configban levo tickereken (vagy kerjunk egy ujat a DM-tol).
+        # Egyszerusites: Feltetelezzuk, hogy van egy listank, vagy bovitjuk a DM-et.
 
-        # Javasolt bővítés a DataManager-ben (lásd Lépés C), itt most feltételezem:
+        # Javasolt bovites a DataManager-ben (lasd Lepes C), itt most feltetelezem:
         pending_decisions = self.dm.get_unevaluated_buy_decisions(limit=100)
 
         for row in pending_decisions:
@@ -61,37 +63,37 @@ class OutcomeEvaluator:
                     horizon_days=outcome["horizon_days"],
                     outcome_json=json.dumps(outcome),
                 )
-                print(f" -> {ticker} ({timestamp_str}) eredmény: {pnl*100:.2f}%")
+                print(f" -> {ticker} ({timestamp_str}) eredmeny: {pnl*100:.2f}%")
 
     def _calculate_trade_result(self, ticker, entry_date_str, hold_period=10):
         """
-        Megnézi, mi történt az árfolyammal a belépés után X nappal.
-        Egyszerűsített logika: Fix 10 napos tartás eredménye.
+        Megnezi, mi tortent az arfolyammal a belepes utan X nappal.
+        Egyszerusitett logika: Fix 10 napos tartas eredmenye.
         """
         entry_date = pd.Timestamp(entry_date_str)
-        # Pár nappal későbbi adatok kellenek
+        # Par nappal kesobbi adatok kellenek
         check_end_date = entry_date + timedelta(days=hold_period + 5)
 
-        df = self.dm.load_ohlcv(ticker)  # Ez cache-elt adatokat használ
+        df = self.dm.load_ohlcv(ticker)  # Ez cache-elt adatokat hasznal
 
-        # Szűrés a releváns időszakra
+        # Szures a relevans idoszakra
         df_future = df[df.index > entry_date]
 
         if df_future.empty:
-            return None  # Még nincs jövőbeli adat (mai döntés)
+            return None  # Meg nincs jovobeli adat (mai dontes)
 
-        # Belépő ár (a döntés másnapjának nyitója vagy aznapi close - egyszerűsítsünk close-ra)
+        # Belepo ar (a dontes masnapjanak nyitoja vagy aznapi close - egyszerusitsunk close-ra)
         try:
-            # Megkeressük a pontos entry dátumhoz legközelebbi árat
+            # Megkeressuk a pontos entry datumhoz legkozelebbi arat
             entry_idx = df.index.get_indexer([entry_date], method="nearest")[0]
             entry_price = df.iloc[entry_idx]["Close"]
 
-            # Kilépő ár (hold_period nappal később)
+            # Kilepo ar (hold_period nappal kesobb)
             exit_idx = entry_idx + hold_period
             if exit_idx >= len(df):
                 exit_idx = len(df) - 1  # Ami van adat
 
-            # Ha túl közel van még, nem értékeljük
+            # Ha tul kozel van meg, nem ertekeljuk
             if (df.index[exit_idx] - df.index[entry_idx]).days < 3:
                 return None
 
@@ -100,5 +102,5 @@ class OutcomeEvaluator:
             return (exit_price - entry_price) / entry_price
 
         except Exception as e:
-            # Hiba esetén (pl. hiányzó adat) skip
+            # Hiba eseten (pl. hianyzo adat) skip
             return None

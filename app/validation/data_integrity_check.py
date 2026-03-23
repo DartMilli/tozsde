@@ -6,7 +6,7 @@ from typing import Optional
 
 import numpy as np
 
-from app.config.config import Config
+
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)

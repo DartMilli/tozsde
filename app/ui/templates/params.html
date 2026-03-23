@@ -3,12 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>{{ ticker }} - Paraméterek</title>
+    <title>{{ ticker }} - Parameterek</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 
 <body>
-    <h1>{{ ticker }} - Optimalizált paraméterek</h1>
+    <h1>{{ ticker }} - Optimalizalt parameterek</h1>
 
     <form method="get" action="/params" style="margin-bottom: 20px;">
         <label for="ticker">Ticker:</label>
@@ -17,14 +17,14 @@
             <option value="{{ t }}" {% if t==ticker %}selected{% endif %}>{{ t }}</option>
             {% endfor %}
         </select>
-        <button type="submit">Mutatás</button>
+        <button type="submit">Mutatas</button>
     </form>
 
     <table class="indicator-table" style="display: table;">
         <thead>
             <tr>
-                <th>Paraméter</th>
-                <th>Érték</th>
+                <th>Parameter</th>
+                <th>Ertek</th>
             </tr>
         </thead>
         <tbody>

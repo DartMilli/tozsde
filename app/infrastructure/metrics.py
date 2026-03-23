@@ -1,5 +1,5 @@
 """
-System Metrics & Monitoring Module (P9 — Engineering Hardening)
+System Metrics & Monitoring Module (P9 - Engineering Hardening)
 
 Responsibility:
     - Track system health metrics (execution time, success rate, errors)
@@ -21,21 +21,38 @@ Usage:
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
-from app.config.config import Config
-from app.data_access.data_manager import DataManager
+from app.config.build_settings import build_settings
+from app.infrastructure.repositories.sqlite_metrics_repository import (
+    SqliteMetricsRepository,
+)
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+# Compatibility alias for tests monkeypatching `app.infrastructure.metrics.DataManager`.
+DataManager = SqliteMetricsRepository
 
 
 class SystemMetrics:
     """Tracks and reports system health metrics via DataManager."""
 
-    def __init__(self):
-        """Initialize metrics tracking."""
-        self.dm = DataManager()
+    def __init__(self, settings: Optional[object] = None):
+        """Initialize metrics tracking.
+
+        Args:
+            settings: optional Settings object produced by `build_settings()`.
+        """
+        try:
+            self.dm = DataManager(settings=settings)
+        except TypeError:
+            # Support tests that monkeypatch DataManager without a settings param
+            self.dm = DataManager()
+
         # Ensure table exists during initialization
-        self.dm.initialize_tables()
+        try:
+            self.dm.initialize_tables()
+        except Exception:
+            pass
 
     def log_pipeline_execution(
         self,
@@ -152,13 +169,11 @@ class SystemMetrics:
         }
 
 
-# Singleton instance
-_metrics_instance = None
-
-
 def get_metrics() -> SystemMetrics:
-    """Get or create SystemMetrics singleton."""
-    global _metrics_instance
-    if _metrics_instance is None:
-        _metrics_instance = SystemMetrics()
-    return _metrics_instance
+    """
+    Convenience accessor returning a `SystemMetrics` instance.
+
+    Attempts to use the project's configuration if available, but falls
+    back to no-settings so tests and lightweight callers work.
+    """
+    return SystemMetrics(settings=build_settings())

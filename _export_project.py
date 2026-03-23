@@ -180,7 +180,7 @@ def build_tree_map(root: Path, files: List[Path], depth: int) -> Dict:
         parts = rel.parts
         if depth > 0 and len(parts) > depth:
             # keep only up to depth; represent remainder collapsed
-            parts = parts[:depth] + ("…",)
+            parts = parts[:depth] + ("...",)
         node = tree
         for i, part in enumerate(parts):
             is_last = i == len(parts) - 1
@@ -204,11 +204,11 @@ def render_tree_ascii(tree: Dict, prefix: str = "") -> str:
     entries = dir_keys + files
     for idx, name in enumerate(entries):
         is_last = idx == len(entries) - 1
-        branch = "└── " if is_last else "├── "
+        branch = " " if is_last else " "
         lines.append(prefix + branch + name)
 
         if name in tree:  # directory
-            extension = "    " if is_last else "│   "
+            extension = "    " if is_last else "   "
             lines.extend(render_tree_ascii(tree[name], prefix + extension).splitlines())
 
     return "\n".join(lines)
@@ -324,7 +324,7 @@ def make_dot_graph(root: Path, files: List[Path], depth: int, max_nodes: int) ->
         rel = p.relative_to(root)
         parts = rel.parts
         if depth > 0 and len(parts) > depth:
-            parts = parts[:depth] + ("…",)
+            parts = parts[:depth] + ("...",)
 
         # Build all intermediate directories
         acc = []
