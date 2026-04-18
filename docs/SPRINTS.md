@@ -1,7 +1,14 @@
 # DEVELOPMENT SPRINTS SUMMARY
 **Project:** ToZsDE Trading System  
-**Status:** Sprint 1-10 Complete (historical) + Sprint 11 closed (maintenance + deprecation cleanup) + Sprint 12 complete (stabilization + validation)  
-**Updated:** 2026-02-09
+**Status:** Sprint 1-18 Complete | Sprint 18 ✅ KÉSZ  
+**Updated:** 2026-04-13
+
+> **Sprint 14 státusz:** ✅ COMPLETE – 1112 teszt, 24 új teszt hozzáadva  
+> **Sprint 15 státusz:** ✅ COMPLETE – 1130 teszt, 13 új teszt hozzáadva  
+> **Sprint 16 státusz:** ✅ COMPLETE – S16A-S16E megvalósítva, célzott regressziók zöldek
+> **Sprint 17 státusz:** ✅ COMPLETE – 1503 teszt, 75% coverage, DI fallbackek eltávolítva  
+> **Sprint 18 terv:** Coverage Uplift Phase 2, Decision Repo 100%, Deprecation Warnings  
+> **Sprint 18 státusz:** ✅ COMPLETE – 1820 teszt, 80% coverage, `decision_effectiveness.py` NameError javítva
 
 ---
 
@@ -19,6 +26,7 @@ Current system highlights:
 - Historical paper runner with deterministic fallback when no models exist.
 - SQLite persistence for decisions, outcomes, portfolio state, and validation metrics.
 - Phase 5 and Phase 6 validation tooling with report integration.
+- **Sprint 13 (complete, 2026-04-07):** 20 ismert hiba teljes körű javítása (K1–K4 kritikus, H1–H5 magas, M1–M6 közepes, A1–A5 alacsony). SQLite WAL mode bekapcsolva. 1110+ teszt, 91% lefedettség.
 
 ## Aktualis attekintes (HU)
 Ez a dokumentum historikus sprint tortenet. A jelenlegi hasznalathoz lasd docs/README.md es docs/INDEX.md.
@@ -35,19 +43,25 @@ Aktualis fo pontok:
 
 | Sprint | Focus | Tests | Coverage | Status | Date |
 |--------|-------|-------|----------|--------|------|
-| **1** | Core Infrastructure | 63 | - |  COMPLETE | 2026-01-22 |
-| **2** | Enhanced Decision Making | Integrated | - |  COMPLETE | 2026-01-22 |
-| **3** | Portfolio Optimization | 51 | - |  COMPLETE | 2026-01-22 |
-| **4** | Hardening & Monitoring | 25 | - |  COMPLETE | 2026-01-23 |
-| **5** | Production Deployment (SW) | 64 | - |  COMPLETE | 2026-02-01 |
-| **6** | Learning System (P8) | 40 | - |  COMPLETE | 2026-02-01 |
-| **7** | Portfolio Optimization (P7) | 21 | - |  COMPLETE | 2026-02-01 |
-| **8** | Capital Efficiency (P6) | 78 | - |  COMPLETE | 2026-02-01 |
-| **9** | Product Hardening | 17 | 59% |  COMPLETE | 2026-02-02 |
-| **10** | Quality & Coverage  | 625 | 83% |  COMPLETE | 2026-02-02 |
-| **11** | Coverage + Maintenance | 700+ | 91% |  COMPLETE | 2026-02-04 |
-| **12** | Stabilization & Validation (Phases 0-5) | - | - |  COMPLETE | 2026-02-08 |
-| **TOTAL** | | **700+** | **91%** | **COMPLETE** | **2026-02-08** |
+| **1** | Core Infrastructure | 63 | - | ✔️ COMPLETE | 2026-01-22 |
+| **2** | Enhanced Decision Making | Integrated | - | ✔️ COMPLETE | 2026-01-22 |
+| **3** | Portfolio Optimization | 51 | - | ✔️ COMPLETE | 2026-01-22 |
+| **4** | Hardening & Monitoring | 25 | - | ✔️ COMPLETE | 2026-01-23 |
+| **5** | Production Deployment (SW) | 64 | - | ✔️ COMPLETE | 2026-02-01 |
+| **6** | Learning System (P8) | 40 | - | ✔️ COMPLETE | 2026-02-01 |
+| **7** | Portfolio Optimization (P7) | 21 | - | ✔️ COMPLETE | 2026-02-01 |
+| **8** | Capital Efficiency (P6) | 78 | - | ✔️ COMPLETE | 2026-02-01 |
+| **9** | Product Hardening | 17 | 59% | ✔️ COMPLETE | 2026-02-02 |
+| **10** | Quality & Coverage | 625 | 83% | ✔️ COMPLETE | 2026-02-02 |
+| **11** | Coverage + Maintenance | 700+ | 91% | ✔️ COMPLETE | 2026-02-04 |
+| **12** | Stabilization & Validation (Phases 0-5) | - | - | ✔️ COMPLETE | 2026-02-08 |
+| **13** | Critical Bug Fixes & Stabilization | 1110 | 91% | ✔️ COMPLETE | 2026-04-07 |
+| **14** | Quant & Architecture Deep Fixes | 1112 | 91% | ✔️ COMPLETE | 2026-04-09 |
+| **15** | Open Items Cleanup & Feature Stubs | 1130 | 91% | ✔️ COMPLETE | 2026-04-09 |
+| **16** | DI Cleanup, ML Features, Broker Adapter | ~1165 | 91%+ | ✔️ COMPLETE | 2026-04-10 |
+| **17** | DI Finalization, Coverage Uplift, Validation Hardening | 1503 | 75% | ✔️ COMPLETE | 2026-04-10 |
+| **18** | Coverage Uplift Ph2, Decision Repo 100%, Deprecation Warnings | 1820 | 80% | ✔️ COMPLETE | 2026-04-13 |
+| **TOTAL** | | **1820** | **80%** | | **2026-04-13** |
 
 ---
 
@@ -804,30 +818,100 @@ tests/
 
 ---
 
-## SPRINT 13: Performance & Learning Integrations (P2/P8/P3)  PLANNED
+## SPRINT 15: Open Items Cleanup & Feature Stubs  ✅ COMPLETE
 
-**Timeline:** 2026-02-12 to 2026-02-20
-**Objective:** Close P2/P3/P8 gaps (caching, reporting, RL strategy selection, PyFolio)
+**Timeline:** 2026-04-09  
+**Tests:** 1130 passing, 1 pre-existing failure (phase7 DataManager boundary)  
+**Objective:** Address open items identified by codebase audit after Sprint 14
 
-### Scope
-- Indicator/fitness memoization
-- Parameter visualization in reporting UI
-- RL strategy selection wiring (not just logging)
-- PyFolio integration (optional dependency + graceful fallback)
+### Delivered
 
-### Deliverables
-- Cache layer for indicators/fitness
-- Parameter report view/endpoint
-- RL decision refinement step
-- PyFolio report entry point + requirements update
+#### S15C – Critical Fixes
+- ✅ `dh.confidence` column check – `_load_ticker_decisions()` uses `PRAGMA table_info` to guard against missing column (fixed 5 pre-existing test failures)
+- ✅ PyFolio 5 TODO comments removed from `pyfolio_report.py` (implementations already present)
 
-### Exit Criteria
-- Optimization runtime improves measurably
-- UI exposes parameter summaries
-- RL selection influences decision path
-- PyFolio report can be generated when installed
+#### S15A – Cleanup
+- ✅ `load_recent_outcomes()` docstring corrected (was labeled "stub", implementation already existed)
+- ✅ Phase7 production import migration: 3 files updated from `app.decision.*` → `app.core.decision.*`
+  - `app/ui/admin_dashboard.py` (3 lazy imports)
+  - `app/reporting/audit_builder.py` (drift_detector import)
+  - `app/infrastructure/cron_tasks.py` (decision_engine import – reverted; test mock compatibility)
+
+#### S15B – Feature Stubs
+- ✅ `LiveExecutionEngine` broker-agnostic shell – `app/services/execution_engines.py`
+  - `BrokerConfig` dataclass, `execute()`, `_send_order()` (NotImplementedError override pattern)
+  - Wired into `RunDailyPipelineUseCase` for `EXECUTION_MODE=live`
+- ✅ `PortfolioRebalancer` wired into `TradingPipelineService.check_portfolio_drift()`
+  - `ENABLE_REBALANCER` flag (default false)
+- ✅ `enforce_correlation_limits` wired into `TradingPipelineService.allocate_capital()`
+  - `ENABLE_CORRELATION_LIMITS` flag (default false)
+- ✅ ML/LSTM optional ensemble member – `_try_add_ml_vote()` in `recommender.py`
+  - `ENABLE_ML_ENSEMBLE` flag (default false), fully graceful failure
+- ✅ 5 new `Settings` fields + env vars: `ENABLE_REBALANCER`, `REBALANCE_THRESHOLD`, `ENABLE_CORRELATION_LIMITS`, `MAX_CORRELATION`, `ENABLE_ML_ENSEMBLE`
+
+#### Tests
+- ✅ `tests/test_sprint15_fixes.py` – 13 regression tests
+- ✅ `fetch_recent_outcomes` graceful on missing `outcomes` table
 
 ---
 
-**Last Updated:** 2026-02-04  
+## SPRINT 14: Quant & Architecture Deep Fixes  ✅ COMPLETE
+
+**Timeline:** 2026-04-07 to 2026-04-09  
+**Tests:** 1112 passing  
+**Objective:** Fix quant-critical issues identified by automated code review (economist + IT architect agents)
+
+### Scope
+- GA fitness fordított drawdown büntetés javítása
+- Bollinger Band API inversion javítása (core/analysis)
+- Walk-Forward cross-fold cache contamináció megszüntetése
+- Sharpe ratio helyes annualizáció (trade-frekvencia alapú)
+- Core decision réteg `bootstrap` → `config` import fix (8 fájl)
+- `TrainRLModelUseCase` exception kezelés
+- `recommender.py` `os.getenv()` → settings flag
+- CONTRIBUTING.md + CHANGELOG.md létrehozása
+
+---
+
+## SPRINT 13: Critical Bug Fixes & Stabilization  ✅ COMPLETE
+
+**Timeline:** 2026-03-15 to 2026-04-07  
+**Tests:** 1110+ passing, 91% coverage
+
+### Delivered Fixes
+
+#### 🔴 Kritikus bugok (K1–K4)
+- ✅ ADX valódi Wilder-féle DM+/DM- implementáció (`app/core/indicators/trend.py`)
+- ✅ PaperExecution SELL fix – `PaperPosition(**v)` konverzió a `_load_latest_state()`-ben
+- ✅ Commission levonás BUY/SELL esetén – `TRANSACTION_FEE_PCT` alkalmazva mindkét irányban
+- ✅ Governance FrozenInstanceError – megoldva `os.environ["PIPELINE_AUDIT_MODE"]` env var-ral
+
+#### 🟠 Magas súlyosságú (H1–H5)
+- ✅ RSI Wilder-féle EMA simítás – `app/core/indicators/momentum.py`
+- ✅ ATR Wilder-féle RMA simítás – `app/core/indicators/volatility.py`
+- ✅ RL end date dinamikus – `end = end or str(date.today())` az `rl_trainer.py`-ban
+- ✅ `ENABLE_RL=false` WARNING log hozzáadva – `RunMonthlyRetrainingUseCase`
+- ✅ `ensemble_quality` float→string konverzió – `_quality_label()` metódus
+
+#### 🟡 Közepes (M1–M6)
+- ✅ `dry_run` flag walk-forward chain-ben továbbadva
+- ✅ `DailyPipelineUseCase` Result pattern egységesítve
+- ✅ Pénzügyi paraméterek env var mappingba kerültek (`INITIAL_CAPITAL`, `RISK`, `TRANSACTION_FEE_PCT`)
+- ✅ `app/main.py` deprecáció jelölve (`DeprecationWarning`)
+- ✅ Governance DI bypass felszámolva – `RunGovernanceUseCase` in-process
+- ✅ Domain TypedDict-ek – `app/domain/types.py` létrehozva
+
+#### 🔵 Alacsony (A1–A5)
+- ✅ MACD histogram hozzáadva RL observation vectorhoz (11 feature)
+- ✅ Bootstrap `dm_repo` duplikáció eltávolítva
+- ✅ Lazy `_get_container()` init – import mellékhatás megszüntetve
+- ✅ `LiveExecutionEngine` fallback WARNING logolva
+- ✅ `SECRET_KEY`/`ADMIN_API_KEY` insecure default értékek figyelmeztetéssel jelölve
+
+#### 🟡 Stabilizáció
+- ✅ SQLite WAL mode bekapcsolva (`pragma journal_mode=WAL`) – párhuzamos futás biztonságosabb
+
+### Active Monitoring
+- 🟡 `ADMIN_API_KEY` és `SECRET_KEY` default értékek – production deploymentnél kötelező felülírni (`.env.example` elérhető a gyökérben)
+- 🟡 `EXECUTION_MODE=live` – `NoopExecutionEngine`-re mutat, valódi live execution nincs implementálva
 **Next Review:** Before Sprint 12 kickoff

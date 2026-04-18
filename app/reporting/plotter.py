@@ -24,6 +24,34 @@ logger = setup_logger(__name__)
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
+# Shared dark-theme palette – matches the get_candle_img_buffer style exactly
+_DARK = {
+    "fig_fc": "#121212",
+    "ax_fc": "#1e1e1e",
+    "text": "#AFAFAF",
+    "grid": "#AFAFAF",
+    "up": "#3dc985",
+    "down": "#ef4f60",
+}
+
+
+def _apply_dark_style(fig, ax):
+    """Apply the dark theme (consistent with the candlestick chart) to a plain matplotlib figure."""
+    fig.patch.set_facecolor(_DARK["fig_fc"])
+    ax.set_facecolor(_DARK["ax_fc"])
+    ax.tick_params(colors=_DARK["text"])
+    ax.xaxis.label.set_color(_DARK["text"])
+    ax.yaxis.label.set_color(_DARK["text"])
+    ax.title.set_color(_DARK["text"])
+    for spine in ax.spines.values():
+        spine.set_edgecolor(_DARK["grid"])
+    ax.grid(True, linestyle="dotted", color=_DARK["grid"], alpha=0.5)
+    legend = ax.get_legend()
+    if legend:
+        legend.get_frame().set_facecolor(_DARK["ax_fc"])
+        for text in legend.get_texts():
+            text.set_color(_DARK["text"])
+
 
 def _ensure_plotting_imports():
     """Lazy import plotting dependencies to avoid import-time failures."""
@@ -153,6 +181,37 @@ def get_candle_img_buffer(df, indicators, signals=None):
         mpf.make_addplot(
             indicators["MACD_SIGNAL"], panel=3, color="red", label="Signal"
         ),
+    ]
+
+    # MACD histogram – split positive / negative for conditional colouring
+    macd_hist = indicators.get("MACD_HIST")
+    if macd_hist is not None:
+        hist_pos = np.where(macd_hist >= 0, macd_hist, np.nan)
+        hist_neg = np.where(macd_hist < 0, macd_hist, np.nan)
+        if not np.all(np.isnan(hist_pos)):
+            apds.append(
+                mpf.make_addplot(
+                    hist_pos,
+                    panel=3,
+                    type="bar",
+                    color="#3dc985",
+                    alpha=0.45,
+                    label="Hist+",
+                )
+            )
+        if not np.all(np.isnan(hist_neg)):
+            apds.append(
+                mpf.make_addplot(
+                    hist_neg,
+                    panel=3,
+                    type="bar",
+                    color="#ef4f60",
+                    alpha=0.45,
+                    label="Hist-",
+                )
+            )
+
+    apds += [
         mpf.make_addplot(
             indicators["STOCH_K"], panel=4, color="blue", ylabel="Stoch", label="%K"
         ),
@@ -281,17 +340,20 @@ def set_settings(s):
 
 def get_equity_curve_buffer(ticker, equity_curve):
     _ensure_plotting_imports()
-    # Grafikon generalasa
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(equity_curve["date"], equity_curve["portfolio_value"], label="Strategia")
+    _apply_dark_style(fig, ax)
+    ax.plot(
+        equity_curve["date"],
+        equity_curve["portfolio_value"],
+        label="Strategia",
+        color=_DARK["up"],
+    )
     ax.set_title(f"{ticker} Strategia Teljesitmenye")
     ax.set_ylabel("Portfolio Erteke ($)")
-    ax.grid(True, linestyle="--")
     ax.legend()
 
-    # Kep mentese memoriaba
     buf = BytesIO()
-    fig.savefig(buf, format="png")
+    fig.savefig(buf, format="png", facecolor=fig.get_facecolor())
     buf.seek(0)
 
     # Base64 kodolas a HTML-be agyazashoz
@@ -302,23 +364,22 @@ def get_equity_curve_buffer(ticker, equity_curve):
 
 def get_drawdown_curve_buffer(equity_curve):
     _ensure_plotting_imports()
-    import matplotlib.pyplot as plt
-    import io
-    import base64
+    from io import BytesIO as _BytesIO
 
     peak = equity_curve.cummax()
     drawdown = (equity_curve - peak) / peak * 100
 
     fig, ax = plt.subplots(figsize=(10, 3))
-    ax.plot(drawdown.index, drawdown.values)
-    ax.axhline(0, linewidth=0.8)
+    _apply_dark_style(fig, ax)
+    ax.plot(drawdown.index, drawdown.values, color=_DARK["down"])
+    ax.fill_between(drawdown.index, drawdown.values, 0, color=_DARK["down"], alpha=0.25)
+    ax.axhline(0, linewidth=0.8, color=_DARK["text"])
     ax.set_title("Drawdown (%)")
     ax.set_ylabel("%")
-    ax.grid(True)
 
-    buf = io.BytesIO()
+    buf = _BytesIO()
     plt.tight_layout()
-    plt.savefig(buf, format="png")
+    plt.savefig(buf, format="png", facecolor=fig.get_facecolor())
     plt.close(fig)
     buf.seek(0)
 
@@ -327,15 +388,25 @@ def get_drawdown_curve_buffer(equity_curve):
 
 def plot_bar_chart(subset, ticker, model_type):
     _ensure_plotting_imports()
-    plt.figure(figsize=(10, 5))
-    plt.bar(subset["reward_strategy"], subset["final_portfolio_value"])
-    plt.title(f"{ticker} - {model_type} - Portfolio ertek osszehasonlitas")
-    plt.ylabel("Vegso portfolio ertek")
-    plt.xlabel("Reward strategia")
+    fig, ax = plt.subplots(figsize=(10, 5))
+    _apply_dark_style(fig, ax)
+    ax.bar(
+        subset["reward_strategy"],
+        subset["final_portfolio_value"],
+        color=_DARK["up"],
+        edgecolor=_DARK["grid"],
+        linewidth=0.5,
+    )
+    ax.set_title(f"{ticker} - {model_type} - Portfolio ertek osszehasonlitas")
+    ax.set_ylabel("Vegso portfolio ertek")
+    ax.set_xlabel("Reward strategia")
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.savefig(f"{settings.CHART_DIR}/{ticker}_{model_type}_benchmark.png")
-    plt.close()
+    fig.savefig(
+        f"{settings.CHART_DIR}/{ticker}_{model_type}_benchmark.png",
+        facecolor=fig.get_facecolor(),
+    )
+    plt.close(fig)
 
 
 # --- Helper: generate possible positions quickly (small search space) ---
@@ -461,19 +532,28 @@ def plot_gradient_scatter(subset, ticker, model_type):
     scores = subset["composite_score"]
 
     fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=True)
+    _apply_dark_style(fig, ax)
 
     norm = mcolors.Normalize(vmin=scores.min(), vmax=scores.max())
     cmap = colormaps.get_cmap("viridis")
 
     scatter = ax.scatter(
-        x, y, c=scores, cmap=cmap, s=100, alpha=0.92, edgecolor="k", linewidth=0.6
+        x,
+        y,
+        c=scores,
+        cmap=cmap,
+        s=100,
+        alpha=0.92,
+        edgecolor=_DARK["grid"],
+        linewidth=0.6,
     )
-    fig.colorbar(scatter, ax=ax, label="Kompozit Score")
+    cb = fig.colorbar(scatter, ax=ax, label="Kompozit Score")
+    cb.ax.yaxis.label.set_color(_DARK["text"])
+    cb.ax.tick_params(colors=_DARK["text"])
 
     ax.set_title(f"{ticker} - {model_type} | Gradient szinezes (kompozit score)")
     ax.set_xlabel("Sharpe-rata")
     ax.set_ylabel("Vegso portfolio ertek")
-    ax.grid(True, linestyle="--", alpha=0.25)
 
     legend = ax.get_legend()
     legend_box = None
@@ -486,6 +566,7 @@ def plot_gradient_scatter(subset, ticker, model_type):
     fig.savefig(
         f"{settings.CHART_DIR}/{ticker}_{model_type}_sharpe_vs_value_gradient.png",
         bbox_inches="tight",
+        facecolor=fig.get_facecolor(),
     )
     plt.close(fig)
 
@@ -503,6 +584,7 @@ def plot_strategy_colored_scatter(subset, ticker, model_type):
     scores = subset["composite_score"]
 
     fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=True)
+    _apply_dark_style(fig, ax)
 
     for strategy in strategies:
         data = subset[subset["reward_strategy"] == strategy]
@@ -513,17 +595,20 @@ def plot_strategy_colored_scatter(subset, ticker, model_type):
             color=color_dict[strategy],
             s=100,
             alpha=0.88,
-            edgecolor="k",
+            edgecolor=_DARK["grid"],
             linewidth=0.5,
         )
 
     legend = ax.legend(
         title="Reward strategia", bbox_to_anchor=(1.05, 1), loc="upper left"
     )
+    legend.get_frame().set_facecolor(_DARK["ax_fc"])
+    for text in legend.get_texts():
+        text.set_color(_DARK["text"])
+    legend.get_title().set_color(_DARK["text"])
     ax.set_title(f"{ticker} - {model_type} | Szinezes reward strategia szerint")
     ax.set_xlabel("Sharpe-rata")
     ax.set_ylabel("Vegso portfolio ertek")
-    ax.grid(True, linestyle="--", alpha=0.25)
 
     legend_box = legend.get_window_extent(renderer=fig.canvas.get_renderer())
 
@@ -535,5 +620,6 @@ def plot_strategy_colored_scatter(subset, ticker, model_type):
     fig.savefig(
         f"{settings.CHART_DIR}/{ticker}_{model_type}_sharpe_vs_value_by_strategy.png",
         bbox_inches="tight",
+        facecolor=fig.get_facecolor(),
     )
     plt.close(fig)

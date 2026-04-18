@@ -218,6 +218,7 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
             "RSI": None,
             "MACD": None,
             "MACD_SIGNAL": None,
+            "MACD_HIST": None,
             "BB_upper": None,
             "BB_middle": None,
             "BB_lower": None,
@@ -273,16 +274,17 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
 
     # MACD
     macd, macdsignal = (None, None)
+    macdhistogram = None
     if use_macd:
         try:
-            macd, macdsignal = trend.macd(
+            macd, macdsignal, macdhistogram = trend.macd(
                 df["Close"],
                 params["macd_fast"],
                 params["macd_slow"],
                 params["macd_signal"],
             )
         except Exception:
-            macd, macdsignal = (None, None)
+            macd, macdsignal, macdhistogram = (None, None, None)
         if is_valid(macd) and is_valid(macdsignal):
             if macd[-2] < macdsignal[-2] and macd[-1] > macdsignal[-1]:
                 signals.append(f"BUY: MACD crossover on {signal_date_str}")
@@ -293,13 +295,13 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
     upper, middle, lower = (None, None, None)
     if use_bbands:
         try:
-            middle, upper, lower = volatility.bbands(
+            upper, middle, lower = volatility.bbands(
                 df["Close"],
                 period=params["bbands_period"],
-                num_std=params["bbands_stddev"],
+                std_dev=params["bbands_stddev"],
             )
         except Exception:
-            middle, upper, lower = (None, None, None)
+            upper, middle, lower = (None, None, None)
         if is_valid(upper, 1) and is_valid(lower, 1) and len(df["Close"]) > 0:
             close_val = df["Close"].iloc[-1]
             if not np.isnan(close_val):
@@ -342,6 +344,17 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
                     f"INFO: Strong trend detected (ADX > 25) on {signal_date_str}"
                 )
 
+    # S14.4 Market regime: classify based on last ADX value.
+    if is_valid(adx, 1):
+        if adx[-1] > 25:
+            regime = "TREND"
+        elif adx[-1] < 20:
+            regime = "RANGE"
+        else:
+            regime = "TRANSITION"
+    else:
+        regime = "UNKNOWN"
+
     # STOCH
     slowk, slowd = (None, None)
     if use_stoch:
@@ -367,6 +380,7 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
         "RSI": rsi,
         "MACD": macd,
         "MACD_SIGNAL": macdsignal,
+        "MACD_HIST": macdhistogram,
         "BB_upper": upper,
         "BB_middle": middle,
         "BB_lower": lower,
@@ -376,13 +390,12 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
         "MINUS_DI": minus_di_vals,
         "STOCH_K": slowk,
         "STOCH_D": slowd,
+        "regime": regime,
     }
 
     if return_series:
-        # 1:1 signals-per-bar tomb epitese - egyszerusitett verzio
-        # Indikatorok alapjan per-bar jeleket general
+        # 1:1 signals-per-bar tomb epitese - per-bar EMA/SMA crossover jelek
         signals_per_bar = []
-        rolling_std = df["Close"].pct_change().rolling(window=20).std()
 
         if isinstance(audit, dict):
             audit.setdefault("raw_signal_count", 0)
@@ -410,38 +423,9 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
 
             raw_signal = signal
 
-            # Signal quality filter based on expected edge
-            if use_sma and use_ema and sma is not None and ema is not None:
-                if (
-                    i < len(sma)
-                    and i < len(ema)
-                    and not np.isnan(sma[i])
-                    and sma[i] != 0
-                ):
-                    expected_edge = (ema[i] - sma[i]) / sma[i]
-                else:
-                    expected_edge = 0.0
-                threshold = (
-                    rolling_std.iloc[i] * 0.5 if i < len(rolling_std) else np.nan
-                )
-                if not np.isnan(threshold) and abs(expected_edge) < threshold:
-                    signal = "HOLD"
-
-                if (
-                    isinstance(audit, dict)
-                    and getattr(_conf(settings), "edge_diagnostics_mode", False)
-                    and raw_signal in {"BUY", "SELL"}
-                ):
-                    if not np.isnan(threshold) and threshold > 0:
-                        edge_values = audit.setdefault("edge_expected_edges", [])
-                        edge_thresholds = audit.setdefault("edge_thresholds", [])
-                        edge_values.append(float(abs(expected_edge)))
-                        edge_thresholds.append(float(threshold))
-
             if isinstance(audit, dict):
                 if raw_signal in {"BUY", "SELL"}:
                     audit["raw_signal_count"] += 1
-                if signal in {"BUY", "SELL"}:
                     audit["post_edge_filter_signal_count"] += 1
 
             signals_per_bar.append(signal)
@@ -452,13 +436,14 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
 
 
 if __name__ == "__main__":
+    from datetime import date
     from app.data_access.data_loader import load_data, get_supported_ticker_list
 
     tickers = get_supported_ticker_list()
 
     for ticker in tickers:
         logger.info(f"Loading data for {ticker}...")
-        df = load_data(ticker, start="2020-01-01", end="2025-06-30")
+        df = load_data(ticker, start="2020-01-01", end=str(date.today()))
         signals, indicators = compute_signals(df, ticker, params=None)
         if signals:
             logger.info("Trading signals:\n%s", "\n".join(signals))

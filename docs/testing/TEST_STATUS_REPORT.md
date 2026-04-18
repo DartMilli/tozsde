@@ -36,15 +36,15 @@ python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-
 - If test/coverage numbers are needed in release notes, regenerate them from fresh local run results.
 - For go-live workflow checks, use `docs/testing/go_live_checklist.md`.
 
-### Latest Verification (2026-03-22)
+### Latest Verification (2026-04-13)
 
 - Command: `pytest`
-- Result: PASS (`1094 passed`, `0 failed`)
-- Coverage run: `runTests(mode="coverage")` completed successfully in this workspace session
+- Result: PASS (`1820 passed`, `0 failed`)
+- Coverage: **80%** (app/) — Sprint 18 coverage uplift kész
 
 ---
 
-**Last Updated:** 2026-03-22
+**Last Updated:** 2026-04-13
 
 ## Current Verification Policy
 

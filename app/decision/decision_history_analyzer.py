@@ -1,3 +1,9 @@
+"""DEPRECATED: compatibility shim - use ``app.core.decision`` directly. Will be removed in a future release."""
+
+from app.decision import emit_compat_warning
+
+emit_compat_warning("app.decision.decision_history_analyzer")
+
 import sqlite3
 
 import app.core.decision.decision_history_analyzer as _core_dha

@@ -61,6 +61,24 @@ class SqliteModelRepository(IModelRepository):
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS shadow_evaluations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    champion_model TEXT,
+                    challenger_model TEXT NOT NULL,
+                    champion_action INTEGER,
+                    challenger_action INTEGER,
+                    market_return REAL,
+                    champion_confidence REAL,
+                    challenger_confidence REAL,
+                    created_at TEXT,
+                    UNIQUE(ticker, date, challenger_model)
+                )
+                """
+            )
             conn.commit()
 
     def save_model(self, model_info: dict) -> None:
@@ -258,6 +276,84 @@ class SqliteModelRepository(IModelRepository):
         models = self.fetch_active_models(ticker=ticker, limit=limit)
         if not models:
             return []
+        return [
+            (model["model_path"], model.get("wf_score"))
+            for model in models
+            if model.get("model_path")
+        ]
+
+    def save_shadow_evaluation(
+        self,
+        ticker: str,
+        date: str,
+        champion_model: str | None,
+        challenger_model: str,
+        champion_action: int,
+        challenger_action: int,
+        market_return: float | None = None,
+        champion_confidence: float | None = None,
+        challenger_confidence: float | None = None,
+    ) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO shadow_evaluations
+                (ticker, date, champion_model, challenger_model, champion_action,
+                 challenger_action, market_return, champion_confidence,
+                 challenger_confidence, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    ticker,
+                    date,
+                    champion_model,
+                    challenger_model,
+                    champion_action,
+                    challenger_action,
+                    market_return,
+                    champion_confidence,
+                    challenger_confidence,
+                    now,
+                ),
+            )
+            conn.commit()
+
+    def fetch_shadow_evaluations(
+        self,
+        ticker: str,
+        challenger_model: str,
+    ) -> List[Dict]:
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT se.date, se.champion_model, se.challenger_model,
+                       se.champion_action, se.challenger_action,
+                       COALESCE(se.market_return, o.future_return, o.pnl_pct) AS resolved_market_return,
+                       se.champion_confidence, se.challenger_confidence
+                FROM shadow_evaluations se
+                LEFT JOIN outcomes o
+                  ON o.ticker = se.ticker
+                 AND date(o.decision_timestamp) = date(se.date)
+                WHERE se.ticker = ? AND se.challenger_model = ?
+                ORDER BY se.date ASC
+                """,
+                (ticker, challenger_model),
+            ).fetchall()
+
+        return [
+            {
+                "date": row[0],
+                "champion_model": row[1],
+                "challenger_model": row[2],
+                "champion_action": row[3],
+                "challenger_action": row[4],
+                "market_return": row[5],
+                "champion_confidence": row[6],
+                "challenger_confidence": row[7],
+            }
+            for row in rows
+        ]
 
         trust = self.fetch_latest_model_trust_weights(ticker=ticker)
         ranked = []

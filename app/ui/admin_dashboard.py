@@ -18,6 +18,8 @@ from flask import Blueprint, jsonify, request
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 import logging
+import glob
+import os
 from app.ui import get_settings
 
 logger = logging.getLogger(__name__)
@@ -86,6 +88,86 @@ def _parse_date(value: str):
         return None
 
 
+def _build_shadow_status(ticker: Optional[str] = None) -> Dict:
+    settings = get_settings()
+    if not getattr(settings, "ENABLE_SHADOW_EVAL", False):
+        return {
+            "enabled": False,
+            "total_candidates": 0,
+            "promotion_ready": 0,
+            "tickers": {},
+        }
+
+    from app.data_access.data_loader import get_supported_ticker_list
+    from app.models.shadow_evaluator import ShadowEvaluator
+    from app.ui.app import _create_data_repository
+
+    dm = _create_data_repository()
+    evaluator = ShadowEvaluator(settings=settings, data_repository=dm)
+
+    if ticker:
+        tickers = [ticker]
+    else:
+        configured_tickers = getattr(settings, "TICKERS", None)
+        tickers = configured_tickers or get_supported_ticker_list()
+
+    tickers_summary = {}
+    total_candidates = 0
+    promotion_ready = 0
+
+    for ticker_symbol in tickers:
+        models = dm.fetch_models_for_ticker(ticker_symbol) or []
+        active_models = [model for model in models if model.get("status") == "active"]
+        challengers = [model for model in models if model.get("status") == "candidate"]
+        if not active_models and not challengers:
+            continue
+
+        challenger_rows = []
+        total_candidates += len(challengers)
+        for challenger in challengers:
+            evaluation = evaluator.evaluate_promotion(
+                ticker=ticker_symbol,
+                challenger_model_id=challenger.get("model_id"),
+                apply_promotion=False,
+            )
+            if evaluation.get("promote"):
+                promotion_ready += 1
+            challenger_rows.append(
+                {
+                    "model_id": challenger.get("model_id"),
+                    "model_type": challenger.get("model_type"),
+                    "wf_score": challenger.get("wf_score"),
+                    "created_at": challenger.get("created_at"),
+                    "updated_at": challenger.get("updated_at"),
+                    "days_evaluated": evaluation.get("days_evaluated", 0),
+                    "champion_sharpe": round(
+                        float(evaluation.get("champion_sharpe", 0.0) or 0.0),
+                        4,
+                    ),
+                    "challenger_sharpe": round(
+                        float(evaluation.get("challenger_sharpe", 0.0) or 0.0),
+                        4,
+                    ),
+                    "promotion_ready": bool(evaluation.get("promote", False)),
+                    "promotion_threshold": evaluation.get("threshold"),
+                }
+            )
+
+        tickers_summary[ticker_symbol] = {
+            "champion_model": (
+                active_models[0].get("model_id") if active_models else None
+            ),
+            "challengers": challenger_rows,
+        }
+
+    return {
+        "enabled": True,
+        "total_candidates": total_candidates,
+        "promotion_ready": promotion_ready,
+        "tickers": tickers_summary,
+    }
+
+
 @admin_bp.before_request
 def _require_admin_auth():
     """Enforce admin authentication on all admin endpoints."""
@@ -131,6 +213,7 @@ def dashboard():
         health = metrics.get_health_status()
         recent_metrics = metrics.get_recent_metrics(hours=24)
         daily_summary = metrics.get_daily_summary(today)
+        shadow_summary = _build_shadow_status()
 
         return (
             jsonify(
@@ -140,6 +223,11 @@ def dashboard():
                     "health": health,
                     "metrics": recent_metrics,
                     "daily_summary": daily_summary,
+                    "shadow_summary": {
+                        "enabled": shadow_summary["enabled"],
+                        "total_candidates": shadow_summary["total_candidates"],
+                        "promotion_ready": shadow_summary["promotion_ready"],
+                    },
                     "recommendations_today": (
                         len(recommendations) if recommendations else 0
                     ),
@@ -150,6 +238,18 @@ def dashboard():
         )
     except Exception as e:
         logger.error(f"Dashboard error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/models/shadow", methods=["GET"])
+def get_shadow_models_status():
+    """Return shadow evaluation status for challenger models."""
+    try:
+        ticker = request.args.get("ticker", type=str)
+        status = _build_shadow_status(ticker=ticker)
+        return jsonify(status), 200
+    except Exception as e:
+        logger.error(f"Error getting shadow model status: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -183,18 +283,60 @@ def metrics_summary():
 def force_rebalance():
     """Manual trigger for portfolio rebalancing."""
     try:
+        from main import _get_container
+
+        container = _get_container()
+        result = container.daily_pipeline.run(dry_run=False)
         return (
             jsonify(
                 {
                     "status": "rebalance_initiated",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "message": "Rebalancing triggered manually",
+                    "result": result,
                 }
             ),
             200,
         )
     except Exception as e:
         logger.error(f"Rebalance trigger error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/paper/positions", methods=["GET"])
+def paper_positions():
+    """Return the latest paper trading portfolio state."""
+    try:
+        from app.ui.app import _create_data_repository
+
+        dm = _create_data_repository()
+        state = dm.fetch_latest_portfolio_state(source="paper")
+        if not state:
+            return jsonify({"status": "no_data"}), 200
+        return jsonify(state), 200
+    except Exception as e:
+        logger.error(f"Paper positions error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/governance/latest", methods=["GET"])
+def governance_latest():
+    """Return the most recent pipeline audit JSON from the diagnostics folder."""
+    try:
+        diagnostics_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "diagnostics",
+        )
+        pattern = os.path.join(diagnostics_dir, "pipeline_audit_*.json")
+        files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
+        if not files:
+            return jsonify({"status": "no_data"}), 200
+        import json
+
+        with open(files[0], "r", encoding="utf-8") as fh:
+            content = json.load(fh)
+        return jsonify({"file": os.path.basename(files[0]), "data": content}), 200
+    except Exception as e:
+        logger.error(f"Governance latest error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -516,7 +658,7 @@ def get_capital_utilization():
         JSON: Capital utilization data
     """
     try:
-        from app.decision.capital_optimizer import CapitalUtilizationOptimizer
+        from app.core.decision.capital_optimizer import CapitalUtilizationOptimizer
 
         optimizer = CapitalUtilizationOptimizer()
 
@@ -592,12 +734,14 @@ def get_strategy_performance():
         if err:
             return jsonify({"error": err}), 400
 
-        from app.decision.decision_history_analyzer import DecisionHistoryAnalyzer
+        from app.core.decision.adaptive_strategy_selector import (
+            AdaptiveStrategySelector,
+        )
+        from app.core.decision.decision_history_analyzer import DecisionHistoryAnalyzer
 
         analyzer = DecisionHistoryAnalyzer()
-
-        # Get all strategies
-        strategies = ["momentum", "mean_reversion", "breakout"]  # Example strategies
+        selector = AdaptiveStrategySelector()
+        strategies = [item["strategy"] for item in selector.get_strategy_stats()]
 
         performance = {}
         for strategy in strategies:
@@ -625,7 +769,7 @@ def get_confidence_distribution():
         JSON: Confidence bucket statistics
     """
     try:
-        from app.decision.confidence_allocator import ConfidenceBucketAllocator
+        from app.core.decision.confidence_allocator import ConfidenceBucketAllocator
 
         allocator = ConfidenceBucketAllocator()
         bucket_stats = allocator.get_bucket_statistics()

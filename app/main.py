@@ -1,10 +1,21 @@
 # Main entrypoint for CLI
+# ⚠️  DEPRECATED: This is the legacy CLI entry point (app/main.py).
+# Use the root main.py instead: `python main.py <command>`
+# This file only supports: walk-forward, daily-pipeline, train-rl, validate-model
+# The root main.py additionally supports: daily, weekly, monthly, governance, validate
 
 import json
 import sys
+import warnings
 
 from app.application.use_cases.result import error as result_error
 from app.bootstrap.bootstrap import build_application
+
+warnings.warn(
+    "app/main.py is deprecated. Use the root main.py entry point instead.",
+    DeprecationWarning,
+    stacklevel=1,
+)
 
 
 def _emit(payload):

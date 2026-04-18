@@ -7,7 +7,9 @@ from typing import Dict, List, Optional
 from app.backtesting.history_store import HistoryStore
 from app.config.build_settings import build_settings
 from app.data_access.data_cleaner import prepare_df
-from app.core.decision.allocation import allocate_capital
+from app.core.decision.allocation import allocate_capital, enforce_correlation_limits
+from app.core.decision.rebalancer import check_and_rebalance
+from app.core.decision.risk_parity import RiskParityAllocator
 from app.core.decision.decision_policy import apply_decision_policy
 from app.core.decision.recommendation_builder import (
     build_explanation,
@@ -96,7 +98,111 @@ class TradingPipelineService:
         return apply_decision_policy(decision, audit, settings=self.settings)
 
     def allocate_capital(self, candidates: List[Dict]) -> List[Dict]:
-        return allocate_capital(candidates)
+        current_equity: float | None = None
+        try:
+            state = self.state_repo.fetch_latest_portfolio_state(source="paper")
+            if state and state.get("equity") and state["equity"] > 0:
+                current_equity = float(state["equity"])
+        except Exception:
+            pass
+
+        cfg = self._get_settings()
+        allocation_mode = getattr(cfg, "ALLOCATION_MODE", "default")
+        if allocation_mode == "risk_parity":
+            allocated = self._allocate_risk_parity(
+                candidates,
+                current_equity=current_equity,
+            )
+        else:
+            allocated = allocate_capital(
+                candidates,
+                settings=self.settings,
+                current_equity=current_equity,
+            )
+
+        if getattr(cfg, "ENABLE_CORRELATION_LIMITS", False):
+            allocated = enforce_correlation_limits(
+                allocated,
+                max_correlation=getattr(cfg, "MAX_CORRELATION", 0.70),
+                settings=self.settings,
+            )
+
+        return allocated
+
+    def _allocate_risk_parity(
+        self,
+        candidates: List[Dict],
+        current_equity: float | None = None,
+    ) -> List[Dict]:
+        if not candidates:
+            return []
+
+        price_history: Dict[str, object] = {}
+        for item in candidates:
+            if item.get("decision", {}).get("action_code") != 1:
+                continue
+
+            ticker = item["ticker"]
+            end_date = item.get("payload", {}).get("timestamp")
+            start_date = None
+            if end_date:
+                end_dt = date.fromisoformat(end_date)
+                start_date = (end_dt - timedelta(days=90)).isoformat()
+
+            try:
+                df = self.data_fetcher.load_data(ticker, start=start_date, end=end_date)
+            except TypeError:
+                df = self.data_fetcher.load_data(ticker, start=start_date)
+
+            if df is None or df.empty:
+                continue
+
+            close_col = "Close" if "Close" in df.columns else "close"
+            price_history[ticker] = df[close_col].tail(60).to_numpy()
+
+        if not price_history:
+            return allocate_capital(
+                candidates,
+                settings=self.settings,
+                current_equity=current_equity,
+            )
+
+        allocator = RiskParityAllocator(settings=self.settings)
+        return allocator.allocate(
+            candidates,
+            price_history,
+            current_equity=current_equity,
+        )
+
+    def check_portfolio_drift(
+        self,
+        current_positions: dict,
+        target_allocation: dict,
+        prices: dict,
+        total_value: float,
+    ) -> dict:
+        """Check if portfolio has drifted beyond rebalance threshold.
+
+        Returns dict with ``should_rebalance`` flag and suggested ``trades``.
+        Only active when ``ENABLE_REBALANCER=true``.
+        """
+        cfg = self._get_settings()
+        if not getattr(cfg, "ENABLE_REBALANCER", False):
+            return {"should_rebalance": False, "trades": [], "drift_info": {}}
+
+        result = check_and_rebalance(
+            current_positions=current_positions,
+            target_allocation=target_allocation,
+            prices=prices,
+            total_value=total_value,
+            settings=self.settings,
+        )
+        if result.get("should_rebalance"):
+            self.logger.info(
+                "Portfolio rebalance triggered: drift=%.1f%%",
+                result.get("drift_info", {}).get("drift_avg", 0) * 100,
+            )
+        return result
 
     def persist_decision(
         self,

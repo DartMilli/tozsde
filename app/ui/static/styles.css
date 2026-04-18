@@ -16,6 +16,26 @@ h1 {
     margin-bottom: 30px;
 }
 
+.shadow-summary-card {
+    width: 90%;
+    max-width: 1200px;
+    border-width: 1px;
+}
+
+.shadow-summary-panel {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.08), rgba(13, 110, 253, 0.08));
+    border: 1px solid #3d3d3d;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.shadow-challenger-row {
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 10px;
+}
+
 p {
     text-align: center;
 }

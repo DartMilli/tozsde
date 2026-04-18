@@ -2,24 +2,45 @@ from typing import Dict, List
 
 import numpy as np
 
-from app.bootstrap.build_settings import build_settings
+from app.config.build_settings import build_settings
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
 class RiskParityAllocator:
+    """Allocates capital across positions using risk-parity (inverse volatility) weighting.
+
+    Args:
+        lookback_days: Rolling window for volatility calculation.
+        settings: Strongly recommended – pass an explicit Settings instance from the
+            DI container.  If omitted, ``build_settings()`` is used as a fallback,
+            which performs I/O and hinders isolated unit testing.  This fallback is
+            **deprecated** (A1 – Sprint 14 tech-debt) and will be removed later.
+    """
+
     def __init__(self, lookback_days: int = 60, settings=None):
         self.lookback_days = lookback_days
         self.settings = settings
+        if settings is None:
+            logger.debug(
+                "RiskParityAllocator instantiated without explicit settings; "
+                "build_settings() fallback will be used. Pass settings= for "
+                "clean-architecture compliance."
+            )
 
     def allocate(
-        self, decisions: List[Dict], price_history: Dict[str, np.ndarray]
+        self,
+        decisions: List[Dict],
+        price_history: Dict[str, np.ndarray],
+        current_equity: float | None = None,
     ) -> List[Dict]:
         logger.info(f"Risk parity allocation for {len(decisions)} positions")
 
         tradeable_indices = [
-            i for i, d in enumerate(decisions) if d.get("action_code", 0) != 0
+            i
+            for i, d in enumerate(decisions)
+            if d.get("decision", {}).get("action_code", d.get("action_code", 0)) != 0
         ]
 
         if not tradeable_indices:
@@ -32,7 +53,12 @@ class RiskParityAllocator:
         weights = self._compute_inverse_volatility_weights(
             volatilities, tradeable_tickers
         )
-        decisions = self._apply_allocation(decisions, weights, tradeable_indices)
+        decisions = self._apply_allocation(
+            decisions,
+            weights,
+            tradeable_indices,
+            current_equity=current_equity,
+        )
 
         return decisions
 
@@ -74,10 +100,14 @@ class RiskParityAllocator:
         return weights
 
     def _apply_allocation(
-        self, decisions: List[Dict], weights: np.ndarray, tradeable_indices: List[int]
+        self,
+        decisions: List[Dict],
+        weights: np.ndarray,
+        tradeable_indices: List[int],
+        current_equity: float | None = None,
     ) -> List[Dict]:
         cfg = self._get_settings()
-        initial_capital = getattr(cfg, "INITIAL_CAPITAL")
+        initial_capital = current_equity or getattr(cfg, "INITIAL_CAPITAL")
         reserve_pct = getattr(cfg, "RISK_PARITY_RESERVE_PCT", 0.05)
         capital = initial_capital * (1.0 - reserve_pct)
 
@@ -103,7 +133,13 @@ class RiskParityAllocator:
 
 
 def apply_risk_parity(
-    decisions: List[Dict], price_history: Dict[str, np.ndarray]
+    decisions: List[Dict],
+    price_history: Dict[str, np.ndarray],
+    current_equity: float | None = None,
 ) -> List[Dict]:
     allocator = RiskParityAllocator(lookback_days=60)
-    return allocator.allocate(decisions, price_history)
+    return allocator.allocate(
+        decisions,
+        price_history,
+        current_equity=current_equity,
+    )

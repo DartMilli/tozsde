@@ -20,7 +20,8 @@ def _make_docs(
     plan = []
     if include_todo:
         plan.append("TODO: update validation plan")
-    (docs_dir / "quant_validation_plan.md").write_text(
+    # Write to validation_framework.md (current location) in docs root
+    (docs_dir.parent / "validation_framework.md").write_text(
         "\n".join(plan), encoding="utf-8"
     )
 

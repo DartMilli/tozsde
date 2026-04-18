@@ -555,6 +555,55 @@ class DataManagerRepository:
             return repo.fetch_latest_model_trust_weights(ticker=ticker)
         return self._dm.fetch_latest_model_trust_weights(ticker=ticker)
 
+    def save_shadow_evaluation(
+        self,
+        ticker: str,
+        date: str,
+        champion_model: str | None,
+        challenger_model: str,
+        champion_action: int,
+        challenger_action: int,
+        market_return: float | None = None,
+        champion_confidence: float | None = None,
+        challenger_confidence: float | None = None,
+    ) -> None:
+        repo = self._get_model_repo()
+        if repo:
+            return repo.save_shadow_evaluation(
+                ticker=ticker,
+                date=date,
+                champion_model=champion_model,
+                challenger_model=challenger_model,
+                champion_action=champion_action,
+                challenger_action=challenger_action,
+                market_return=market_return,
+                champion_confidence=champion_confidence,
+                challenger_confidence=challenger_confidence,
+            )
+        return self._dm.save_shadow_evaluation(
+            ticker=ticker,
+            date=date,
+            champion_model=champion_model,
+            challenger_model=challenger_model,
+            champion_action=champion_action,
+            challenger_action=challenger_action,
+            market_return=market_return,
+            champion_confidence=champion_confidence,
+            challenger_confidence=challenger_confidence,
+        )
+
+    def fetch_shadow_evaluations(self, ticker: str, challenger_model: str):
+        repo = self._get_model_repo()
+        if repo:
+            return repo.fetch_shadow_evaluations(
+                ticker=ticker,
+                challenger_model=challenger_model,
+            )
+        return self._dm.fetch_shadow_evaluations(
+            ticker=ticker,
+            challenger_model=challenger_model,
+        )
+
     def get_top_models(self, ticker: str, limit: int = 3):
         repo = self._get_model_repo()
         if repo:

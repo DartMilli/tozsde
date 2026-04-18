@@ -37,11 +37,11 @@ class TestFitnessFunction:
     """Tests for single-period fitness calculation."""
 
     def test_fitness_zero_trades(self):
-        """Fitness with few trades should return negative infinity."""
-        metrics = MockMetrics(trade_count=5, net_profit=1000.0)
+        """Fitness with fewer than 3 trades should return negative infinity."""
+        metrics = MockMetrics(trade_count=2, net_profit=1000.0)
         result = fitness_single(metrics)
-        # Should penalize low trade count (minimum 30 trades required)
-        assert result == -1e12 or result < -1000
+        # Should penalize very low trade count (minimum 3 trades required)
+        assert result == -1e12
 
     def test_fitness_positive_return(self):
         """Fitness should be positive for profitable trades."""
@@ -53,13 +53,14 @@ class TestFitnessFunction:
         assert result > 0
 
     def test_fitness_negative_return(self):
-        """Fitness should penalize losses."""
+        """Fitness should penalize losses (normalised formula, result in [-∞, 1] range)."""
         metrics = MockMetrics(
             trade_count=50, net_profit=-500.0, max_drawdown=0.3, winrate=0.4
         )
         result = fitness_single(metrics)
-        # Should be very negative with losses
-        assert result < -500
+        # With default initial_capital=10000: net_profit_pct=-0.05, max_dd_pct=0.00003
+        # Score should be negative with losses.
+        assert result < 0
 
     def test_fitness_high_sharpe(self):
         """Fitness should reward high Sharpe ratio (high winrate)."""

@@ -9,9 +9,6 @@ Hasznalat:
     python validation_runner.py --mode shadow
 """
 
-from app.bootstrap.build_settings import build_settings
-
-settings = build_settings()
 from app.validation import get_settings
 import argparse
 import json

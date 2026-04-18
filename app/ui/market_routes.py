@@ -9,6 +9,7 @@ def create_market_blueprint() -> Blueprint:
     @market_bp.route("/")
     def index():
         from app.ui import app as ui_app
+        from app.ui.admin_dashboard import _build_shadow_status
 
         tickers = ui_app.get_supported_tickers()
         today = datetime.today().date()
@@ -18,12 +19,31 @@ def create_market_blueprint() -> Blueprint:
             )
         except Exception:
             recommendations = []
+        try:
+            shadow_summary = _build_shadow_status()
+        except Exception:
+            shadow_summary = {
+                "enabled": False,
+                "total_candidates": 0,
+                "promotion_ready": 0,
+                "tickers": {},
+            }
         return ui_app.render_template(
             "dashboard.html",
             tickers=tickers,
             today=today,
             recommendations=recommendations,
+            shadow_summary=shadow_summary,
         )
+
+    @market_bp.route("/shadow-summary")
+    def shadow_summary():
+        from app.ui.admin_dashboard import _build_shadow_status
+
+        try:
+            return jsonify(_build_shadow_status()), 200
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
 
     @market_bp.route("/chart")
     def chart():

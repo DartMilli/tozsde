@@ -1,3 +1,9 @@
+"""DEPRECATED: compatibility shim - use ``app.core.decision`` directly. Will be removed in a future release."""
+
+from app.decision import emit_compat_warning
+
+emit_compat_warning("app.decision.safety_rules")
+
 from app.core.decision.safety_rules import SafetyRuleEngine as CoreSafetyRuleEngine
 from app.data_access.data_loader import get_market_volatility_index
 from app.infrastructure.repositories import DataManagerRepository

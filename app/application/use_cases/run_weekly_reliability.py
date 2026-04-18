@@ -5,6 +5,9 @@ from app.models.model_reliability import (
     save_reliability_scores,
 )
 from app.application.use_cases.result import ok, UseCaseResult
+from app.infrastructure.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class RunWeeklyReliabilityUseCase:
@@ -40,7 +43,13 @@ class RunWeeklyReliabilityUseCase:
                 if not dry_run:
                     self._save_scores_fn(ticker_symbol, end.isoformat(), scores)
                     saved += 1
-            except Exception:
+            except Exception as exc:
+                logger.error(
+                    "WeeklyReliability failed for %s: %s",
+                    ticker_symbol,
+                    exc,
+                    exc_info=True,
+                )
                 failed += 1
 
         return ok(

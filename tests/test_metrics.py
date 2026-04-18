@@ -17,7 +17,7 @@ from app.data_access.data_manager import DataManager
 @pytest.fixture
 def fresh_db(test_settings):
     """Create a fresh test database for each test (isolation)."""
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         data_dir = Path(tmpdir) / "data"
         log_dir = Path(tmpdir) / "logs"
         data_dir.mkdir(exist_ok=True)

@@ -9,24 +9,30 @@ def rsi(data, period=14):
     key = ("rsi", fingerprint, period)
 
     def _compute():
-        if len(data) < period:
-            return np.full(len(data), np.nan)
+        n = len(data)
+        if n < period + 1:
+            return np.full(n, np.nan)
 
         deltas = np.diff(data)
         ups = np.where(deltas > 0, deltas, 0.0)
         downs = np.where(deltas < 0, -deltas, 0.0)
-        roll_up = np.convolve(ups, np.ones(period) / period, mode="full")[: len(deltas)]
-        roll_down = np.convolve(downs, np.ones(period) / period, mode="full")[
-            : len(deltas)
-        ]
-        rs = np.full(len(data), np.nan)
-        avg_up = np.concatenate([np.full(period, np.nan), roll_up[period - 1 :]])
-        avg_down = np.concatenate([np.full(period, np.nan), roll_down[period - 1 :]])
+
+        # Wilder smoothing: seed with SMA of first `period` deltas
+        avg_up = np.full(n, np.nan)
+        avg_down = np.full(n, np.nan)
+
+        avg_up[period] = np.mean(ups[:period])
+        avg_down[period] = np.mean(downs[:period])
+
+        for i in range(period, len(deltas)):
+            avg_up[i + 1] = (avg_up[i] * (period - 1) + ups[i]) / period
+            avg_down[i + 1] = (avg_down[i] * (period - 1) + downs[i]) / period
+
         with np.errstate(divide="ignore", invalid="ignore"):
-            rs_val = avg_up / (avg_down + 1e-12)
-            rsi_val = 100 - (100 / (1 + rs_val))
-        rs[: len(rsi_val)] = rsi_val
-        return rs
+            rs = avg_up / (avg_down + 1e-12)
+            rsi_val = 100.0 - (100.0 / (1.0 + rs))
+
+        return rsi_val
 
     return cached_result(key, _compute)
 

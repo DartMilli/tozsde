@@ -1,3 +1,9 @@
+"""DEPRECATED: compatibility shim - use ``app.core.decision`` directly. Will be removed in a future release."""
+
+from app.decision import emit_compat_warning
+
+emit_compat_warning("app.decision.drift_detector")
+
 from typing import Dict, List
 
 from app.core.decision.drift_detector import PerformanceDriftDetector  # noqa: F401
@@ -6,8 +12,8 @@ from app.infrastructure.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-def batch_check_drift(scores_dict: Dict[str, float]) -> Dict[str, Dict]:
-    detector = PerformanceDriftDetector()
+def batch_check_drift(scores_dict: Dict[str, float], settings=None) -> Dict[str, Dict]:
+    detector = PerformanceDriftDetector(settings=settings)
     results = {}
 
     for ticker, current_score in scores_dict.items():

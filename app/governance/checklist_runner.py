@@ -162,13 +162,17 @@ def evaluate_checklist(
             title="No database corruption",
             required=True,
             passed=bool(data_integrity)
-            and data_integrity.get("duplicate_index_count", 0) == 0
-            and data_integrity.get("nan_ohlc_rows", 0) == 0
-            and data_integrity.get("monotonic_increasing", True) is True,
+            and (data_integrity or {}).get("duplicate_index_count", 0) == 0
+            and (data_integrity or {}).get("nan_ohlc_rows", 0) == 0
+            and (data_integrity or {}).get("monotonic_increasing", True) is True,
             evidence={
-                "duplicate_index_count": data_integrity.get("duplicate_index_count"),
-                "nan_ohlc_rows": data_integrity.get("nan_ohlc_rows"),
-                "monotonic_increasing": data_integrity.get("monotonic_increasing"),
+                "duplicate_index_count": (data_integrity or {}).get(
+                    "duplicate_index_count"
+                ),
+                "nan_ohlc_rows": (data_integrity or {}).get("nan_ohlc_rows"),
+                "monotonic_increasing": (data_integrity or {}).get(
+                    "monotonic_increasing"
+                ),
             },
         )
     )
@@ -184,7 +188,7 @@ def evaluate_checklist(
 
     docs_dir = getattr(cfg, "REPORTS_DIR", Path(".")).parent / "docs" / "testing"
     go_live_text = _load_text(docs_dir / "go_live_checklist.md")
-    plan_text = _load_text(docs_dir / "quant_validation_plan.md")
+    plan_text = _load_text(docs_dir.parent / "validation_framework.md")
     manual_lines = _scan_manual_items(go_live_text)
     todo_lines = _scan_todo_items(plan_text)
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Sprint 3.1 - Risk Parity Allocation Tests
 
 Tests for:
@@ -13,7 +13,7 @@ import numpy as np
 from unittest.mock import MagicMock
 from dataclasses import replace
 
-from app.decision.risk_parity import RiskParityAllocator, apply_risk_parity
+from app.core.decision.risk_parity import RiskParityAllocator, apply_risk_parity
 
 
 class TestRiskParityAllocator:
@@ -263,8 +263,10 @@ class TestConvenienceFunction:
         }
 
         settings = replace(test_settings, INITIAL_CAPITAL=100000)
-        monkeypatch.setattr("app.decision.risk_parity.build_settings", lambda: settings)
+        monkeypatch.setattr("app.core.decision.risk_parity.build_settings", lambda: settings)
         result = apply_risk_parity(decisions, price_history)
 
         assert "allocation_amount" in result[0], "Should apply allocation"
         assert result[0]["allocation_amount"] > 0, "Allocation should be positive"
+
+

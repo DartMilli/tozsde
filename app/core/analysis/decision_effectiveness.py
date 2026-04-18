@@ -9,6 +9,8 @@ from app.bootstrap.build_settings import build_settings
 from app.infrastructure.repositories import DataManagerRepository
 from app.infrastructure.logger import setup_logger
 
+get_settings = build_settings
+
 logger = setup_logger(__name__)
 DataManager = DataManagerRepository
 

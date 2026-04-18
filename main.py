@@ -15,6 +15,8 @@ CLI Usage:
   python main.py monthly                   # Monthly retraining
   python main.py walk-forward VOO          # WF optimization
   python main.py train-rl VOO              # Train RL for ticker
+  python main.py train-ml VOO              # Train ML (RF/GB) predictor for ticker
+    python main.py serve                     # Start Flask UI/API server
   python main.py --help                    # Show all options
 
 Environment Variables:
@@ -35,12 +37,20 @@ sys.path.insert(0, str(Path(__file__).parent))
 from app.infrastructure.logger import setup_logger
 from app.bootstrap.bootstrap import build_application
 from app.interfaces.compat import main_contract as _main_contract
-
-# Build application container (settings + repos)
-_APP_CONTAINER = build_application(ensure_dirs=False)
-_SETTINGS = _APP_CONTAINER.settings
 from app.application.use_cases.result import ok as result_ok
 from app.application.use_cases.result import error as result_error
+
+# Lazy container – built only when a CLI command is actually executed,
+# not on every `import main`.
+_APP_CONTAINER = None
+
+
+def _get_container():
+    global _APP_CONTAINER
+    if _APP_CONTAINER is None:
+        _APP_CONTAINER = build_application(ensure_dirs=False)
+    return _APP_CONTAINER
+
 
 logger = setup_logger(__name__)
 
@@ -69,7 +79,7 @@ def run_daily(dry_run: bool = False, ticker: str = None):
         dry_run: If True, skip email notifications
         ticker: If provided, analyze only this ticker (dev mode)
     """
-    return _main_contract.run_daily(_APP_CONTAINER, dry_run=dry_run, ticker=ticker)
+    return _main_contract.run_daily(_get_container(), dry_run=dry_run, ticker=ticker)
 
 
 #
@@ -87,7 +97,7 @@ def run_weekly(dry_run: bool = False):
     Args:
         dry_run: If True, don't save results
     """
-    return _main_contract.run_weekly(_APP_CONTAINER, dry_run=dry_run)
+    return _main_contract.run_weekly(_get_container(), dry_run=dry_run)
 
 
 #
@@ -107,7 +117,7 @@ def run_monthly(dry_run: bool = False):
     Args:
         dry_run: If True, don't save models
     """
-    return _main_contract.run_monthly(_APP_CONTAINER, dry_run=dry_run)
+    return _main_contract.run_monthly(_get_container(), dry_run=dry_run)
 
 
 #
@@ -124,7 +134,7 @@ def run_walk_forward_manual(ticker: str, dry_run: bool = False):
         dry_run: If True, don't save results
     """
     return _main_contract.run_walk_forward_manual(
-        _APP_CONTAINER,
+        _get_container(),
         ticker=ticker,
         dry_run=dry_run,
     )
@@ -144,10 +154,85 @@ def run_train_rl_manual(ticker: str, dry_run: bool = False):
         dry_run: If True, don't save models
     """
     return _main_contract.run_train_rl_manual(
-        _APP_CONTAINER,
+        _get_container(),
         ticker=ticker,
         dry_run=dry_run,
     )
+
+
+#
+# ML PREDICTOR TRAINING (Manual)
+#
+
+
+def run_train_ml(
+    ticker: str, model_type: str = "rf", lookback: int = 60, dry_run: bool = False
+) -> dict:
+    """Train ML (RandomForest/GradientBoosting) predictor for a ticker.
+
+    Loads the last 5 years of OHLCV data, prepares features, trains the model
+    and saves <model_name>.pkl + <model_name>_scaler.pkl to MODEL_DIR/ml_predictor/.
+
+    Args:
+        ticker: Asset ticker symbol
+        model_type: 'rf' (RandomForest) or 'gb' (GradientBoosting)
+        lookback: Days of history used per sample (default 60)
+        dry_run: If True, skip saving the model files
+    """
+    import datetime as _dt
+    from app.data_access.data_loader import load_data
+    from app.data_access.data_cleaner import prepare_df
+    from app.models.ml_predictor import MLMarketPredictor
+    from app.config.build_settings import build_settings
+
+    cfg = build_settings()
+    model_dir = str(getattr(cfg, "MODEL_DIR", "models"))
+
+    end = _dt.date.today().isoformat()
+    start = (_dt.date.today() - _dt.timedelta(days=5 * 365)).isoformat()
+
+    logger.info("[train-ml] Loading data for %s (%s – %s)", ticker, start, end)
+    df_raw = load_data(ticker, start=start, end=end)
+    if df_raw is None or df_raw.empty:
+        return {"ok": False, "error": "No data loaded", "ticker": ticker}
+
+    df = prepare_df(df_raw.copy(), ticker)
+    df.columns = [c.lower() for c in df.columns]
+
+    predictor = MLMarketPredictor(
+        model_dir=model_dir + "/ml_predictor", model_type=model_type, lookback=lookback
+    )
+    X, y, _ = predictor.prepare_data(df)
+
+    if len(X) == 0:
+        return {
+            "ok": False,
+            "error": "Insufficient data for training",
+            "ticker": ticker,
+        }
+
+    logger.info(
+        "[train-ml] Training %s model (%d samples)...", model_type.upper(), len(X)
+    )
+    history = predictor.train(X, y)
+
+    model_name = f"ml_{ticker}_{model_type}"
+    if not dry_run:
+        predictor.save_model(model_name)
+        logger.info("[train-ml] Saved -> %s/ml_predictor/%s.pkl", model_dir, model_name)
+    else:
+        logger.info("[train-ml] dry-run: model NOT saved")
+
+    return {
+        "ok": True,
+        "ticker": ticker,
+        "model_type": model_type,
+        "model_name": model_name,
+        "samples": len(X),
+        "dry_run": dry_run,
+        "train_score": round(history.get("train_score", 0.0), 4),
+        "val_score": round(history.get("val_score", 0.0), 4),
+    }
 
 
 def run_validation(
@@ -163,7 +248,7 @@ def run_validation(
     Run Phase 5 validation analyzers and build a unified report.
     """
     return _main_contract.run_validation(
-        _APP_CONTAINER,
+        _get_container(),
         ticker=ticker,
         start_date=start_date,
         end_date=end_date,
@@ -179,11 +264,44 @@ def run_paper_history(ticker: str, start_date: str, end_date: str):
     Run deterministic historical paper trading over a date range.
     """
     return _main_contract.run_paper_history(
-        _APP_CONTAINER,
+        _get_container(),
         ticker=ticker,
         start_date=start_date,
         end_date=end_date,
     )
+
+
+def run_serve(host: str = "127.0.0.1", port: int = 5000, debug: bool = False) -> dict:
+    """Start the Flask UI/API server if ENABLE_FLASK is enabled.
+
+    Returns an error dict when Flask serving is disabled by configuration.
+    """
+    settings = _get_container().settings
+    if not getattr(settings, "ENABLE_FLASK", False):
+        return {
+            "ok": False,
+            "error": "Flask server is disabled. Set ENABLE_FLASK=true to use `main.py serve`.",
+        }
+
+    admin_key = str(getattr(settings, "ADMIN_API_KEY", ""))
+    if admin_key in {"", "admin_key_12345", "CHANGE_ME_IN_PRODUCTION"}:
+        logger.warning(
+            "SECURITY: ADMIN_API_KEY is using insecure default value. "
+            "Set the ADMIN_API_KEY environment variable in production."
+        )
+
+    from app.interfaces.web.ui_app import build_default_ui_app
+
+    app = build_default_ui_app(ensure_dirs=False)
+    logger.info("[serve] Starting Flask server on %s:%d (debug=%s)", host, port, debug)
+    app.run(host=host, port=port, debug=debug)
+
+    return {
+        "ok": True,
+        "host": host,
+        "port": port,
+        "debug": debug,
+    }
 
 
 #
@@ -213,6 +331,7 @@ Examples:
   python main.py monthly                  # Monthly retraining
   python main.py walk-forward VOO         # Manual WF optimization
   python main.py train-rl VOO             # Manual RL training
+    python main.py serve --port 5000        # Start Flask UI/API server
     python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
         """,
     )
@@ -265,6 +384,27 @@ Examples:
         "--dry-run", action="store_true", help="Simulate without saving models"
     )
 
+    # ML predictor training
+    ml_parser = subparsers.add_parser(
+        "train-ml", help="Train ML (RandomForest/GradientBoosting) price predictor"
+    )
+    ml_parser.add_argument("ticker", type=str, help="Asset ticker symbol")
+    ml_parser.add_argument(
+        "--model-type",
+        choices=["rf", "gb"],
+        default="rf",
+        help="Model type: rf=RandomForest (default), gb=GradientBoosting",
+    )
+    ml_parser.add_argument(
+        "--lookback",
+        type=int,
+        default=60,
+        help="Lookback window in days (default: 60)",
+    )
+    ml_parser.add_argument(
+        "--dry-run", action="store_true", help="Train but do not save model files"
+    )
+
     # Phase 5 validation
     validation_parser = subparsers.add_parser(
         "validate", help="Run Phase 5 validation analyzers"
@@ -305,6 +445,47 @@ Examples:
     history_parser.add_argument("--ticker", type=str, required=True)
     history_parser.add_argument("--start-date", type=str, required=True)
     history_parser.add_argument("--end-date", type=str, required=True)
+
+    # Governance
+    governance_parser = subparsers.add_parser(
+        "governance", help="Run quant governance checks and audit reports"
+    )
+    governance_parser.add_argument(
+        "--mode",
+        type=str,
+        default="full",
+        choices=["full", "diagnostics", "audit"],
+        help="Governance mode (default: full)",
+    )
+
+    # DB schema apply (idempotent, safe for fresh deploys)
+    subparsers.add_parser(
+        "apply-schema",
+        help="Apply / migrate database schema (idempotent)",
+    )
+
+    # Flask UI/API server
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help="Start Flask UI/API server (requires ENABLE_FLASK=true)",
+    )
+    serve_parser.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        help="Bind host (default: 127.0.0.1)",
+    )
+    serve_parser.add_argument(
+        "--port",
+        type=int,
+        default=5000,
+        help="Bind port (default: 5000)",
+    )
+    serve_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Run Flask server in debug mode",
+    )
 
     # Global options
     parser.add_argument(
@@ -398,6 +579,24 @@ def main():
                 )
             )
 
+        elif args.command == "train-ml":
+            result = run_train_ml(
+                ticker=args.ticker,
+                model_type=args.model_type,
+                lookback=args.lookback,
+                dry_run=args.dry_run,
+            )
+            _emit(
+                result_ok(
+                    "cli.train_ml",
+                    data=result,
+                    command=args.command,
+                    ticker=args.ticker,
+                    model_type=args.model_type,
+                    dry_run=args.dry_run,
+                )
+            )
+
         elif args.command == "validate":
             result = run_validation(
                 ticker=args.ticker,
@@ -438,31 +637,45 @@ def main():
             )
 
         elif args.command == "governance":
-            # Call quant_runner orchestrator as subprocess for full isolation
-            import subprocess
+            result = _get_container().governance.run(mode=args.mode)
+            _emit(result)
 
-            quant_runner_path = os.path.join(
-                os.path.dirname(__file__), "app", "governance", "quant_runner.py"
-            )
-            cmd = [sys.executable, quant_runner_path, "--mode", args.mode]
-            exit_code = subprocess.call(cmd)
-            if exit_code == 0:
-                _emit(
-                    result_ok(
-                        "cli.governance", data={"exit_code": exit_code}, mode=args.mode
-                    )
+        elif args.command == "apply-schema":
+            from app.scripts.apply_schema import apply_schema
+
+            apply_schema()
+            _emit(
+                result_ok(
+                    "cli.apply_schema", data={"applied": True}, command=args.command
                 )
-            else:
+            )
+
+        elif args.command == "serve":
+            result = run_serve(host=args.host, port=args.port, debug=args.debug)
+            if not result.get("ok", False):
                 _emit(
                     result_error(
-                        "cli.governance",
-                        f"governance subprocess failed (exit_code={exit_code})",
-                        mode=args.mode,
-                        code="SUBPROCESS_FAILED",
-                        exit_code=exit_code,
+                        "cli.serve",
+                        result.get("error", "serve failed"),
+                        command=args.command,
+                        host=args.host,
+                        port=args.port,
+                        debug=args.debug,
+                        code="FLASK_DISABLED",
                     )
                 )
-            sys.exit(exit_code)
+                sys.exit(1)
+
+            _emit(
+                result_ok(
+                    "cli.serve",
+                    data=result,
+                    command=args.command,
+                    host=args.host,
+                    port=args.port,
+                    debug=args.debug,
+                )
+            )
 
     except KeyboardInterrupt:
         logger.info("Pipeline interrupted by user")

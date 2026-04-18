@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 from app.application.use_cases.execution_coordinator import ExecutionCoordinator
 from app.application.use_cases.notification_coordinator import NotificationCoordinator
+from app.application.use_cases.result import UseCaseResult, ok
 from app.notifications.alerter import ErrorAlerter
 
 
@@ -60,7 +61,177 @@ class DailyPipelineUseCase:
 
         return daily_candidates
 
-    def run(self, dry_run: bool = False, ticker: Optional[str] = None) -> Dict:
+    def _run_rebalancer_check(self, daily_candidates: List[Dict]) -> None:
+        """Check portfolio drift against today's target allocation.
+
+        Only active when ENABLE_REBALANCER=true. No-op otherwise.
+        Safe to call even when daily_candidates is empty.
+        """
+        cfg = self.pipeline._get_settings()
+        if not getattr(cfg, "ENABLE_REBALANCER", False):
+            return
+
+        try:
+            if not daily_candidates:
+                return
+
+            today = date.fromisoformat(
+                daily_candidates[0]["payload"].get(
+                    "timestamp", date.today().isoformat()
+                )
+            )
+            state = self.pipeline.state_repo.fetch_latest_portfolio_state(
+                source="paper"
+            )
+            if not state:
+                return
+
+            equity = state.get("equity", 0.0)
+            if equity <= 0:
+                return
+
+            raw_positions = state.get(
+                "positions", {}
+            )  # {ticker: {"qty":..., "entry_price":...}}
+
+            # Build prices and target_allocation from today's candidates
+            prices: Dict[str, float] = {
+                item["ticker"]: item["payload"].get(
+                    "current_price",
+                    item["payload"].get("latest_price", 1.0),
+                )
+                for item in daily_candidates
+            }
+            target_allocation: Dict[str, float] = {
+                item["ticker"]: item.get("allocation_pct", 0.0)
+                for item in daily_candidates
+            }
+
+            # Compute current position weights using today's prices where available
+            current_weights: Dict[str, float] = {}
+            for ticker, pos in raw_positions.items():
+                qty = pos.get("qty", 0)
+                price = prices.get(ticker, pos.get("entry_price", 1.0))
+                current_weights[ticker] = (qty * price) / equity
+
+            # Only check tickers present in today's candidates
+            filtered_weights = {
+                t: current_weights.get(t, 0.0) for t in target_allocation
+            }
+
+            result = self.pipeline.check_portfolio_drift(
+                current_positions=filtered_weights,
+                target_allocation=target_allocation,
+                prices=prices,
+                total_value=equity,
+            )
+
+            if result.get("should_rebalance"):
+                trades = result.get("trades", [])
+                estimated_cost = result.get("estimated_cost", 0.0)
+                benefit = self._estimate_rebalance_benefit(result, equity)
+                self.pipeline.logger.info(
+                    "Rebalancer: %d suggested trade(s), estimated cost $%.2f, benefit $%.2f",
+                    len(trades),
+                    estimated_cost,
+                    benefit,
+                )
+
+                execute_enabled = getattr(cfg, "REBALANCE_EXECUTE", False)
+                cost_multiplier = getattr(cfg, "REBALANCE_COST_MULTIPLIER", 2.0)
+                if (
+                    execute_enabled
+                    and trades
+                    and benefit > estimated_cost * cost_multiplier
+                ):
+                    rebalance_decisions = self._convert_rebalance_trades_to_decisions(
+                        trades=trades,
+                        today=today,
+                    )
+                    self.execution.execute_finalized(rebalance_decisions)
+                    self.pipeline.logger.info(
+                        "Rebalancer executed %d trade(s)",
+                        len(rebalance_decisions),
+                    )
+                elif execute_enabled and trades:
+                    self.pipeline.logger.info(
+                        "Rebalancer skipped execution: benefit %.2f <= cost threshold %.2f",
+                        benefit,
+                        estimated_cost * cost_multiplier,
+                    )
+        except Exception as exc:
+            self.pipeline.logger.warning("Rebalancer check skipped: %s", exc)
+
+    def _estimate_rebalance_benefit(self, result: Dict, equity: float) -> float:
+        cfg = self.pipeline._get_settings()
+        drift_avg = result.get("drift_info", {}).get("drift_avg", 0.0)
+        impact_factor = getattr(cfg, "DRIFT_ANNUAL_IMPACT_FACTOR", 0.5)
+        return float(equity) * float(drift_avg) * float(impact_factor)
+
+    def _convert_rebalance_trades_to_decisions(
+        self,
+        trades: List[Dict],
+        today: date,
+    ) -> List[Dict]:
+        converted = []
+        for trade in trades:
+            action = trade.get("action", "BUY")
+            price = float(trade.get("price", 0.0))
+            qty = float(trade.get("qty", 0.0))
+            converted.append(
+                {
+                    "ticker": trade["ticker"],
+                    "decision": {
+                        "action_code": 1 if action == "BUY" else 2,
+                        "action": action,
+                        "confidence": 1.0,
+                        "wf_score": 1.0,
+                    },
+                    "payload": {
+                        "timestamp": today.isoformat(),
+                        "latest_price": price,
+                    },
+                    "allocation_amount": round(price * qty, 2),
+                }
+            )
+        return converted
+
+    def _run_shadow_evaluation(
+        self,
+        daily_candidates: List[Dict],
+        today: date,
+        dry_run: bool,
+    ) -> None:
+        cfg = self.pipeline._get_settings()
+        if not getattr(cfg, "ENABLE_SHADOW_EVAL", False) or dry_run:
+            return
+
+        try:
+            from app.models.shadow_evaluator import ShadowEvaluator
+
+            evaluator = ShadowEvaluator(
+                settings=cfg,
+                history_store=self.pipeline.history_store,
+                data_fetcher=self.pipeline.data_fetcher,
+                email_notifier=self.pipeline.email_notifier,
+            )
+            for candidate in daily_candidates:
+                results = evaluator.evaluate_daily_shadows(
+                    champion_candidate=candidate,
+                    as_of_date=today,
+                )
+                if results:
+                    promotions = sum(1 for item in results if item.get("promote"))
+                    self.pipeline.logger.info(
+                        "Shadow evaluation %s: %d challenger(s), %d promotion(s)",
+                        candidate["ticker"],
+                        len(results),
+                        promotions,
+                    )
+        except Exception as exc:
+            self.pipeline.logger.warning("Shadow evaluation skipped: %s", exc)
+
+    def run(self, dry_run: bool = False, ticker: Optional[str] = None) -> UseCaseResult:
         self.pipeline.logger.info("=" * 80)
         self.pipeline.logger.info("DAILY pipeline started (dry_run=%s)", dry_run)
         if ticker:
@@ -75,7 +246,11 @@ class DailyPipelineUseCase:
             self.pipeline.logger.warning("No candidates generated")
             for ticker_symbol in tickers_to_process:
                 self.pipeline._log_go_live_metrics(ticker_symbol)
-            return {"completed": True, "processed": 0}
+            return ok(
+                "daily_pipeline",
+                data={"completed": True, "processed": 0},
+                dry_run=dry_run,
+            )
 
         no_trade_candidates, finalized_decisions = self.execution.split_and_finalize(
             daily_candidates
@@ -109,6 +284,8 @@ class DailyPipelineUseCase:
             summary_lines, detail_lines, dry_run=dry_run
         )
         self.execution.execute_finalized(finalized_decisions)
+        self._run_rebalancer_check(daily_candidates)
+        self._run_shadow_evaluation(daily_candidates, today, dry_run)
 
         for ticker_symbol in tickers_to_process:
             self.pipeline._log_go_live_metrics(ticker_symbol)
@@ -117,9 +294,13 @@ class DailyPipelineUseCase:
         self.pipeline.logger.info("DAILY pipeline completed")
         self.pipeline.logger.info("=" * 80)
 
-        return {
-            "completed": True,
-            "processed": len(daily_candidates),
-            "executed": len(finalized_decisions),
-            "no_trade": len(no_trade_candidates),
-        }
+        return ok(
+            "daily_pipeline",
+            data={
+                "completed": True,
+                "processed": len(daily_candidates),
+                "executed": len(finalized_decisions),
+                "no_trade": len(no_trade_candidates),
+            },
+            dry_run=dry_run,
+        )

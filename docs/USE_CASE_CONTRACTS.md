@@ -80,14 +80,14 @@ if wf["status"] == "ok":
 
 ### CLI envelope output
 
-`app/main.py` emits JSON with the same envelope for both success and error paths.
+The root `main.py` emits JSON with the same envelope for both success and error paths.
 
 Examples:
 
 ```bash
-python -m app.main walk-forward VOO
-python -m app.main daily-pipeline
-python -m app.main validate-model quick
+python main.py walk-forward VOO
+python main.py daily
+python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
 
 Error example shape:
@@ -112,7 +112,9 @@ CLI error responses include a machine-readable `code` in `meta`.
 - `INTERRUPTED`: execution was interrupted by user.
 - `UNHANDLED_EXCEPTION`: unexpected exception reached the top-level handler.
 
-### Modular CLI (`app/main.py`)
+### Modular CLI (`app/main.py`) – ⚠️ Deprecated
+
+> **Megjegyzés:** `app/main.py` egy deprecated belépési pont (Sprint 13-tól `DeprecationWarning`-et dob). Az aktív CLI a gyökér `main.py`.
 - `NO_COMMAND`: no command arguments were provided.
 - `UNKNOWN_COMMAND`: command is not recognized.
 - `MISSING_TICKER`: required ticker argument is missing for `train-rl`.

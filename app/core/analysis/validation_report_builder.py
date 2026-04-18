@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 from app.bootstrap.build_settings import build_settings
@@ -18,7 +18,7 @@ class ValidationReportBuilder:
 
     def build(self) -> Dict:
         report = {
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "git_commit": get_git_commit(),
             "decision_quality": self._latest("decision_quality_metrics"),
             "confidence_calibration": self._latest("confidence_calibration"),

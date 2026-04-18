@@ -1,4 +1,4 @@
-import json
+﻿import json
 from datetime import datetime, timedelta, date
 from dataclasses import replace
 import pandas as pd
@@ -10,7 +10,7 @@ from app.decision.confidence import (
     clamp,
     normalize_final_confidence,
 )
-from app.decision.ensemble_quality import bucket_ensemble_quality
+from app.core.decision.ensemble_quality import bucket_ensemble_quality
 from app.decision.volatility_bucket import bucket_volatility, VolatilityBucket
 from app.decision.drift_detector import (
     PerformanceDriftDetector,
@@ -112,7 +112,7 @@ def test_audit_builder_with_drift(monkeypatch, test_settings):
             return "WARNING"
 
     monkeypatch.setattr(
-        "app.decision.drift_detector.PerformanceDriftDetector", DummyDetector
+        "app.core.decision.drift_detector.PerformanceDriftDetector", DummyDetector
     )
 
     payload = {"ticker": "TEST", "model_votes": [{"action": 1}], "volatility": 0.02}
@@ -336,7 +336,6 @@ def test_ui_params_and_admin_routes(monkeypatch, client, test_settings):
 
 def test_main_weekly_monthly_and_manual(monkeypatch, test_settings):
     new_settings = replace(test_settings, TICKERS=["AAA"], ENABLE_RL=True)
-    monkeypatch.setattr(main, "_SETTINGS", new_settings)
 
     class DummyWeeklyUseCase:
         def run(self, dry_run=False):
@@ -347,7 +346,7 @@ def test_main_weekly_monthly_and_manual(monkeypatch, test_settings):
             return {"status": "ok"}
 
     class DummyWalkUseCase:
-        def run(self, ticker=None):
+        def run(self, ticker=None, **kwargs):
             return {"status": "ok", "ticker": ticker}
 
     class DummyTrainUseCase:
@@ -373,3 +372,5 @@ def test_main_weekly_monthly_and_manual(monkeypatch, test_settings):
     main.run_monthly(dry_run=True)
     main.run_walk_forward_manual("AAA", dry_run=True)
     main.run_train_rl_manual("AAA", dry_run=True)
+
+

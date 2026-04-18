@@ -26,8 +26,11 @@ def client():
 
 @pytest.fixture
 def admin_headers():
-    """Valid admin headers."""
-    return {"X-Admin-Key": "admin_key_12345", "Content-Type": "application/json"}
+    """Valid admin headers – use the actual configured ADMIN_API_KEY."""
+    from app.config.build_settings import build_settings
+
+    key = build_settings().ADMIN_API_KEY
+    return {"X-Admin-Key": key, "Content-Type": "application/json"}
 
 
 @pytest.fixture
@@ -64,12 +67,19 @@ class TestAdminDashboard:
     """Test dashboard endpoint with mocked metrics."""
 
     @patch("app.data_access.data_manager.DataManager.get_today_recommendations")
+    @patch("app.ui.admin_dashboard._build_shadow_status")
     @patch("app.infrastructure.metrics.get_metrics")
     def test_dashboard_success(
-        self, mock_get_metrics, mock_recs, client, admin_headers
+        self, mock_get_metrics, mock_shadow, mock_recs, client, admin_headers
     ):
         """Should return dashboard data."""
         mock_recs.return_value = [{"ticker": "VOO"}]
+        mock_shadow.return_value = {
+            "enabled": True,
+            "total_candidates": 2,
+            "promotion_ready": 1,
+            "tickers": {},
+        }
 
         mock_metrics = MagicMock()
         mock_metrics.get_health_status.return_value = {
@@ -102,6 +112,35 @@ class TestAdminDashboard:
         data = json.loads(response.data)
         assert "health" in data
         assert "metrics" in data
+        assert data["shadow_summary"]["total_candidates"] == 2
+
+
+class TestAdminShadowModels:
+    @patch("app.ui.admin_dashboard._build_shadow_status")
+    def test_shadow_models_status(self, mock_status, client, admin_headers):
+        mock_status.return_value = {
+            "enabled": True,
+            "total_candidates": 1,
+            "promotion_ready": 0,
+            "tickers": {
+                "VOO": {
+                    "champion_model": "champion-1",
+                    "challengers": [
+                        {
+                            "model_id": "challenger-1",
+                            "promotion_ready": False,
+                        }
+                    ],
+                }
+            },
+        }
+
+        response = client.get("/admin/models/shadow", headers=admin_headers)
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["enabled"] is True
+        assert "VOO" in data["tickers"]
 
 
 class TestAdminHealth:

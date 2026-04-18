@@ -1,0 +1,185 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "🧪 Pytest – teljes suite",
+            "type": "shell",
+            "command": "python -m pytest tests/ -v --tb=short",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            },
+            "problemMatcher": {
+                "owner": "python",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(FAILED|ERROR)\\s+(.+)::(.+)\\s+-\\s+(.+)$",
+                    "file": 2,
+                    "message": 4
+                }
+            }
+        },
+        {
+            "label": "🧪 Pytest – coverage riporttal",
+            "type": "shell",
+            "command": "python -m pytest tests/ --cov=app --cov-report=term-missing -q",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            }
+        },
+        {
+            "label": "🧪 Pytest – gyors (1 cpu, no cov)",
+            "type": "shell",
+            "command": "python -m pytest tests/ -x -q --tb=line",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            }
+        },
+        {
+            "label": "🔄 Daily pipeline (dry-run)",
+            "type": "shell",
+            "command": "python main.py daily --dry-run",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "🔄 Daily pipeline – VOO",
+            "type": "shell",
+            "command": "python main.py daily --ticker VOO --dry-run",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "📊 Backtesting – VOO (2022-2023)",
+            "type": "shell",
+            "command": "python main.py run-paper-history --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "✅ Validáció – VOO (2022-2023)",
+            "type": "shell",
+            "command": "python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "🏛️ Governance – full riport",
+            "type": "shell",
+            "command": "python main.py governance --mode full",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "🏛️ Governance – diagnostics",
+            "type": "shell",
+            "command": "python main.py governance --mode diagnostics",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "🤖 RL betanítás – VOO",
+            "type": "shell",
+            "command": "python main.py train-rl VOO",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "📈 Walk-forward – VOO",
+            "type": "shell",
+            "command": "python main.py walk-forward VOO",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "📑 Teljes validációs riport",
+            "type": "shell",
+            "command": "python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "📡 TensorBoard indítása",
+            "type": "shell",
+            "command": "tensorboard --logdir tensorboard/",
+            "isBackground": true,
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "🔬 Weekly pipeline",
+            "type": "shell",
+            "command": "python main.py weekly",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "📅 Monthly pipeline",
+            "type": "shell",
+            "command": "python main.py monthly",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        }
+    ]
+}

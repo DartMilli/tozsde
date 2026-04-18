@@ -33,7 +33,6 @@ def test_main_frozen_wrapper_symbols_exist():
         "run_train_rl_manual",
         "run_validation",
         "run_paper_history",
-        "_SETTINGS",
     ]
 
     missing = [name for name in required if not hasattr(main, name)]

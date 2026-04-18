@@ -60,7 +60,9 @@ def _scenario_prices(
         exit_at = exit_idx + 1
 
     if entry_at >= len(opens) or exit_at >= len(opens):
-        return None
+        # Fall back to close prices (matching ExecutionEngine._raw_prices behavior)
+        # so equity curve lengths stay consistent between stress and backtester paths.
+        return float(closes[entry_idx]), float(closes[exit_idx])
     if entry_at >= exit_at:
         return None
 

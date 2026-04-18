@@ -48,6 +48,42 @@ curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 
 **Fix:**
 - Use `/admin/health` and add `X-Admin-Key`.
+
+### 7) Governance Crashes with FrozenInstanceError
+**Symptom:** `dataclasses.FrozenInstanceError: cannot assign to field 'pipeline_audit_mode'` when running `python main.py governance --mode full`.
+
+**Cause:** `Settings` is a frozen dataclass; `quant_runner.py` tries to mutate it directly.
+
+> ✅ **Sprint 13-ban kódilag javítva** – `quant_runner.py` most `os.environ["PIPELINE_AUDIT_MODE"] = "true"` env var-on keresztül kommunikál, nem a frozen dataclass-t mutálja. A workaround már nem szükséges.
+
+**Fix (ha régi verzión):** Set env var before running: `$env:PIPELINE_AUDIT_MODE = "true"` then run governance.
+
+### 8) SELL Trades Fail with AttributeError After Restart
+**Symptom:** `AttributeError: 'dict' object has no attribute 'qty'` in paper execution SELL logic.
+
+**Cause:** `_load_latest_state()` deserializes positions as plain dicts, but execution code accesses them as `PaperPosition` objects.
+
+> ✅ **Sprint 13-ban kódilag javítva** – `_load_latest_state()` most `PaperPosition(**v)` konverziót végez. A workaround már nem szükséges.
+
+### 9) Monthly Pipeline Skips RL Retraining
+**Symptom:** `monthly` command runs but no new model files are created.
+
+**Cause:** `ENABLE_RL` defaults to `false` (szándékos – ne fusson véletlenül éles környezetben). Monthly retraining skips RL training unless explicitly enabled.
+
+> ℹ️ **Sprint 13-ban WARNING log hozzáadva** – ha `ENABLE_RL=false`, a pipeline most explicit figyelmeztetést naplóz.
+
+**Fix:**
+```bash
+$env:ENABLE_RL = "true"
+python main.py monthly
+```
+
+### 10) Windows PermissionError on test_metrics.py
+**Symptom:** `PermissionError: [WinError 32]` in test_metrics.py teardown.
+
+**Cause:** SQLite holds a file lock while `tempfile.TemporaryDirectory` tries to clean up.
+
+**Fix:** Already applied – `TemporaryDirectory(ignore_cleanup_errors=True)` in `tests/test_metrics.py`.
 - Recommended check:
 ```bash
 curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"

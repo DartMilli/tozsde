@@ -1,4 +1,3 @@
-from app.bootstrap.build_settings import build_settings
 from app.infrastructure.repositories import DataManagerRepository
 
 
@@ -6,15 +5,18 @@ def allocate_capital(
     decisions: list,
     settings=None,
     get_correlation_matrix_fn=None,
+    current_equity: float | None = None,
 ) -> list:
     buy_candidates = [d for d in decisions if d["decision"]["action_code"] == 1]
 
     if not buy_candidates:
         return decisions
 
-    cfg = settings or build_settings()
-    total_capital = getattr(cfg, "INITIAL_CAPITAL")
-    tradeable_capital = total_capital
+    initial_capital = getattr(settings, "INITIAL_CAPITAL", 10000.0)
+    if current_equity is not None and current_equity > 0:
+        tradeable_capital = current_equity
+    else:
+        tradeable_capital = initial_capital
 
     current_date = None
     if decisions:

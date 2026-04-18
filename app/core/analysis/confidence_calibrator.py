@@ -133,7 +133,12 @@ class ConfidenceCalibrator:
             params.append(as_of_date)
 
         with self.dm.connection() as conn:
-            return pd.read_sql(query, conn, params=params)
+            cursor = conn.execute(query, params)
+            rows = cursor.fetchall()
+            columns = (
+                [col[0] for col in cursor.description] if cursor.description else []
+            )
+        return pd.DataFrame(rows, columns=columns)
 
     def _compute_metrics(
         self,

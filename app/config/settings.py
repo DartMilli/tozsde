@@ -5,7 +5,7 @@ All runtime configuration fields from the legacy Config live here.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,19 @@ class Settings:
     RL_VAL_RATIO: float
     ENABLE_RELIABILITY: bool
     RELIABILITY_SOURCE: str
+    MODEL_DEMOTION_THRESHOLD: float
     ENABLE_CONFIDENCE_CALIBRATION: bool
+    ENABLE_EXPECTANCY_GATE: bool
+    EXPECTANCY_MIN_SAMPLES: int
+    EXPECTANCY_LOOKBACK_DAYS: int
+    ENABLE_REGIME_POLICY: bool
+    REGIME_POLICY_OVERRIDES: Dict[str, Dict[str, Any]]
+    ENABLE_COST_GATE: bool
+    COST_BUFFER_MULTIPLIER: float
+    ENABLE_ADAPTIVE_STRATEGY: bool
+    ENABLE_SHADOW_EVAL: bool
+    SHADOW_EVAL_DAYS: int
+    SHADOW_PROMOTION_THRESHOLD: float
     EXECUTION_MODE: str
     EXECUTION_POLICY: str
     ENABLE_DRIFT_DETECTION: bool
@@ -126,3 +138,24 @@ class Settings:
     ENSEMBLE_QUALITY_THRESHOLDS: Dict[str, float]
 
     TICKERS: Optional[List[str]]
+    DRAWDOWN_HALT_PCT: float
+    ATR_MULTIPLIER: float
+
+    # Sprint 14B additions
+    KELLY_FRACTION_MULTIPLIER: float
+    RISK_FREE_RATE: float
+    MAX_MODEL_AGE_DAYS: int
+
+    # Sprint 15B additions
+    ENABLE_REBALANCER: bool
+    REBALANCE_THRESHOLD: float
+    REBALANCE_COST_MULTIPLIER: float
+    REBALANCE_EXECUTE: bool
+    DRIFT_ANNUAL_IMPACT_FACTOR: float
+    ALLOCATION_MODE: str
+    ENABLE_CORRELATION_LIMITS: bool
+    MAX_CORRELATION: float
+    ENABLE_ML_ENSEMBLE: bool
+
+    # Sprint 16 additions
+    BROKER_ADAPTER: str  # "noop" | "alpaca"

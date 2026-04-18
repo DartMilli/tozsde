@@ -61,11 +61,23 @@ class SqliteOhlcvRepository(IOhlcvRepository):
         query += " ORDER BY date ASC"
 
         with self._get_conn() as conn:
-            df = pd.read_sql(query, conn, params=params, parse_dates=["date"])
+            df = pd.read_sql(query, conn, params=params)
             if not df.empty:
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                df = df[df["date"].notna()]
                 df.set_index("date", inplace=True)
+                df = df[~df.index.duplicated(keep="last")]
                 df.columns = [c.capitalize() for c in df.columns]
             return df
+
+    def fetch_ohlcv(self, ticker: str, start_date=None, end_date=None) -> Any:
+        """Alias for load_ohlcv with optional end_date filtering."""
+        df = self.load_ohlcv(ticker=ticker, start_date=start_date)
+        if end_date is not None and not df.empty:
+            end_dt = pd.to_datetime(end_date, errors="coerce")
+            if pd.notna(end_dt):
+                df = df[df.index <= end_dt]
+        return df
 
     def save_ohlcv(self, ticker: str, df: Any) -> None:
         # If a legacy DataManager was injected and exposes save_ohlcv, prefer it

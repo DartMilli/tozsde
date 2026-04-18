@@ -69,13 +69,14 @@ def compute_signals(df, ticker, params, return_series=False, audit=None):
 
 
 if __name__ == "__main__":
+    from datetime import date
     from app.data_access.data_loader import load_data, get_supported_ticker_list
 
     tickers = get_supported_ticker_list()
 
     for ticker in tickers:
         logger.info(f"Loading data for {ticker}...")
-        df = load_data(ticker, start="2020-01-01", end="2025-06-30")
+        df = load_data(ticker, start="2020-01-01", end=str(date.today()))
         signals, indicators = compute_signals(df, ticker, params=None)
         if signals:
             logger.info("Trading signals:\n%s", "\n".join(signals))

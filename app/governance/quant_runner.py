@@ -12,10 +12,8 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from app.governance import get_settings
+from app.governance import get_settings, set_settings
 from app.bootstrap.build_settings import build_settings
-
-settings = build_settings()
 from app.reporting.report_builder import prepare_report_dir, write_report_bundle
 from app.reporting.report_schema import SummaryReport, now_timestamp
 from app.validation.scoring import compute_quant_score
@@ -139,8 +137,9 @@ def _run_tests(logger: logging.Logger) -> dict:
 def _run_diagnostics(logger: logging.Logger) -> dict:
     logger.info("Running diagnostics pipeline")
     cfg = get_settings()
-    settings.pipeline_audit_mode = True
-    settings.edge_diagnostics_mode = True
+    os.environ["PIPELINE_AUDIT_MODE"] = "true"
+    os.environ["EDGE_DIAGNOSTICS_MODE"] = "true"
+    set_settings(build_settings())
 
     ticker = get_validation_ticker()
     start, end = get_validation_window()
@@ -292,8 +291,9 @@ def main() -> int:
     logger.info("Starting quant runner")
 
     cfg = get_settings()
-    settings.edge_diagnostics_mode = False
-    settings.pipeline_audit_mode = False
+    os.environ["EDGE_DIAGNOSTICS_MODE"] = "false"
+    os.environ["PIPELINE_AUDIT_MODE"] = "false"
+    set_settings(build_settings())
 
     if args.mode != "tests":
         os.environ["VALIDATION_MODE"] = args.mode
@@ -309,8 +309,9 @@ def main() -> int:
     tests = {}
 
     if args.mode == "research":
-        settings.edge_diagnostics_mode = True
-        settings.pipeline_audit_mode = True
+        os.environ["EDGE_DIAGNOSTICS_MODE"] = "true"
+        os.environ["PIPELINE_AUDIT_MODE"] = "true"
+        set_settings(build_settings())
         run_walk_forward(get_validation_ticker())
         diagnostics = _run_diagnostics(logger)
         validation = _run_validation(

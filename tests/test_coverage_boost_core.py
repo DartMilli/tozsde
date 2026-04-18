@@ -1,4 +1,4 @@
-import json
+﻿import json
 from dataclasses import replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -8,7 +8,10 @@ import pandas as pd
 import pytest
 
 from app.analysis.analyzer import get_params, compute_signals
-from app.decision.ensemble_quality import bucket_ensemble_quality, EnsembleQualityBucket
+from app.core.decision.ensemble_quality import (
+    bucket_ensemble_quality,
+    EnsembleQualityBucket,
+)
 from app.decision.decision_reliability import assess_decision_reliability
 from app.decision.drift_detector import (
     PerformanceDriftDetector,
@@ -105,7 +108,8 @@ def test_batch_check_drift_handles_error(monkeypatch):
         lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("boom")),
     )
     monkeypatch.setattr(
-        "app.decision.drift_detector.PerformanceDriftDetector", lambda: detector
+        "app.decision.drift_detector.PerformanceDriftDetector",
+        lambda settings=None: detector,
     )
 
     results = batch_check_drift({"A": 0.5})
@@ -113,7 +117,7 @@ def test_batch_check_drift_handles_error(monkeypatch):
 
 
 def test_get_drifting_tickers(monkeypatch):
-    def fake_check(scores_dict):
+    def fake_check(scores_dict, settings=None):
         return {
             "A": {"drifting": True, "alert_level": "WARNING"},
             "B": {"drifting": False, "alert_level": "NONE"},
@@ -310,7 +314,7 @@ def test_main_weekly_and_monthly(monkeypatch, test_settings):
 
 def test_main_manual_commands(monkeypatch):
     class DummyWalkUseCase:
-        def run(self, ticker=None):
+        def run(self, ticker=None, **kwargs):
             return {"status": "ok", "ticker": ticker}
 
     class DummyTrainUseCase:

@@ -41,7 +41,6 @@ class PyFolioReportGenerator:
 
     def _check_pyfolio(self) -> bool:
         """Check if PyFolio is installed."""
-        # TODO: Implement
         try:
             import pyfolio
 
@@ -75,8 +74,6 @@ class PyFolioReportGenerator:
                 "error": str or None
             }
         """
-        # TODO: Implement
-
         if not self.pyfolio_available:
             return {
                 "error": "PyFolio not installed",
@@ -126,8 +123,6 @@ class PyFolioReportGenerator:
         Returns:
             Comprehensive performance analysis dictionary
         """
-        # TODO: Implement
-
         if not self.pyfolio_available:
             return {"error": "PyFolio not available"}
 
@@ -171,7 +166,6 @@ def generate_pyfolio_report(
     Returns:
         Comprehensive performance metrics
     """
-    # TODO: Implement
     generator = PyFolioReportGenerator()
     return generator.generate_report(returns_series, positions_df)
 
@@ -193,8 +187,6 @@ def analyze_drawdown_periods(
             "avg_drawdown_depth": float
         }
     """
-    # TODO: Implement
-
     cumulative = (1 + returns_series).cumprod()
     running_max = cumulative.expanding().max()
     drawdown = (cumulative - running_max) / running_max

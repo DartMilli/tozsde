@@ -1,3 +1,9 @@
+"""DEPRECATED: compatibility shim - use ``app.core.decision`` directly. Will be removed in a future release."""
+
+from app.decision import emit_compat_warning
+
+emit_compat_warning("app.decision.market_regime_detector")
+
 from app.core.decision.market_regime_detector import (  # noqa: F401
     RegimeInfo,
     MarketRegimeDetector as CoreMarketRegimeDetector,

@@ -183,5 +183,5 @@ class HistoryStore:
         return out
 
     def load_recent_outcomes(self, ticker: str, n: int = 3) -> list[dict]:
-        """DAO-backed stub; returns [] until an outcomes table is introduced."""
+        """Return the n most recent evaluated outcomes for ticker from the outcomes table."""
         return self.dm.fetch_recent_outcomes(ticker, n=n)

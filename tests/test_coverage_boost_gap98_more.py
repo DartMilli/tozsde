@@ -1,4 +1,4 @@
-import builtins
+﻿import builtins
 import gzip
 import json
 import os
@@ -769,8 +769,8 @@ def test_capital_optimizer_invalid_kelly():
 
 
 def test_allocation_error_paths(monkeypatch):
-    from app.decision.allocation import allocate_capital, enforce_correlation_limits
-    import app.decision.allocation as allocation_module
+    from app.core.decision.allocation import allocate_capital, enforce_correlation_limits
+    import app.core.decision.allocation as allocation_module
 
     corr = pd.DataFrame(
         [[1.0, 0.9], [0.9, 1.0]], index=["AAA", "BBB"], columns=["AAA", "BBB"]
@@ -891,3 +891,5 @@ def test_pi_config_model_path_detection(monkeypatch):
         )
         is True
     )
+
+

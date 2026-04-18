@@ -15,6 +15,7 @@ from app.application.use_cases import (
     RunHistoricalPaperUseCase,
     TrainRLModelUseCase,
     ValidateModelUseCase,
+    RunGovernanceUseCase,
 )
 
 
@@ -32,9 +33,14 @@ class ApplicationContainer:
     historical_paper: Any
     train_rl: Any
     validate_model: Any
+    governance: Any
+    _ticker_provider: Any = None
 
     # Add service/repository getters as needed for DI root
     def get_supported_tickers(self):
+        if self._ticker_provider is not None:
+            return self._ticker_provider()
+        # Fallback when container is built without a provider (e.g., in tests)
         try:
             if hasattr(self.settings, "TICKERS"):
                 val = getattr(self.settings, "TICKERS")
@@ -53,10 +59,10 @@ class ApplicationContainer:
             return []
 
 
-def build_application(ensure_dirs: bool = True) -> ApplicationContainer:
-    settings = build_settings(ensure_dirs=ensure_dirs)
+def _build_ticker_provider(settings):
+    """Create a callable that returns the list of supported tickers for the given settings."""
 
-    def _supported_tickers():
+    def _provider():
         try:
             if hasattr(settings, "TICKERS"):
                 val = getattr(settings, "TICKERS")
@@ -74,9 +80,16 @@ def build_application(ensure_dirs: bool = True) -> ApplicationContainer:
         except Exception:
             return []
 
+    return _provider
+
+
+def build_application(ensure_dirs: bool = True) -> ApplicationContainer:
+    settings = build_settings(ensure_dirs=ensure_dirs)
+
+    _supported_tickers = _build_ticker_provider(settings)
+
     dm = DataManagerRepository(settings=settings)
     ohlcv_repo = SqliteOhlcvRepository(data_manager=dm)
-    dm_repo = DataManagerRepository(data_manager=dm, settings=settings)
     daily_pipeline = RunDailyPipelineUseCase(
         settings=settings,
         data_manager=dm,
@@ -97,6 +110,7 @@ def build_application(ensure_dirs: bool = True) -> ApplicationContainer:
     historical_paper = RunHistoricalPaperUseCase()
     train_rl = TrainRLModelUseCase(settings=settings)
     validate_model = ValidateModelUseCase(settings=settings)
+    governance = RunGovernanceUseCase(settings=settings)
     # Add other repositories/services here as needed, all injected with dm/settings
     # Inject settings into modules that support DI-style `set_settings`
     try:
@@ -124,7 +138,7 @@ def build_application(ensure_dirs: bool = True) -> ApplicationContainer:
         settings=settings,
         ohlcv_repo=ohlcv_repo,
         data_manager=dm,
-        data_manager_repo=dm_repo,
+        data_manager_repo=dm,
         daily_pipeline=daily_pipeline,
         walk_forward=walk_forward,
         weekly_reliability=weekly_reliability,
@@ -133,5 +147,7 @@ def build_application(ensure_dirs: bool = True) -> ApplicationContainer:
         historical_paper=historical_paper,
         train_rl=train_rl,
         validate_model=validate_model,
+        governance=governance,
+        _ticker_provider=_supported_tickers,
     )
     return container

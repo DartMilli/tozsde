@@ -4,6 +4,9 @@ Recommended: Run governance/validation via main.py:
 	python main.py governance --mode validation
 	python main.py governance --mode full
 
+> **Früssítés (2026-04-07):** Sprint 13 lezárva. A 2026-04-02-én azonosított összes kritikus hiba (ADX stub, PaperExecution SELL bug, commission hiány, Governance FrozenInstanceError, RSI/ATR Wilder EMA, RL end date) javítva. SQLite WAL mode bekapcsolva. Részletek: [KNOWN_ISSUES.md](KNOWN_ISSUES.md), [SPRINTS.md](SPRINTS.md).  
+> **Früssítés (2026-04-09):** Sprint 14 **LEZÁRVA** (18 probléma implementálva). Q6 safety filter, Q2 equity allokáció, Q1 normalizált fitness, Q3 half-Kelly, Q5 MAX_MODEL_AGE_DAYS, B1/B2/B3 architektúra javítások, A1–A3 deprecation, D1–D5 docs. Részletek: [SPRINT14_PLAN.md](SPRINT14_PLAN.md).
+
 # Tozsde Trading System
 
 ## English
@@ -11,13 +14,18 @@ Recommended: Run governance/validation via main.py:
 ### Overview
 Tozsde is a Python trading system that runs a daily decision pipeline, records auditable decisions and outcomes in SQLite, and provides backtesting, historical paper runs, and validation tooling (Phase 5 and Phase 6). It supports paper execution, model ensembles, position sizing, and reliability analysis, with reporting and operational tooling for monitoring and maintenance.
 
-### Feature Map (Detailed)
-- Daily pipeline: data load, signals, decision policy, allocation, persistence, notifications.
-- Paper execution: portfolio state tracking and outcome evaluation.
-- Historical paper runner: deterministic backfills for a date range; fallback HOLD decisions if no RL models are present.
-- Validation: decision quality, confidence calibration, walk-forward stability, safety stress, and Phase 6 checks.
-- Backtesting and audit: replay, audit trails, reward shaping analysis, and reporting outputs.
-- Ops tooling: health checks, backups, error reporting, cron scheduling, and log management.
+### Feature Map (Detailed – kód-alapú, 2026-04-15)
+- **Daily pipeline:** `load_data(180 nap)` → `prepare_df()` (10 indikátor) → `RLModelEnsembleRunner` (top 3 modell, WF-súlyozott szavazás) → `SafetyRuleEngine` (cooldown/drawdown/VIX/bear_market) → `allocate_capital()` (volatility + correlation) → `PaperExecutionEngine` (next_open ár) → DB + email
+- **Champion-Challenger Shadow Pipeline (S23):** New RL models run in shadow mode first, in parallel with the champion. Shadow evaluation logs decisions and, after a configurable period, automatically promotes the challenger if its Sharpe ratio exceeds the champion's by a threshold. Shadow status and promotion recommendation are available via API and on the dashboard. The public dashboard displays a live-updating shadow summary block, powered by the `/shadow-summary` endpoint (public, no auth), showing champion/challenger status, promotion recommendation, evaluation days, and Sharpe ratios.
+- **Paper execution:** portfolio state (cash + positions JSON) + outcomes DB-be mentve. Commission (`TRANSACTION_FEE_PCT`) levonva BUY és SELL esetén.
+- **Historical paper runner:** deterministic backfills for a date range; fallback HOLD decisions if no RL models are present. Idempotent (skip if date already in DB).
+- **Walk-forward:** DEAP GA (ngen=30, pop=50) → OOS fold értékelés → `production_score = 0.4*sharpe + 0.2*stability + 0.2*robustness + 0.2*(1-mxdd)`
+- **RL training:** DQN + PPO (MlpPolicy, net_arch=[64,32]) → `ModelPromotionGate` → `.zip` + `.meta.json`. End dátum dinamikus (`str(date.today())`).
+- **Validation:** Phase5 = DecisionQualityAnalyzer + ConfidenceCalibrator + WalkForwardStabilityAnalyzer + SafetyStressTester
+- **Governance:** subprocess-ként fut `quant_runner.py` – pytest + diagnostics + 13 validáció + 10-tételes checklist → `reports/<timestamp>/`
+- **Ops tooling:** health checks, backups, error reporting, cron scheduling, log management.
+
+> ✅ **Sprint 13 (2026-04-07):** ADX, RSI, ATR helyesen implementálva (Wilder-féle). Minden kritikus hiba javítva. Részletek: [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
 
 ### Quick Start (Windows IDE)
 ```bash
@@ -55,17 +63,21 @@ python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker 
 ```
 
 ### Governance Runner
-Unified quant validation and governance entry point:
+**Ajánlott belépési pont** (DI-kompatibilis, `.env` automatikusan betöltődik):
 
 ```bash
-python app/governance/quant_runner.py --mode diagnostics
-python app/governance/quant_runner.py --mode validation
-python app/governance/quant_runner.py --mode full
+python main.py governance --mode diagnostics
+python main.py governance --mode validation
+python main.py governance --mode full
 ```
 
-Reports are written to `reports/<timestamp>/` and include summary, validation, diagnostics, tests, checklist, and a run log.
+> **Megjegyzés:** A közvetlen `python app/governance/quant_runner.py --mode full` hívás **csak debugging célra** ajánlott,  
+> mert DI bypass-szal fut (nem a bootstrap container settings-ét használja).  
+> Használat előtt győződj meg róla, hogy a `.env` fájl a gyöér könyvtárban van.
 
-### Admin API (Selected Endpoints)
+Riportok: `reports/<timestamp>/` – tartalmaz: summary, validation, diagnostics, tests, checklist, run log.
+
+### Admin & Public API (Selected Endpoints)
 Admin endpoints require the X-Admin-Key header (see Config.ADMIN_API_KEY).
 
 - GET /admin/health
@@ -74,6 +86,7 @@ Admin endpoints require the X-Admin-Key header (see Config.ADMIN_API_KEY).
 - GET /admin/performance/rolling?days=90&window=30
 - GET /admin/errors/summary
 - GET /admin/capital/status
+- GET /shadow-summary *(public, no auth)* – JSON summary of current shadow evaluation (champion/challenger, Sharpe, days, promotion recommendation). Used by the live-refresh dashboard block.
 
 ### Tests
 - Latest test status and coverage: docs/testing/TEST_STATUS_REPORT.md
@@ -113,19 +126,27 @@ Note: deploy_rpi.sh supports optional RL training and optional RL cron via envir
 ### Notes
 - Historical paper runner uses a fallback HOLD decision if no RL model files are present.
 - Validation depends on outcomes being recorded; without outcomes, effectiveness and trust metrics report no_data.
+- `ENABLE_RL` defaults to `false` – monthly retraining will NOT update RL models unless explicitly set.
+- `app/main.py` is a legacy CLI entry point; the active entry is the root `main.py`.
+- Known issues and theoretical problems: see [docs/KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Magyar
 
 ### Attekintes
 A Tozsde egy Python alapu kereskedesi rendszer, amely napi dontesi pipeline-t futtat, auditalhato donteseket es outcome-okat ment SQLite-ba, valamint backtestinget, historikus paper futtatast es validacios toolingot ad (Phase 5 es Phase 6). Tamogatja a paper vegrehajtast, model ensemble-t, poziciomeretezest es megbizhatosag-elemzest, monitorozasi es karbantartasi eszkozokkel.
 
-### Funkcioterkep (reszletes)
-- Napi pipeline: adatbetoltes, jelgeneralas, policy, allokacio, mentes, ertesites.
-- Paper execution: portfolio state es outcome szamitas.
-- Historikus paper runner: determinisztikus visszatoltes; fallback HOLD dontes, ha nincs RL modell.
-- Validacio: dontesi minoseg, kalibracio, walk-forward stabilitas, safety stress, Phase 6 ellenorzesek.
-- Backtesting es audit: replay, audit nyomvonalak, reward shaping elemzes, riportok.
-- Ops tooling: health check, backup, error reporting, cron utemezes, log menedzsment.
+### Funkciótérkép (részletes – kód-alapú, 2026-04-15)
+- **Napi pipeline:** `load_data(180 nap)` → `prepare_df()` (10 indikátor) → `RLModelEnsembleRunner` (top 3 modell, WF-súlyozott szavazás) → `SafetyRuleEngine` (cooldown/drawdown/VIX/bear_market) → `allocate_capital()` → `PaperExecutionEngine` (next_open ár) → DB + email
+- **Champion-Challenger Shadow Pipeline (S23):** Az új RL modellek először shadow módban futnak, párhuzamosan a champion modellel. A shadow értékelés naplózza a döntéseket, és automatikus promóció történik, ha a challenger teljesítménye (Sharpe) meghaladja a champion-ét (küszöb + nap limit). A shadow státusz és promóciós javaslat elérhető API-n és dashboardon. A publikus dashboardon egy élőben frissülő shadow summary blokk jelenik meg, amely a /shadow-summary endpointot hívja meg JavaScripten keresztül, és mutatja a champion/challenger státuszt, promóciós javaslatot, értékelési napokat és Sharpe-okat.
+- **Paper execution:** portfolio state (cash + positions JSON) + outcomes DB-be mentve. Commission (`TRANSACTION_FEE_PCT`) levonva BUY és SELL esetén.
+- **Historikus paper runner:** determinisztikus visszatöltés; fallback HOLD döntés, ha nincs RL modell. Idempotens (skip, ha a dátum már DB-ben van).
+- **Walk-forward:** DEAP GA (ngen=30, pop=50) → OOS fold értékelés → production_score
+- **RL tanulás:** DQN + PPO (MlpPolicy) → ModelPromotionGate → .zip + .meta.json. ⚠️ ENABLE_RL=false default – havonta NEM frissül automatikusan.
+- **Validáció:** Phase 5 = DecisionQualityAnalyzer + ConfidenceCalibrator + WalkForwardStabilityAnalyzer + SafetyStressTester
+- **Governance:** subprocess-ként fut quant_runner.py – pytest + diagnostics + 13 validáció + 10 checklist → reports/<timestamp>/
+- **Ops tooling:** health check, backup, error reporting, cron ütemezés, log menedzsment.
+
+> ⚠️ **Ismert korlatozasok:** ADX indikator stub (konstans ~30.0), RSI/ATR nem Wilder-fele standard. Reszletek: [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
 
 ### Gyors Start (Windows IDE)
 ```bash
@@ -162,8 +183,8 @@ python main.py validate --ticker VOO --start-date 2022-01-01 --end-date 2023-12-
 python scripts/run_tests_with_report.py --skip-tests --with-validation --ticker VOO --start-date 2022-01-01 --end-date 2023-12-31
 ```
 
-### Admin API (kiemelt endpointok)
-Az admin endpointokhoz X-Admin-Key header szukseges (Config.ADMIN_API_KEY).
+### Admin & Publikus API (kiemelt endpointok)
+Az admin endpointokhoz X-Admin-Key header szükséges (Config.ADMIN_API_KEY).
 
 - GET /admin/health
 - GET /admin/performance/summary?days=30
@@ -171,6 +192,7 @@ Az admin endpointokhoz X-Admin-Key header szukseges (Config.ADMIN_API_KEY).
 - GET /admin/performance/rolling?days=90&window=30
 - GET /admin/errors/summary
 - GET /admin/capital/status
+- GET /shadow-summary *(publikus, nincs auth)* – JSON summary az aktuális shadow értékelésről (champion/challenger, Sharpe, napok, promóciós javaslat). Ezt használja a dashboard élő shadow summary blokkja.
 
 ### Tesztek
 - Legfrissebb teszt statusz es coverage: docs/testing/TEST_STATUS_REPORT.md
@@ -192,12 +214,17 @@ python scripts/run_all_tests.py
 - tests/: pytest suite
 - docs/: dokumentacio es teszt riportok
 
-### Dokumentacio
-- docs/INDEX.md navigacio
-- docs/SPRINTS.md sprint tortenet es architektura
-- docs/TROUBLESHOOTING_GUIDE.md hibakereses
-- docs/deployment Raspberry Pi telepites
+### Dokumentáció
+- docs/INDEX.md navigáció
+- docs/SPRINTS.md sprint történet és architektúra
+- docs/ECONOMIC_EFFICIENCY_ROADMAP.md feature roadmap (S19–S23, shadow pipeline részletekkel)
+- docs/TROUBLESHOOTING_GUIDE.md hibakeresés
+- docs/deployment Raspberry Pi telepítés
+- docs/deployment Raspberry Pi telepítés
 
 ### Megjegyzesek
 - A historikus paper runner fallback HOLD dontest ad, ha nincs RL modell.
 - Validacio outcome-ok nelkul no_data-t ad az effectiveness/trust metrikakra.
+- `ENABLE_RL` alaperteke `false` – havilag NEM frissulnek az RL modellek, ha nincs be env var beallitva.
+- Az `app/main.py` egy regi CLI belepesi pont; az aktiv belep a gyoker `main.py`.
+- Ismert problemak es elmeleti hibak: lasd [docs/KNOWN_ISSUES.md](KNOWN_ISSUES.md).

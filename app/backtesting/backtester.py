@@ -257,10 +257,18 @@ class Backtester:
         returns = equity_curve.pct_change().dropna()
         total_return_pct = ((final_value / self.initial_capital) - 1) * 100
 
-        # Sharpe
+        # Sharpe – annualizáció trade-frekvencia alapján
+        # (equity_curve trade-onként van indexelve, nem napi frekvencián)
         sharpe_ratio = 0
         if returns.std() > 0:
-            sharpe_ratio = (returns.mean() / returns.std()) * np.sqrt(252)
+            if len(portfolio_dates) >= 2:
+                total_days = max((portfolio_dates[-1] - portfolio_dates[0]).days, 1)
+                n_returns = len(returns)
+                trades_per_year = n_returns / (total_days / 252.0)
+                ann_factor = np.sqrt(max(trades_per_year, 1.0))
+            else:
+                ann_factor = np.sqrt(252)
+            sharpe_ratio = (returns.mean() / returns.std()) * ann_factor
 
         # Drawdown
         cummax = equity_curve.cummax()

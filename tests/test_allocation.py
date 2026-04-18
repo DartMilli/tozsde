@@ -1,4 +1,4 @@
-"""
+﻿"""
 Unit tests for capital allocation logic.
 
 Tests:
@@ -11,7 +11,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from unittest.mock import patch, MagicMock
-from app.decision.allocation import allocate_capital
+from app.core.decision.allocation import allocate_capital
 
 
 class TestCapitalAllocation:
@@ -63,7 +63,7 @@ class TestCapitalAllocation:
         ]
 
         # Mock the correlation matrix call to avoid DB access
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_corr:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_corr:
             # Return identity matrix (no correlation)
             mock_corr.return_value = pd.DataFrame(
                 np.eye(3),
@@ -121,7 +121,7 @@ class TestCapitalAllocation:
             },
         ]
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_corr:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_corr:
             mock_corr.return_value = pd.DataFrame(
                 np.eye(2), index=["TEST1", "TEST2"], columns=["TEST1", "TEST2"]
             )
@@ -154,7 +154,7 @@ class TestCorrelationAdjustment:
             },
         ]
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_corr:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_corr:
             # High correlation matrix
             mock_corr.return_value = pd.DataFrame(
                 [[1.0, 0.9], [0.9, 1.0]],
@@ -201,7 +201,7 @@ class TestCorrelationAdjustment:
             },
         ]
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_corr:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_corr:
             mock_corr.return_value = pd.DataFrame(
                 np.eye(2),
                 index=["HIGH_CONF", "LOW_CONF"],
@@ -266,7 +266,7 @@ class TestAllocationEdgeCases:
             },
         ]
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_corr:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_corr:
             mock_corr.return_value = pd.DataFrame(
                 np.eye(2), index=["T1", "T2"], columns=["T1", "T2"]
             )
@@ -277,3 +277,5 @@ class TestAllocationEdgeCases:
         assert abs(total_pct - 1.0) < 0.0001
         # Both should have positive allocation
         assert all(r["allocation_pct"] > 0 for r in result)
+
+

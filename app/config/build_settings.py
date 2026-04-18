@@ -1,4 +1,6 @@
 import os
+import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -6,6 +8,16 @@ from dotenv import load_dotenv
 
 from .settings import Settings
 from .pi_config import detect_pi_mode, apply_pi_config
+
+_settings_logger = logging.getLogger(__name__)
+_security_warnings_emitted: set = set()
+
+
+def _warn_once(key: str, message: str) -> None:
+    """Emit a security warning at most once per process per key."""
+    if key not in _security_warnings_emitted:
+        _security_warnings_emitted.add(key)
+        _settings_logger.warning(message)
 
 
 def build_settings(
@@ -44,12 +56,29 @@ def build_settings(
         RL_TEST_END_DATE=os.getenv("RL_TEST_END_DATE"),
         RL_TRAIN_RATIO=float(os.getenv("RL_TRAIN_RATIO", "0.7")),
         RL_VAL_RATIO=float(os.getenv("RL_VAL_RATIO", "0.15")),
-        ENABLE_RELIABILITY=False,
+        ENABLE_RELIABILITY=os.getenv("ENABLE_RELIABILITY", "true").lower() == "true",
         RELIABILITY_SOURCE=os.getenv("RELIABILITY_SOURCE", "db").lower(),
+        MODEL_DEMOTION_THRESHOLD=float(os.getenv("MODEL_DEMOTION_THRESHOLD", "0.3")),
         ENABLE_CONFIDENCE_CALIBRATION=os.getenv(
             "ENABLE_CONFIDENCE_CALIBRATION", "false"
         ).lower()
         == "true",
+        ENABLE_EXPECTANCY_GATE=os.getenv("ENABLE_EXPECTANCY_GATE", "false").lower()
+        == "true",
+        EXPECTANCY_MIN_SAMPLES=int(os.getenv("EXPECTANCY_MIN_SAMPLES", "10")),
+        EXPECTANCY_LOOKBACK_DAYS=int(os.getenv("EXPECTANCY_LOOKBACK_DAYS", "180")),
+        ENABLE_REGIME_POLICY=os.getenv("ENABLE_REGIME_POLICY", "false").lower()
+        == "true",
+        REGIME_POLICY_OVERRIDES=json.loads(os.getenv("REGIME_POLICY_OVERRIDES", "{}")),
+        ENABLE_COST_GATE=os.getenv("ENABLE_COST_GATE", "false").lower() == "true",
+        COST_BUFFER_MULTIPLIER=float(os.getenv("COST_BUFFER_MULTIPLIER", "1.5")),
+        ENABLE_ADAPTIVE_STRATEGY=os.getenv("ENABLE_ADAPTIVE_STRATEGY", "false").lower()
+        == "true",
+        ENABLE_SHADOW_EVAL=os.getenv("ENABLE_SHADOW_EVAL", "false").lower() == "true",
+        SHADOW_EVAL_DAYS=int(os.getenv("SHADOW_EVAL_DAYS", "30")),
+        SHADOW_PROMOTION_THRESHOLD=float(
+            os.getenv("SHADOW_PROMOTION_THRESHOLD", "1.1")
+        ),
         EXECUTION_MODE=os.getenv("EXECUTION_MODE", "paper").lower(),
         EXECUTION_POLICY=os.getenv("EXECUTION_POLICY", "next_open").lower(),
         ENABLE_DRIFT_DETECTION=os.getenv("ENABLE_DRIFT_DETECTION", "true").lower()
@@ -99,11 +128,11 @@ def build_settings(
         LANG="en",
         EMAIL_MAX_BODY_CHARS=int(os.getenv("EMAIL_MAX_BODY_CHARS", "5000")),
         EMAIL_MAX_DETAIL_LINES=int(os.getenv("EMAIL_MAX_DETAIL_LINES", "20")),
-        INITIAL_CAPITAL=10000,
-        RISK=0.02,
-        TRANSACTION_FEE_PCT=0.001,
-        MIN_SLIPPAGE_PCT=0.0005,
-        SPREAD_PCT=0.0005,
+        INITIAL_CAPITAL=float(os.getenv("INITIAL_CAPITAL", "10000")),
+        RISK=float(os.getenv("RISK", "0.02")),
+        TRANSACTION_FEE_PCT=float(os.getenv("TRANSACTION_FEE_PCT", "0.001")),
+        MIN_SLIPPAGE_PCT=float(os.getenv("MIN_SLIPPAGE_PCT", "0.0005")),
+        SPREAD_PCT=float(os.getenv("SPREAD_PCT", "0.0005")),
         RELIABILITY_PERIOD_DAYS=int(os.getenv("RELIABILITY_PERIOD_DAYS", "30")),
         P6_DRAWNDOWN_PENALTY_FACTOR=0.5,
         P6_VOLATILITY_PENALTY_FACTOR=0.5,
@@ -137,7 +166,7 @@ def build_settings(
         OPTIMIZER_GENERATIONS=30,
         OPTIMIZER_POPULATION=50,
         RL_TIMESTEPS=int(os.getenv("RL_TIMESTEPS", "100000")),
-        BEAR_MARKET_LOOKBACK_DAYS=400,
+        BEAR_MARKET_LOOKBACK_DAYS=250,
         BEAR_MARKET_SMA_PERIOD=200,
         RISK_FREE_FALLBACK=0.045,
         WARMUP_DAYS=100,
@@ -150,10 +179,44 @@ def build_settings(
         VOLATILITY_BUCKET_THRESHOLDS={"LOW": 0.015, "NORMAL": 0.03, "HIGH": 0.06},
         ENSEMBLE_QUALITY_THRESHOLDS={"STRONG": 0.6, "NORMAL": 0.3, "WEAK": 0.1},
         TICKERS=None,
+        DRAWDOWN_HALT_PCT=float(os.getenv("DRAWDOWN_HALT_PCT", "0.10")),
+        ATR_MULTIPLIER=float(os.getenv("ATR_MULTIPLIER", "2.0")),
+        KELLY_FRACTION_MULTIPLIER=float(os.getenv("KELLY_FRACTION_MULTIPLIER", "0.5")),
+        RISK_FREE_RATE=float(os.getenv("RISK_FREE_RATE", "0.045")),
+        MAX_MODEL_AGE_DAYS=int(os.getenv("MAX_MODEL_AGE_DAYS", "365")),
+        # Sprint 15B
+        ENABLE_REBALANCER=os.getenv("ENABLE_REBALANCER", "false").lower() == "true",
+        REBALANCE_THRESHOLD=float(os.getenv("REBALANCE_THRESHOLD", "0.20")),
+        REBALANCE_COST_MULTIPLIER=float(os.getenv("REBALANCE_COST_MULTIPLIER", "2.0")),
+        REBALANCE_EXECUTE=os.getenv("REBALANCE_EXECUTE", "false").lower() == "true",
+        DRIFT_ANNUAL_IMPACT_FACTOR=float(
+            os.getenv("DRIFT_ANNUAL_IMPACT_FACTOR", "0.5")
+        ),
+        ALLOCATION_MODE=os.getenv("ALLOCATION_MODE", "default").lower(),
+        ENABLE_CORRELATION_LIMITS=os.getenv("ENABLE_CORRELATION_LIMITS", "true").lower()
+        == "true",
+        MAX_CORRELATION=float(os.getenv("MAX_CORRELATION", "0.70")),
+        ENABLE_ML_ENSEMBLE=os.getenv("ENABLE_ML_ENSEMBLE", "false").lower() == "true",
+        # Sprint 16
+        BROKER_ADAPTER=os.getenv("BROKER_ADAPTER", "noop"),
     )
 
     if settings.PI_MODE:
         settings = apply_pi_config(settings)
+
+    if settings.ADMIN_API_KEY == "admin_key_12345":
+        _warn_once(
+            "ADMIN_API_KEY",
+            "SECURITY: ADMIN_API_KEY is using insecure default value. "
+            "Set the ADMIN_API_KEY environment variable in production.",
+        )
+
+    if settings.SECRET_KEY == "dev_key_do_not_use_in_prod":
+        _warn_once(
+            "SECRET_KEY",
+            "SECURITY: SECRET_KEY is using insecure default value. "
+            "Set the SECRET_KEY environment variable in production.",
+        )
 
     if ensure_dirs:
         for d in [

@@ -93,7 +93,7 @@ class TestRecommendationStrengthClassification:
             "avg_confidence": 0.85,  # >= STRONG_CONFIDENCE_THRESHOLD
             "avg_wf_score": 0.75,  # >= STRONG_WF_THRESHOLD
             "action_code": 1,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
         }
 
         result = build_recommendation(payload)
@@ -123,7 +123,7 @@ class TestRecommendationStrengthClassification:
             "avg_confidence": 0.82,
             "avg_wf_score": 0.70,
             "action_code": 2,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
         }
 
         result = build_recommendation(payload)
@@ -193,7 +193,7 @@ class TestBuildExplanationBasic:
             "ticker": "AAPL",
             "avg_confidence": 0.70,
             "avg_wf_score": 0.60,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
             "model_votes": [
                 {
                     "model_name": "Model1",
@@ -248,7 +248,7 @@ class TestBuildExplanationBasic:
             "ticker": "JNJ",
             "avg_confidence": 0.60,
             "avg_wf_score": 0.50,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
             "model_votes": [
                 {
                     "model_name": "ModelA",
@@ -361,7 +361,7 @@ class TestComputeDecisionQuality:
         payload = {
             "avg_confidence": 0.90,
             "avg_wf_score": 0.85,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
         }
 
         score = compute_decision_quality(payload)
@@ -374,7 +374,7 @@ class TestComputeDecisionQuality:
         payload = {
             "avg_confidence": 0.40,
             "avg_wf_score": 0.70,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
         }
 
         score = compute_decision_quality(payload)
@@ -569,7 +569,7 @@ class TestBoundaryConditions:
             "avg_confidence": 1.0,
             "avg_wf_score": 1.0,
             "action_code": 1,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
         }
 
         result = build_recommendation(payload)
@@ -639,7 +639,7 @@ class TestRecommendationQualityScore:
             "avg_confidence": 0.75,
             "avg_wf_score": 0.65,
             "action_code": 1,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
         }
 
         result = build_recommendation(payload)
@@ -654,7 +654,7 @@ class TestRecommendationQualityScore:
             "avg_confidence": 0.90,
             "avg_wf_score": 0.85,
             "action_code": 1,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
         }
 
         low_quality_payload = {

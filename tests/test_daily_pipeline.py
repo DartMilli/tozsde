@@ -1,4 +1,4 @@
-"""
+﻿"""
 Integration tests for daily pipeline.
 
 Tests:
@@ -14,7 +14,7 @@ import pandas as pd
 from datetime import date
 from app.decision.recommendation_builder import build_recommendation
 from app.decision.decision_policy import apply_decision_policy
-from app.decision.allocation import allocate_capital
+from app.core.decision.allocation import allocate_capital
 
 
 class TestDailyPipeline:
@@ -28,7 +28,7 @@ class TestDailyPipeline:
             "avg_confidence": 0.7,
             "avg_wf_score": 0.75,
             "action_code": 1,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
             "date": str(date.today()),
         }
 
@@ -57,7 +57,7 @@ class TestDailyPipeline:
         assert "action_code" in result or "action" in result
         assert result["confidence"] == decision["confidence"]
 
-    @patch("app.decision.allocation._get_correlation_matrix")
+    @patch("app.core.decision.allocation._get_correlation_matrix")
     def test_allocate_capital_single_decision(self, mock_corr):
         """allocate_capital should allocate 100% to single decision."""
         mock_corr.return_value = pd.DataFrame([[1.0]], index=["TEST"], columns=["TEST"])
@@ -77,7 +77,7 @@ class TestDailyPipeline:
         assert "allocation_pct" in result[0]
         assert result[0]["allocation_pct"] == 1.0
 
-    @patch("app.decision.allocation._get_correlation_matrix")
+    @patch("app.core.decision.allocation._get_correlation_matrix")
     def test_allocate_capital_filters_no_trade(self, mock_corr):
         """allocate_capital should skip no_trade decisions."""
         mock_corr.return_value = pd.DataFrame(
@@ -121,14 +121,14 @@ class TestPipelineDataIntegrity:
             "avg_confidence": 0.75,
             "avg_wf_score": 0.8,
             "action_code": 1,
-            "ensemble_quality": "STABLE",
+            "ensemble_quality": "STRONG",
         }
 
         decision = build_recommendation(payload)
 
         assert 0 <= decision["confidence"] <= 1
 
-    @patch("app.decision.allocation._get_correlation_matrix")
+    @patch("app.core.decision.allocation._get_correlation_matrix")
     def test_allocation_percentages_sum_to_one(self, mock_corr):
         """Allocation percentages across decisions should sum to ~1.0."""
         mock_corr.return_value = pd.DataFrame(
@@ -181,7 +181,7 @@ class TestPipelineDataIntegrity:
 class TestPipelineErrorHandling:
     """Tests for error handling and recovery."""
 
-    @patch("app.decision.allocation._get_correlation_matrix")
+    @patch("app.core.decision.allocation._get_correlation_matrix")
     def test_allocation_handles_zero_volatility(self, mock_corr):
         """allocate_capital should handle zero volatility gracefully."""
         mock_corr.return_value = pd.DataFrame(
@@ -234,3 +234,5 @@ class TestPipelineErrorHandling:
         # Should not raise exception
         result = apply_decision_policy(decision, audit)
         assert result is not None
+
+

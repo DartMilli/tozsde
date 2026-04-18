@@ -1,9 +1,7 @@
 """Performance drift detection core logic."""
 
-import sqlite3
 from typing import Dict, List, Optional
 
-from app.bootstrap.build_settings import build_settings
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -18,14 +16,24 @@ class PerformanceDriftDetector:
         drift_threshold: float = 0.15,
         critical_threshold: float = 0.30,
         settings=None,
+        data_manager=None,
     ):
         self.lookback_days = lookback_days
-        cfg = settings or build_settings()
-        self.drift_threshold = getattr(cfg, "DRIFT_THRESHOLD", drift_threshold)
+        self.drift_threshold = getattr(settings, "DRIFT_THRESHOLD", drift_threshold)
         self.critical_threshold = getattr(
-            cfg, "CRITICAL_DRIFT_THRESHOLD", critical_threshold
+            settings, "CRITICAL_DRIFT_THRESHOLD", critical_threshold
         )
         self.settings = settings
+        self._dm = data_manager
+        if self._dm is None:
+            try:
+                from app.infrastructure.repositories.data_manager_repository import (
+                    DataManagerRepository as _DM,
+                )
+
+                self._dm = _DM(settings=settings)
+            except Exception:
+                self._dm = None
 
     def check_drift(self, ticker: str, current_score: float) -> Dict:
         historical_scores = self._load_historical_scores(ticker)
@@ -80,27 +88,21 @@ class PerformanceDriftDetector:
     def _load_historical_scores(self, ticker: str) -> List[float]:
         scores: List[float] = []
         try:
-            cfg = self.settings or build_settings()
-            db_path = getattr(cfg, "DB_PATH", None)
+            if self._dm is None:
+                return scores
 
-            if db_path is None:
-                raise ValueError("DB_PATH not configured")
-
-            conn = sqlite3.connect(str(db_path))
-            cur = conn.cursor()
-
-            query = """
-                SELECT wf_score FROM decision_history
-                WHERE ticker = ? AND wf_score IS NOT NULL
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """
-            cur.execute(query, (ticker, self.lookback_days))
-            rows = cur.fetchall()
-
-            scores = [float(row[0]) for row in rows if row[0] is not None]
-            conn.close()
-        except (sqlite3.Error, IOError, ValueError) as e:
+            with self._dm.connection() as conn:
+                cur = conn.cursor()
+                query = """
+                    SELECT wf_score FROM decision_history
+                    WHERE ticker = ? AND wf_score IS NOT NULL
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """
+                cur.execute(query, (ticker, self.lookback_days))
+                rows = cur.fetchall()
+                scores = [float(row[0]) for row in rows if row[0] is not None]
+        except Exception as e:
             logger.warning(f"Failed to load history for {ticker}: {e}")
 
         return scores
@@ -162,8 +164,8 @@ class PerformanceDriftDetector:
         )
 
 
-def batch_check_drift(scores_dict: Dict[str, float]) -> Dict[str, Dict]:
-    detector = PerformanceDriftDetector()
+def batch_check_drift(scores_dict: Dict[str, float], settings=None) -> Dict[str, Dict]:
+    detector = PerformanceDriftDetector(settings=settings)
     results: Dict[str, Dict] = {}
 
     for ticker, current_score in scores_dict.items():
@@ -178,9 +180,9 @@ def batch_check_drift(scores_dict: Dict[str, float]) -> Dict[str, Dict]:
 
 
 def get_drifting_tickers(
-    scores_dict: Dict[str, float], alert_level: str = "WARNING"
+    scores_dict: Dict[str, float], alert_level: str = "WARNING", settings=None
 ) -> List[str]:
-    drift_results = batch_check_drift(scores_dict)
+    drift_results = batch_check_drift(scores_dict, settings=settings)
 
     alert_levels = ["CRITICAL", "WARNING"]
     try:

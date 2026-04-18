@@ -1,4 +1,85 @@
 // === Abrak es indikatorok betoltese ===
+function renderShadowSummary(summary) {
+    const card = document.getElementById('shadow-summary-card');
+    const copy = document.getElementById('shadow-summary-copy');
+    const candidatesBadge = document.getElementById('shadow-candidates-badge');
+    const tickersBadge = document.getElementById('shadow-tickers-badge');
+    const grid = document.getElementById('shadow-summary-grid');
+
+    if (!card || !copy || !candidatesBadge || !tickersBadge || !grid) {
+        return;
+    }
+
+    if (!summary || !summary.enabled) {
+        card.classList.add('d-none');
+        grid.classList.add('d-none');
+        grid.innerHTML = '';
+        return;
+    }
+
+    card.classList.remove('d-none');
+
+    const totalCandidates = summary.total_candidates || 0;
+    const promotionReady = summary.promotion_ready || 0;
+    const tickers = summary.tickers || {};
+    const tickerEntries = Object.entries(tickers);
+
+    copy.innerHTML = `Candidate modellek: ${totalCandidates}${promotionReady ? `<span class="ms-2 text-warning">Promócióra kész: ${promotionReady}</span>` : ''}`;
+    candidatesBadge.textContent = `${totalCandidates} challenger`;
+    tickersBadge.textContent = `${tickerEntries.length} ticker`;
+
+    if (!tickerEntries.length) {
+        grid.classList.add('d-none');
+        grid.innerHTML = '';
+        return;
+    }
+
+    grid.classList.remove('d-none');
+    grid.innerHTML = tickerEntries.map(([ticker, info]) => {
+        const challengers = info.challengers || [];
+        const challengerHtml = challengers.length
+            ? challengers.map((challenger) => `
+                <div class="shadow-challenger-row">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <span class="small fw-semibold">${challenger.model_id}</span>
+                        <span class="badge rounded-pill ${challenger.promotion_ready ? 'text-bg-success' : 'text-bg-secondary'}">${challenger.promotion_ready ? 'promócióra kész' : 'shadow aktív'}</span>
+                    </div>
+                    <div class="small text-secondary mt-1">
+                        Napok: ${challenger.days_evaluated || 0}
+                        | WF: ${Number(challenger.wf_score || 0).toFixed(2)}
+                        | Sharpe: ${Number(challenger.challenger_sharpe || 0).toFixed(2)}
+                    </div>
+                </div>
+            `).join('')
+            : '<div class="small text-secondary">Nincs aktív challenger.</div>';
+
+        return `
+            <div class="col-12 col-lg-6">
+                <div class="shadow-summary-panel h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>${ticker}</strong>
+                        <span class="small text-secondary">Champion: ${info.champion_model || 'n/a'}</span>
+                    </div>
+                    <div class="d-flex flex-column gap-2">${challengerHtml}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function refreshShadowSummary() {
+    try {
+        const response = await fetch('/shadow-summary');
+        if (!response.ok) {
+            return;
+        }
+        const summary = await response.json();
+        renderShadowSummary(summary);
+    } catch (error) {
+        console.error('Shadow summary refresh sikertelen:', error);
+    }
+}
+
 function showChart(imageUrl, clickedElement) {
     const imageElement = document.getElementById('chart-image');
     const descriptionElement = document.getElementById('chart-description');
@@ -216,3 +297,5 @@ sliderStart.addEventListener('input', () => updateSliderUI(sliderStart));
 sliderEnd.addEventListener('input', () => updateSliderUI(sliderEnd));
 
 updateSliderUI();
+refreshShadowSummary();
+window.setInterval(refreshShadowSummary, 60000);

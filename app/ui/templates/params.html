@@ -1,41 +1,57 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="hu" data-bs-theme="dark">
 
 <head>
     <meta charset="UTF-8">
-    <title>{{ ticker }} - Parameterek</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ ticker }} - Paraméterek</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 
-<body>
-    <h1>{{ ticker }} - Optimalizalt parameterek</h1>
+<body class="bg-dark text-light">
+    <div class="container-fluid px-3 py-3">
 
-    <form method="get" action="/params" style="margin-bottom: 20px;">
-        <label for="ticker">Ticker:</label>
-        <select name="ticker" id="ticker">
-            {% for t in tickers %}
-            <option value="{{ t }}" {% if t==ticker %}selected{% endif %}>{{ t }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Mutatas</button>
-    </form>
+        <h1 class="h4 mb-3">{{ ticker }} – Optimalizált paraméterek</h1>
 
-    <table class="indicator-table" style="display: table;">
-        <thead>
-            <tr>
-                <th>Parameter</th>
-                <th>Ertek</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for key, value in params.items() %}
-            <tr>
-                <td>{{ key }}</td>
-                <td>{{ value }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <form method="get" action="/params" class="row g-2 align-items-end mb-4">
+            <div class="col-auto">
+                <label for="ticker" class="form-label mb-0 small">Ticker:</label>
+                <select name="ticker" id="ticker" class="form-select form-select-sm">
+                    {% for t in tickers %}
+                    <option value="{{ t }}" {% if t==ticker %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-light btn-sm">Mutatás</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-dark table-hover table-bordered">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>Paraméter</th>
+                        <th>Érték</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for key, value in params.items() %}
+                    <tr>
+                        <td>{{ key }}</td>
+                        <td>{{ value }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmQ0QS3KoRLtGCZT5QVGhXbFUAqx"
+        crossorigin="anonymous"></script>
 </body>
 
 </html>

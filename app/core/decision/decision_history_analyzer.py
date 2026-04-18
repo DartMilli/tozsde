@@ -28,11 +28,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
-import sqlite3
 import json
 import pandas as pd
 
-from app.bootstrap.build_settings import build_settings
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -76,14 +74,21 @@ class DecisionHistoryAnalyzer:
     to support adaptive decision-making and strategy selection.
     """
 
-    def __init__(self, settings=None):
+    def __init__(self, settings=None, data_manager=None):
         """Initialize the analyzer."""
         self.settings = settings
-        cfg = settings or build_settings()
+        self.db_path = getattr(settings, "DB_PATH", None)
 
-        self.db_path = None
-        if cfg is not None:
-            self.db_path = getattr(cfg, "DB_PATH", None)
+        self._dm = data_manager
+        if self._dm is None:
+            try:
+                from app.infrastructure.repositories.data_manager_repository import (
+                    DataManagerRepository as _DM,
+                )
+
+                self._dm = _DM(settings=settings)
+            except Exception:
+                self._dm = None
 
     def analyze_strategy_performance(
         self, strategy_name: str, days: int = 90
@@ -327,49 +332,48 @@ class DecisionHistoryAnalyzer:
     def _load_strategy_decisions(self, strategy_name: str, days: int) -> List[Dict]:
         """Load decisions for a specific strategy."""
         try:
-            db_path = self._resolve_db_path()
-            conn = sqlite3.connect(str(db_path))
-            cur = conn.cursor()
+            if self._dm is None:
+                return []
 
-            cutoff_date = datetime.now() - timedelta(days=days)
+            with self._dm.connection() as conn:
+                cur = conn.cursor()
 
-            # Detect schema: whether audit stored in `audit_blob` or `audit_data`
-            cur.execute("PRAGMA table_info(decision_history)")
-            cols = [r[1] for r in cur.fetchall()]
-            audit_col = (
-                "audit_blob"
-                if "audit_blob" in cols
-                else ("audit_data" if "audit_data" in cols else "audit_blob")
-            )
+                cutoff_date = datetime.now() - timedelta(days=days)
 
-            # Check if outcomes table exists
-            cur.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='outcomes'"
-            )
-            outcomes_exists = cur.fetchone() is not None
+                # Detect schema: whether audit stored in `audit_blob` or `audit_data`
+                cur.execute("PRAGMA table_info(decision_history)")
+                cols = [r[1] for r in cur.fetchall()]
+                audit_col = (
+                    "audit_blob"
+                    if "audit_blob" in cols
+                    else ("audit_data" if "audit_data" in cols else "audit_blob")
+                )
 
-            if outcomes_exists:
-                query = f"""
-                    SELECT dh.timestamp, dh.ticker, dh.{audit_col}, o.pnl_pct
-                    FROM decision_history dh
-                    LEFT JOIN outcomes o ON o.decision_id = dh.id
-                    WHERE dh.timestamp >= ? AND dh.action_code = 1
-                """
-            else:
-                query = f"""
-                    SELECT dh.timestamp, dh.ticker, dh.{audit_col} as audit_blob, NULL as pnl_pct
-                    FROM decision_history dh
-                    WHERE dh.timestamp >= ? AND dh.action_code = 1
-                """
+                # Check if outcomes table exists
+                cur.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='outcomes'"
+                )
+                outcomes_exists = cur.fetchone() is not None
 
-            try:
-                cur.execute(query, (cutoff_date.isoformat(),))
-                rows = cur.fetchall()
-            except sqlite3.OperationalError:
-                conn.close()
-                raise
+                if outcomes_exists:
+                    query = f"""
+                        SELECT dh.timestamp, dh.ticker, dh.{audit_col}, o.pnl_pct
+                        FROM decision_history dh
+                        LEFT JOIN outcomes o ON o.decision_id = dh.id
+                        WHERE dh.timestamp >= ? AND dh.action_code = 1
+                    """
+                else:
+                    query = f"""
+                        SELECT dh.timestamp, dh.ticker, dh.{audit_col} as audit_blob, NULL as pnl_pct
+                        FROM decision_history dh
+                        WHERE dh.timestamp >= ? AND dh.action_code = 1
+                    """
 
-            conn.close()
+                try:
+                    cur.execute(query, (cutoff_date.isoformat(),))
+                    rows = cur.fetchall()
+                except Exception:
+                    raise
 
             decisions = []
             for timestamp, ticker, audit_blob, pnl_pct in rows:
@@ -406,47 +410,47 @@ class DecisionHistoryAnalyzer:
     def _load_ticker_decisions(self, ticker: str, days: int) -> List[Dict]:
         """Load decisions for a specific ticker."""
         try:
-            db_path = self._resolve_db_path()
-            conn = sqlite3.connect(str(db_path))
-            cur = conn.cursor()
+            if self._dm is None:
+                return []
 
-            cutoff_date = datetime.now() - timedelta(days=days)
+            with self._dm.connection() as conn:
+                cur = conn.cursor()
 
-            cur.execute("PRAGMA table_info(decision_history)")
-            cols = [r[1] for r in cur.fetchall()]
-            audit_col = (
-                "audit_blob"
-                if "audit_blob" in cols
-                else ("audit_data" if "audit_data" in cols else "audit_blob")
-            )
+                cutoff_date = datetime.now() - timedelta(days=days)
 
-            cur.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='outcomes'"
-            )
-            outcomes_exists = cur.fetchone() is not None
+                cur.execute("PRAGMA table_info(decision_history)")
+                cols = [r[1] for r in cur.fetchall()]
+                audit_col = (
+                    "audit_blob"
+                    if "audit_blob" in cols
+                    else ("audit_data" if "audit_data" in cols else "audit_blob")
+                )
+                confidence_col = "dh.confidence" if "confidence" in cols else "NULL"
 
-            if outcomes_exists:
-                query = f"""
-                    SELECT dh.timestamp, dh.{audit_col}, dh.confidence, o.pnl_pct
-                    FROM decision_history dh
-                    LEFT JOIN outcomes o ON o.decision_id = dh.id
-                    WHERE dh.ticker = ? AND dh.timestamp >= ? AND dh.action_code = 1
-                """
-            else:
-                query = f"""
-                    SELECT dh.timestamp, dh.{audit_col} as audit_blob, NULL as confidence, NULL as pnl_pct
-                    FROM decision_history dh
-                    WHERE dh.ticker = ? AND dh.timestamp >= ? AND dh.action_code = 1
-                """
+                cur.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='outcomes'"
+                )
+                outcomes_exists = cur.fetchone() is not None
 
-            try:
-                cur.execute(query, (ticker, cutoff_date.isoformat()))
-                rows = cur.fetchall()
-            except sqlite3.OperationalError:
-                conn.close()
-                raise
+                if outcomes_exists:
+                    query = f"""
+                        SELECT dh.timestamp, dh.{audit_col}, {confidence_col}, o.pnl_pct
+                        FROM decision_history dh
+                        LEFT JOIN outcomes o ON o.decision_id = dh.id
+                        WHERE dh.ticker = ? AND dh.timestamp >= ? AND dh.action_code = 1
+                    """
+                else:
+                    query = f"""
+                        SELECT dh.timestamp, dh.{audit_col} as audit_blob, {confidence_col}, NULL as pnl_pct
+                        FROM decision_history dh
+                        WHERE dh.ticker = ? AND dh.timestamp >= ? AND dh.action_code = 1
+                    """
 
-            conn.close()
+                try:
+                    cur.execute(query, (ticker, cutoff_date.isoformat()))
+                    rows = cur.fetchall()
+                except Exception:
+                    raise
 
             decisions = []
             for timestamp, audit_blob, confidence, pnl_pct in rows:
@@ -483,47 +487,46 @@ class DecisionHistoryAnalyzer:
     def _load_all_decisions(self, days: int) -> List[Dict]:
         """Load all decisions in lookback period."""
         try:
-            db_path = self._resolve_db_path()
-            conn = sqlite3.connect(str(db_path))
-            cur = conn.cursor()
+            if self._dm is None:
+                return []
 
-            cutoff_date = datetime.now() - timedelta(days=days)
+            with self._dm.connection() as conn:
+                cur = conn.cursor()
 
-            cur.execute("PRAGMA table_info(decision_history)")
-            cols = [r[1] for r in cur.fetchall()]
-            audit_col = (
-                "audit_blob"
-                if "audit_blob" in cols
-                else ("audit_data" if "audit_data" in cols else "audit_blob")
-            )
+                cutoff_date = datetime.now() - timedelta(days=days)
 
-            cur.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='outcomes'"
-            )
-            outcomes_exists = cur.fetchone() is not None
+                cur.execute("PRAGMA table_info(decision_history)")
+                cols = [r[1] for r in cur.fetchall()]
+                audit_col = (
+                    "audit_blob"
+                    if "audit_blob" in cols
+                    else ("audit_data" if "audit_data" in cols else "audit_blob")
+                )
 
-            if outcomes_exists:
-                query = f"""
-                    SELECT dh.timestamp, dh.ticker, dh.{audit_col}, o.pnl_pct
-                    FROM decision_history dh
-                    LEFT JOIN outcomes o ON o.decision_id = dh.id
-                    WHERE dh.timestamp >= ? AND dh.action_code = 1
-                """
-            else:
-                query = f"""
-                    SELECT dh.timestamp, dh.ticker, dh.{audit_col} as audit_blob, NULL as pnl_pct
-                    FROM decision_history dh
-                    WHERE dh.timestamp >= ? AND dh.action_code = 1
-                """
+                cur.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='outcomes'"
+                )
+                outcomes_exists = cur.fetchone() is not None
 
-            try:
-                cur.execute(query, (cutoff_date.isoformat(),))
-                rows = cur.fetchall()
-            except sqlite3.OperationalError:
-                conn.close()
-                raise
+                if outcomes_exists:
+                    query = f"""
+                        SELECT dh.timestamp, dh.ticker, dh.{audit_col}, o.pnl_pct
+                        FROM decision_history dh
+                        LEFT JOIN outcomes o ON o.decision_id = dh.id
+                        WHERE dh.timestamp >= ? AND dh.action_code = 1
+                    """
+                else:
+                    query = f"""
+                        SELECT dh.timestamp, dh.ticker, dh.{audit_col} as audit_blob, NULL as pnl_pct
+                        FROM decision_history dh
+                        WHERE dh.timestamp >= ? AND dh.action_code = 1
+                    """
 
-            conn.close()
+                try:
+                    cur.execute(query, (cutoff_date.isoformat(),))
+                    rows = cur.fetchall()
+                except Exception:
+                    raise
 
             decisions = []
             for timestamp, ticker, audit_blob, pnl_pct in rows:
@@ -553,20 +556,6 @@ class DecisionHistoryAnalyzer:
         except Exception as e:
             logger.error(f"Failed to load all decisions: {e}")
             return []
-
-    def _resolve_db_path(self):
-        if self.settings is not None and self.db_path:
-            return self.db_path
-        cfg = self.settings
-        if cfg is None:
-            try:
-                cfg = get_settings()
-            except Exception:
-                cfg = build_settings()
-        db_path = getattr(cfg, "DB_PATH", None) if cfg is not None else None
-        if db_path is not None:
-            return db_path
-        return self.db_path
 
     def _get_all_strategies(self) -> List[str]:
         """Get list of all strategies used."""

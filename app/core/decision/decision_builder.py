@@ -71,8 +71,11 @@ def compute_decision_quality(payload: Dict) -> float:
         avg_wf = 0.0
 
     ensemble_score_map = {
-        "STABLE": 1.0,
-        "MIXED": 0.7,
+        "STRONG": 1.0,
+        "STABLE": 1.0,  # legacy alias – kept for backward-compat
+        "NORMAL": 0.7,
+        "MIXED": 0.7,  # legacy alias
+        "WEAK": 0.5,
         "CHAOTIC": 0.4,
     }
 

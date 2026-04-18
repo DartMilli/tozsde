@@ -1,4 +1,4 @@
-import json
+﻿import json
 from types import SimpleNamespace
 from dataclasses import replace
 from datetime import date, datetime, timedelta
@@ -242,7 +242,7 @@ def test_manual_walk_forward_and_rl(monkeypatch):
     import main
 
     class FakeWalkUseCase:
-        def run(self, ticker=None):
+        def run(self, ticker=None, **kwargs):
             return {"status": "ok", "ticker": ticker}
 
     class FakeTrainUseCase:
@@ -265,7 +265,7 @@ def test_manual_failures(monkeypatch):
     import main
 
     class FakeWalkUseCase:
-        def run(self, ticker=None):
+        def run(self, ticker=None, **kwargs):
             raise RuntimeError("fail")
 
     class FakeTrainUseCase:
@@ -533,7 +533,7 @@ def test_safety_rules_bear_warning(monkeypatch):
 
 def test_decision_reliability_and_ensemble_quality(test_settings):
     from app.decision.decision_reliability import assess_decision_reliability
-    from app.decision.ensemble_quality import (
+    from app.core.decision.ensemble_quality import (
         bucket_ensemble_quality,
         EnsembleQualityBucket,
     )
@@ -569,12 +569,14 @@ def test_decision_reliability_and_ensemble_quality(test_settings):
     assert (
         bucket_ensemble_quality(
             test_settings.ENSEMBLE_QUALITY_THRESHOLDS["STRONG"],
-            settings=test_settings,
+            thresholds=test_settings.ENSEMBLE_QUALITY_THRESHOLDS,
         )
         == EnsembleQualityBucket.STRONG
     )
     assert (
-        bucket_ensemble_quality(0.0, settings=test_settings)
+        bucket_ensemble_quality(
+            0.0, thresholds=test_settings.ENSEMBLE_QUALITY_THRESHOLDS
+        )
         == EnsembleQualityBucket.CHAOTIC
     )
 

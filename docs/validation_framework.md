@@ -69,6 +69,22 @@ When `collapse_stage` is `edge_filter`, `collapse_reason` is derived from edge d
 
 Deployment is allowed only if all required checklist items pass and no blocking issues are present.
 
+## Mandatory Validation Tracks
+
+Before deployment, all 9 tracks must pass:
+
+| # | Track | Requirement | Evidence |
+|---|-------|-------------|----------|
+| 1 | Lookahead Bias Guard | Execution uses next-bar open (no same-bar close) | `execution_policy: next_open` in validation output |
+| 2 | Data Leakage Guard | Time-based splits for RL training/evaluation | Train/val/test windows in metadata |
+| 3 | RL Stability | Stress tests on seeds and noise injection pass | RL stress test summary: mean & std Sharpe |
+| 4 | Walk-Forward Robustness | Stable OOS performance across folds | `mean_oos_sharpe` and discard ratio in summary |
+| 5 | GA Seed Variance | GA robustness stress pass rate above threshold | `ga_robustness.stress_pass_rate` in validation |
+| 6 | Execution Sensitivity | Policy sensitivity does not flip conclusions | `execution_sensitivity` results in validation.json |
+| 7 | Risk Stress | Risk stress pass rate above threshold | `risk_stress` results in validation.json |
+| 8 | Diagnostics Integrity | Pipeline audit, data integrity, sanity strategy pass | `diagnostics.json` with empty or explained warnings |
+| 9 | Edge Diagnostics | If trade_count is 0, collapse stage/reason determined | `summary.json` `collapse_stage`/`collapse_reason` |
+
 ## CLI Usage
 ```bash
 python app/governance/quant_runner.py --mode diagnostics
@@ -79,4 +95,4 @@ python app/governance/quant_runner.py --mode full
 ## Notes
 - All run artifacts are stored in the timestamped report directory.
 - Diagnostics do not write files directly; the runner centralizes reporting.
-- Manual review items are surfaced from `docs/testing/go_live_checklist.md` and `docs/testing/quant_validation_plan.md`.
+- Manual review items are surfaced from `docs/testing/go_live_checklist.md`.

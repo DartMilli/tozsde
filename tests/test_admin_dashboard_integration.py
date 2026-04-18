@@ -1,7 +1,7 @@
 """
 Integration tests for Admin Dashboard endpoints (Sprint 10 Week 1 - Issue #4).
 
-Tests all 11 admin endpoints with proper mocking and fixture setup:
+Tests all 12 admin endpoints with proper mocking and fixture setup:
 1. /admin/health - System health check
 2. /admin/performance/summary - Overall performance metrics
 3. /admin/performance/drawdown - Drawdown analysis
@@ -13,6 +13,7 @@ Tests all 11 admin endpoints with proper mocking and fixture setup:
 9. /admin/decisions/no-trades - No-trade analysis
 10. /admin/strategies/performance - Strategy breakdown
 11. /admin/confidence/distribution - Confidence bucket stats
+12. /admin/models/shadow - Shadow challenger status
 
 Coverage Target: AdminDashboard from 67% to 75%+
 """
@@ -37,7 +38,10 @@ def client():
 @pytest.fixture
 def admin_headers():
     """Valid admin headers with authentication."""
-    return {"X-Admin-Key": "admin_key_12345", "Content-Type": "application/json"}
+    from app.config.build_settings import build_settings
+
+    key = build_settings().ADMIN_API_KEY
+    return {"X-Admin-Key": key, "Content-Type": "application/json"}
 
 
 @pytest.fixture
@@ -549,6 +553,38 @@ class TestConfidenceDistributionEndpoint:
         assert "strong" in data["distribution"] or "STRONG" in data["distribution"]
 
 
+class TestShadowModelsEndpoint:
+    """Test /admin/models/shadow endpoint."""
+
+    @patch("app.ui.admin_dashboard._build_shadow_status")
+    def test_shadow_models_success(self, mock_status, client, admin_headers):
+        mock_status.return_value = {
+            "enabled": True,
+            "total_candidates": 1,
+            "promotion_ready": 1,
+            "tickers": {
+                "VOO": {
+                    "champion_model": "champion-1",
+                    "challengers": [
+                        {
+                            "model_id": "challenger-1",
+                            "days_evaluated": 30,
+                            "promotion_ready": True,
+                        }
+                    ],
+                }
+            },
+        }
+
+        response = client.get("/admin/models/shadow?ticker=VOO", headers=admin_headers)
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["enabled"] is True
+        assert data["promotion_ready"] == 1
+        assert "VOO" in data["tickers"]
+
+
 # Authentication Tests
 class TestAdminAuthenticationAcrossEndpoints:
     """Test that all endpoints require proper authentication."""
@@ -565,6 +601,7 @@ class TestAdminAuthenticationAcrossEndpoints:
         "/admin/decisions/no-trades",
         "/admin/strategies/performance",
         "/admin/confidence/distribution",
+        "/admin/models/shadow",
     ]
 
     def test_all_endpoints_reject_no_auth(self, client, no_auth_headers):

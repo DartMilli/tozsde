@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-from app.bootstrap.build_settings import build_settings
+from app.config.build_settings import build_settings
 from app.infrastructure.logger import setup_logger
 from app.infrastructure.repositories import DataManagerRepository
 
@@ -57,6 +57,8 @@ class PortfolioCorrelationManager:
 
             df_recent = df.tail(self.lookback_days)
             returns = df_recent["Close"].pct_change().dropna()
+            if returns.index.duplicated().any():
+                returns = returns[~returns.index.duplicated(keep="last")]
             returns_dict[ticker] = returns
 
         if not returns_dict:
@@ -259,6 +261,15 @@ class PortfolioCorrelationManager:
         logger.info("Correlation cache cleared")
 
     def _create_data_repository(self):
+        if self.settings is None:
+            import warnings
+
+            warnings.warn(
+                f"{self.__class__.__name__}: settings not injected, falling back to build_settings(). "
+                "Pass settings= for proper DI. This fallback will be removed in S17.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         cfg = self.settings or build_settings()
         try:
             return DataManagerRepository(settings=cfg)

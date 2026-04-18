@@ -1,3 +1,4 @@
+"""DEPRECATED: compatibility shim - use ``app.core.decision`` directly. Will be removed in a future release."""
 from typing import Dict
 
 from app.bootstrap.build_settings import build_settings

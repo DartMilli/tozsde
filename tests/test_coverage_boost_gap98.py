@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 import sqlite3
 from dataclasses import replace
@@ -204,8 +204,8 @@ def test_data_loader_and_manager_branches(monkeypatch, tmp_path, test_settings):
 
 
 def test_allocation_and_limits(monkeypatch):
-    from app.decision.allocation import allocate_capital, enforce_correlation_limits
-    import app.decision.allocation as allocation_module
+    from app.core.decision.allocation import allocate_capital, enforce_correlation_limits
+    import app.core.decision.allocation as allocation_module
 
     corr = pd.DataFrame(
         [[1.0, 0.9], [0.9, 1.0]], index=["AAA", "BBB"], columns=["AAA", "BBB"]
@@ -394,3 +394,5 @@ def test_logger_levels(monkeypatch, tmp_path):
     monkeypatch.setattr(Config, "LOGGING_LEVEL", "ERROR")
     logger2 = setup_logger("lvl_error")
     assert logger2.level
+
+

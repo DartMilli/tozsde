@@ -1,18 +1,33 @@
 import datetime
 from typing import Dict, List, Optional, Tuple
 
+from app.infrastructure.logger import setup_logger
+
+
+logger = setup_logger(__name__)
+
 
 def aggregate_weighted_ensemble(
     votes,
     confidences,
     wf_scores: List[Optional[float]],
     model_votes: List[Dict],
+    reliability_scores: Optional[Dict[str, float]] = None,
     settings=None,
 ) -> Tuple[int, float, float]:
-    assert len(votes) == len(confidences) == len(wf_scores)
+    if not (len(votes) == len(confidences) == len(wf_scores)):
+        raise ValueError(
+            f"Mismatched ensemble input lengths: votes={len(votes)}, "
+            f"confidences={len(confidences)}, wf_scores={len(wf_scores)}"
+        )
 
     action_scores = {0: 0.0, 1: 0.0, 2: 0.0}
     total_weight = 0.0
+
+    max_model_age_days = (
+        getattr(settings, "MAX_MODEL_AGE_DAYS", 365) if settings is not None else 365
+    )
+    today = datetime.date.today()
 
     for action, conf, wf, model_vote in zip(votes, confidences, wf_scores, model_votes):
         if conf is None:
@@ -20,6 +35,11 @@ def aggregate_weighted_ensemble(
 
         rank = model_vote.get("rank")
         trained_at = model_vote.get("trained_at")
+        model_path = model_vote.get("model_path")
+
+        # Exclude stale models from the ensemble.
+        if trained_at is not None and (today - trained_at).days > max_model_age_days:
+            continue
 
         weight = conf
 
@@ -37,8 +57,27 @@ def aggregate_weighted_ensemble(
             else 90
         )
         weight *= compute_recency_weight(
-            trained_at, today=datetime.date.today(), half_life_days=half_life
+            trained_at, today=today, half_life_days=half_life
         )
+
+        reliability = 0.5
+        if model_path and reliability_scores is not None:
+            reliability = reliability_scores.get(model_path, 0.5)
+        weight *= reliability
+
+        demotion_threshold = (
+            getattr(settings, "MODEL_DEMOTION_THRESHOLD", 0.3)
+            if settings is not None
+            else 0.3
+        )
+        if model_path and reliability < demotion_threshold:
+            logger.warning(
+                "Model %s demoted: reliability=%.3f < %.3f",
+                model_path,
+                reliability,
+                demotion_threshold,
+            )
+            weight *= 0.1
 
         action_scores[action] += weight
         total_weight += weight

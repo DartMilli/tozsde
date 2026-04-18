@@ -8,6 +8,7 @@ from app.application.use_cases.run_phase5_validation import RunPhase5ValidationU
 from app.application.use_cases.run_historical_paper import RunHistoricalPaperUseCase
 from app.application.use_cases.train_rl_model import TrainRLModelUseCase
 from app.application.use_cases.validate_model import ValidateModelUseCase
+from app.application.use_cases.run_governance import RunGovernanceUseCase
 
 __all__ = [
     "DailyPipelineUseCase",
@@ -19,6 +20,7 @@ __all__ = [
     "RunHistoricalPaperUseCase",
     "TrainRLModelUseCase",
     "ValidateModelUseCase",
+    "RunGovernanceUseCase",
     "ok",
     "error",
     "UseCaseResult",

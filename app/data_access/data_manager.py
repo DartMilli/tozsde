@@ -62,10 +62,15 @@ class DataManager:
             pass
 
         conn = sqlite3.connect(self.db_path)
+        conn.execute("PRAGMA journal_mode=WAL")
         try:
             yield conn
         finally:
             conn.close()
+
+    def connection(self):
+        """Public context manager for database connections (delegates to _get_conn)."""
+        return self._get_conn()
 
     # --- SEMA ES INICIALIZALAS (P9/Ops) ---
 
@@ -439,6 +444,12 @@ class DataManager:
 
         df_to_save.columns = [_norm_col(c) for c in df_to_save.columns]
 
+        # Normalize date column to YYYY-MM-DD string to ensure consistent format in DB
+        if "date" in df_to_save.columns:
+            df_to_save["date"] = pd.to_datetime(
+                df_to_save["date"], errors="coerce"
+            ).dt.strftime("%Y-%m-%d")
+
         with self._get_conn() as conn:
             # Ideiglenes tabla a gyors upserthez
             df_to_save.to_sql("temp_ohlcv", conn, if_exists="replace", index=False)
@@ -478,9 +489,12 @@ class DataManager:
         query += " ORDER BY date ASC"
 
         with self._get_conn() as conn:
-            df = pd.read_sql(query, conn, params=params, parse_dates=["date"])
+            df = pd.read_sql(query, conn, params=params)
             if not df.empty:
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                df = df[df["date"].notna()]
                 df.set_index("date", inplace=True)
+                df = df[~df.index.duplicated(keep="last")]
                 # Oszlopnevek visszaallitasa a vart formatumra
                 df.columns = [c.capitalize() for c in df.columns]
             return df

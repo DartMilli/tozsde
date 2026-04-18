@@ -1,4 +1,5 @@
 from typing import Any, Optional
+import threading
 
 from app.data_access.data_loader import load_data
 from app.models.rl_inference import RLModelEnsembleRunner
@@ -10,12 +11,14 @@ class MarketDataFetcher:
 
     def __init__(self):
         self._cache = {}
+        self._lock = threading.Lock()
 
     def load_data(self, ticker: str, start: str, end: Optional[str] = None):
         cache_key = (ticker, start, end)
-        if cache_key not in self._cache:
-            self._cache[cache_key] = load_data(ticker, start=start, end=end)
-        return self._cache[cache_key]
+        with self._lock:
+            if cache_key not in self._cache:
+                self._cache[cache_key] = load_data(ticker, start=start, end=end)
+            return self._cache[cache_key]
 
 
 class ModelEnsembleRunner:

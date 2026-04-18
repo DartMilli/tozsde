@@ -6,7 +6,7 @@ from app.services.dependencies import (
     MarketDataFetcher,
     ModelEnsembleRunner,
 )
-from app.services.execution_engines import NoopExecutionEngine
+from app.services.execution_engines import NoopExecutionEngine, LiveExecutionEngine
 from app.services.paper_execution import PaperExecutionEngine
 from app.infrastructure.repositories.sqlite_ohlcv_repository import (
     SqliteOhlcvRepository,
@@ -27,23 +27,40 @@ from app.application.use_cases.result import UseCaseResult, ok
 
 class RunDailyPipelineUseCase:
     def __init__(self, settings, data_manager=None, logger=None):
-        self.settings = settings
-        self.ohlcv_repo = SqliteOhlcvRepository(data_manager=data_manager)
-        self.decision_repo = SqliteDecisionRepository(settings)
-        self.model_repo = SqliteModelRepository(settings)
-        self.metrics_repo = SqliteMetricsRepository(settings)
+        self._settings = settings
+        self._data_manager = data_manager
+        self._logger = logger
+        self._daily_pipeline: DailyPipelineUseCase | None = None
+
+    def _build_pipeline(self) -> DailyPipelineUseCase:
+        settings = self._settings
+        data_manager = self._data_manager
+        logger = self._logger
+
+        ohlcv_repo = SqliteOhlcvRepository(data_manager=data_manager)  # noqa: F841
+        decision_repo = SqliteDecisionRepository(settings)
+        model_repo = SqliteModelRepository(settings)  # noqa: F841
+        metrics_repo = SqliteMetricsRepository(settings)  # noqa: F841
         state_repo = DataManagerRepository(settings=settings)
-        if getattr(settings, "EXECUTION_MODE", "paper") == "paper":
+
+        execution_mode = getattr(settings, "EXECUTION_MODE", "paper")
+        if execution_mode == "paper":
             execution_engine = PaperExecutionEngine(
                 state_repo, logger, settings=settings
             )
+        elif execution_mode == "live":
+            broker_adapter = getattr(settings, "BROKER_ADAPTER", "noop")
+            if broker_adapter == "alpaca":
+                from app.services.execution_engines import AlpacaExecutionEngine
+
+                execution_engine = AlpacaExecutionEngine(logger=logger)
+            else:
+                execution_engine = LiveExecutionEngine(logger=logger)
         else:
             execution_engine = NoopExecutionEngine(logger)
 
-        self.pipeline = TradingPipelineService(
-            history_store=HistoryStore(
-                history_repo=self.decision_repo, settings=settings
-            ),
+        pipeline = TradingPipelineService(
+            history_store=HistoryStore(history_repo=decision_repo, settings=settings),
             settings=settings,
             logger=logger,
             data_fetcher=MarketDataFetcher(),
@@ -56,13 +73,17 @@ class RunDailyPipelineUseCase:
             execution_engine=execution_engine,
             state_repo=state_repo,
         )
-        self.daily_pipeline = DailyPipelineUseCase(self.pipeline)
+        return DailyPipelineUseCase(pipeline)
 
     def run(self, dry_run: bool = False, ticker: str = None) -> UseCaseResult:
-        result = self.daily_pipeline.run(dry_run=dry_run, ticker=ticker)
+        if self._daily_pipeline is None:
+            self._daily_pipeline = self._build_pipeline()
+        inner = self._daily_pipeline.run(dry_run=dry_run, ticker=ticker)
+        if inner.get("status") == "error":
+            return inner
         return ok(
             "run_daily_pipeline",
-            data=result,
+            data=inner.get("data"),
             dry_run=dry_run,
             ticker=ticker,
         )

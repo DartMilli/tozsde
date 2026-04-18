@@ -1,12 +1,12 @@
-import json
+﻿import json
 from datetime import date
 import numpy as np
 import pandas as pd
 import pytest
 
 from app.config.config import Config
-from app.decision.ensemble_aggregator import aggregate_weighted_ensemble
-from app.decision.ensemble_quality import bucket_ensemble_quality
+from app.core.decision.ensemble_aggregator import aggregate_weighted_ensemble
+from app.core.decision.ensemble_quality import bucket_ensemble_quality
 from app.decision.decision_reliability import assess_decision_reliability
 from app.decision.decision_event import build_decision_event
 from app.decision.volatility import (
@@ -314,3 +314,5 @@ def test_reliability_saved_in_db(test_db):
             ("TEST",),
         ).fetchone()[0]
     assert row == 1
+
+

@@ -45,6 +45,7 @@ def prepare_df(df, ticker, params=None):
         "RSI",
         "MACD",
         "MACD_SIGNAL",
+        "MACD_HIST",
         "BB_upper",
         "BB_middle",
         "BB_lower",

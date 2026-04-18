@@ -204,7 +204,8 @@ def test_capital_utilization_endpoint(monkeypatch, client, test_settings):
 
     _set_admin_key(monkeypatch, test_settings)
     monkeypatch.setattr(
-        "app.decision.capital_optimizer.CapitalUtilizationOptimizer", DummyOptimizer
+        "app.core.decision.capital_optimizer.CapitalUtilizationOptimizer",
+        DummyOptimizer,
     )
 
     res = client.get("/admin/capital/utilization", headers=_auth_headers())

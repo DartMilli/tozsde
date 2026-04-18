@@ -130,8 +130,13 @@ def evaluate_individual(individual, dataframes, keys, param_cv_flags=None):
         if len(df) < min_required_bars + 1:
             continue  # tul keves adat
         try:
-            # Stable string key avoids subtle tuple/hash issues across runs
-            cache_key = f"{ticker}|{_params_to_key(base_params)}"
+            # Stable string key avoids subtle tuple/hash issues across runs.
+            # Include a data-slice fingerprint so different WF folds with the
+            # same params do NOT share cached fitness values.
+            _df_start = str(df.index[0]) if len(df) > 0 else ""
+            _df_end = str(df.index[-1]) if len(df) > 0 else ""
+            _data_key = f"{len(df)}|{_df_start}|{_df_end}"
+            cache_key = f"{ticker}|{_data_key}|{_params_to_key(base_params)}"
 
             if cache_key in _FITNESS_CACHE:
                 fitness = _FITNESS_CACHE[cache_key]
@@ -190,7 +195,9 @@ def evaluate_individual(individual, dataframes, keys, param_cv_flags=None):
                             ticker,
                             baseline_params,
                         )
-                        baseline_fitness = float(baseline_stress.get("fitness", NEG_INF))
+                        baseline_fitness = float(
+                            baseline_stress.get("fitness", NEG_INF)
+                        )
                     except Exception:
                         # If baseline stress evaluation fails (external routines may
                         # be heavy or depend on unpatched resources), do not let

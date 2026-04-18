@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from app.bootstrap.build_settings import build_settings
 from app.infrastructure.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -103,13 +102,13 @@ class PortfolioRebalancer:
     def compute_rebalancing_cost(self, trades: List[Dict]) -> float:
         total_cost = 0.0
 
-        cfg = self.settings or build_settings()
+        cfg = self.settings
         for trade in trades:
             notional = trade["qty"] * trade["price"]
             cost = notional * (
-                getattr(cfg, "TRANSACTION_FEE_PCT")
-                + getattr(cfg, "MIN_SLIPPAGE_PCT")
-                + getattr(cfg, "SPREAD_PCT")
+                getattr(cfg, "TRANSACTION_FEE_PCT", 0.001)
+                + getattr(cfg, "MIN_SLIPPAGE_PCT", 0.0005)
+                + getattr(cfg, "SPREAD_PCT", 0.0005)
             )
             total_cost += cost
 
@@ -278,8 +277,13 @@ def check_and_rebalance(
     target_allocation: Dict[str, float],
     prices: Dict[str, float],
     total_value: float,
+    settings=None,
 ) -> Dict:
-    rebalancer = PortfolioRebalancer()
+    threshold = getattr(settings, "REBALANCE_THRESHOLD", 0.20) if settings else 0.20
+    rebalancer = PortfolioRebalancer(
+        rebalance_threshold=threshold,
+        settings=settings,
+    )
 
     drift_info = rebalancer.should_rebalance(current_positions, target_allocation)
 

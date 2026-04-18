@@ -39,7 +39,9 @@ def _get_metric(metrics, key: str, default: float = 0.0):
     return default
 
 
-def fitness_single(metrics) -> float:  # BacktestReport.metrics
+def fitness_single(
+    metrics, initial_capital: float = 10_000.0
+) -> float:  # BacktestReport.metrics
     trade_count = _get_metric(metrics, "trade_count")
     net_profit = _get_metric(metrics, "net_profit")
     max_drawdown = _get_metric(metrics, "max_drawdown")
@@ -55,10 +57,16 @@ def fitness_single(metrics) -> float:  # BacktestReport.metrics
     if cached is not None:
         return cached
 
-    if trade_count < 30:
+    if trade_count < 3:
         return NEG_INF
 
-    score = net_profit - 2.0 * max_drawdown + 0.5 * winrate * net_profit
+    # Normalise profit and drawdown to percentages relative to initial capital so that
+    # the score is dimensionless and comparable across different backtest windows.
+    capital = initial_capital if initial_capital > 0 else 10_000.0
+    net_profit_pct = net_profit / capital
+    max_dd_pct = abs(max_drawdown) / capital
+
+    score = net_profit_pct - 2.0 * max_dd_pct + 0.5 * winrate * net_profit_pct
     _cache_set(("single",) + key, score)
     return score
 
@@ -96,7 +104,10 @@ def normalize_wf_score(
     raw_fitness: float, stability_constant: float | None = None
 ) -> float:
     if stability_constant is None:
-        stability_constant = float(settings.wf_stability_constant)
+        from app.config.build_settings import build_settings
+
+        cfg = build_settings()
+        stability_constant = float(getattr(cfg, "WF_STABILITY_CONSTANT", 10))
 
     if not isinstance(raw_fitness, (int, float)):
         return 0.0

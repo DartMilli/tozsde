@@ -108,6 +108,7 @@ class WalkForwardOptimizer:
         fold_sharpe_stds = []
         fold_worst_case = []
         discarded_folds = 0
+        inactive_folds = 0  # folds with < 3 OOS trades (no-signal periods)
 
         while start <= end:
             train_df = self.df.iloc[start - self.train_window : start]
@@ -167,8 +168,15 @@ class WalkForwardOptimizer:
                 start += self.step_size
                 continue
 
-            oos_profits.append(oos_return)
-            oos_drawdowns.append(oos_drawdown)
+            # Only count active folds (>= 3 trades) in fitness calc.
+            # No-signal folds (ETF quiet periods, low-vol windows) are
+            # recorded for diagnostics but excluded from profit/drawdown
+            # arrays to avoid an artificial drag on raw_fitness.
+            if oos_trades >= 3:
+                oos_profits.append(oos_return)
+                oos_drawdowns.append(oos_drawdown)
+            else:
+                inactive_folds += 1
 
             results.append(
                 {
@@ -233,10 +241,23 @@ class WalkForwardOptimizer:
             min(abs(best_gap), 1.0) if isinstance(best_gap, (int, float)) else 0.0
         )
         robustness_factor = math.exp(-2 * execution_penalty)
-        stability_score = float(wf_result.normalized_score)
+        # Scale normalized_score by the fraction of folds that had enough trades.
+        # A strategy that's inactive in most OOS windows is less reliable,
+        # regardless of how well it performs when active.
+        active_folds = total_windows - inactive_folds
+        activity_ratio = active_folds / max(1, total_windows)
+        adjusted_normalized_score = wf_result.normalized_score * activity_ratio
+        stability_score = float(adjusted_normalized_score)
         normalized_oos_sharpe = normalize_sharpe(best_window.get("oos_sharpe"))
         max_dd_norm = normalize_drawdown(best_window.get("oos_drawdown"))
         production_score = (
+            # Composite score in [0, 1] – components:
+            # • 0.4 × normalized_oos_sharpe  : reward for risk-adjusted returns
+            #     (Sharpe mapped to [0,1] via tanh-like normalization)
+            # • 0.2 × stability_score        : fraction of active OOS windows × WF normalized fitness
+            # • 0.2 × robustness_factor       : exp(-2 × |IS-OOS gap|) – penalises over-fit
+            # • 0.2 × (1 - max_dd_norm)      : reward for low maximum drawdown
+            #     (drawdown normalised to [0,1] before complement)
             0.4 * normalized_oos_sharpe
             + 0.2 * stability_score
             + 0.2 * robustness_factor
@@ -274,7 +295,7 @@ class WalkForwardOptimizer:
             "best_params": best_window["params"],
             "raw_fitness": wf_result.raw_fitness,
             "wf_fitness": wf_result.raw_fitness,
-            "normalized_score": wf_result.normalized_score,
+            "normalized_score": adjusted_normalized_score,
             "wf_summary": {
                 "windows": total_windows,
                 "win_rate": win_rate,
@@ -288,6 +309,8 @@ class WalkForwardOptimizer:
                 "worst_case_sharpe_global": worst_case_sharpe_global,
                 "discarded_folds": discarded_folds,
                 "discarded_ratio": discarded_folds / total_folds,
+                "inactive_folds": inactive_folds,
+                "active_fold_ratio": activity_ratio,
                 "fold_sharpe_distribution": fold_sharpe_distribution,
                 "rolling_sharpe_trend": rolling_sharpe_trend,
             },
@@ -304,7 +327,7 @@ class WalkForwardOptimizer:
         }
 
 
-def run_walk_forward(ticker: str, metrics_repo=None):
+def run_walk_forward(ticker: str, metrics_repo=None, dry_run: bool = False):
     """Cron convenience wrapper.
 
     - Betolti a teljes historikus adatot
@@ -348,19 +371,20 @@ def run_walk_forward(ticker: str, metrics_repo=None):
     if result and result.get("best_params") is not None:
         result["wf_run_id"] = str(uuid.uuid4())
         result["wf_run_at"] = datetime.now(timezone.utc).isoformat()
-        try:
-            import json
+        if not dry_run:
+            try:
+                import json
 
-            repo = metrics_repo or DataManagerRepository(settings=cfg)
-            repo.save_walk_forward_result(
-                ticker=ticker, result_json=json.dumps(result, default=str)
-            )
-        except Exception:
-            pass
-        try:
-            best_params = result.get("best_params")
-            if best_params:
-                save_params_for_ticker(ticker, best_params)
-        except Exception:
-            pass
+                repo = metrics_repo or DataManagerRepository(settings=cfg)
+                repo.save_walk_forward_result(
+                    ticker=ticker, result_json=json.dumps(result, default=str)
+                )
+            except Exception:
+                pass
+            try:
+                best_params = result.get("best_params")
+                if best_params:
+                    save_params_for_ticker(ticker, best_params)
+            except Exception:
+                pass
     return result

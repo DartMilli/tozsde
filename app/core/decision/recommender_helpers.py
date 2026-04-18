@@ -1,6 +1,8 @@
 import hashlib
 from typing import Any, Dict, List, Optional
 
+from app.domain.types import PolicyPayload
+
 
 def compute_features_hash(df) -> Optional[str]:
     if df is None or df.empty:
@@ -30,14 +32,20 @@ def build_policy_payload(
     scaled_confidence: float,
     avg_wf_score: Optional[float],
     ensemble_quality: str,
-) -> Dict[str, Any]:
-    return {
+    regime: str = "UNKNOWN",
+    regime_policy: Optional[dict] = None,
+) -> PolicyPayload:
+    payload: PolicyPayload = {
         "ticker": ticker,
         "avg_confidence": scaled_confidence,
         "avg_wf_score": avg_wf_score,
         "ensemble_quality": ensemble_quality,
         "action_code": action_code,
+        "regime": regime,
     }
+    if regime_policy is not None:
+        payload["regime_policy"] = regime_policy
+    return payload
 
 
 def build_recommendation_response(

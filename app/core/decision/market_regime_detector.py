@@ -210,6 +210,15 @@ class MarketRegimeDetector:
         )
 
     def _create_data_repository(self):
+        if self.settings is None:
+            import warnings
+
+            warnings.warn(
+                f"{self.__class__.__name__}: settings not injected, falling back to build_settings(). "
+                "Pass settings= for proper DI. This fallback will be removed in S17.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         cfg = self.settings or build_settings()
         try:
             return DataManagerRepository(settings=cfg)

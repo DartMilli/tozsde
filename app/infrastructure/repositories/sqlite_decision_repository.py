@@ -239,8 +239,11 @@ class SqliteDecisionRepository(IDecisionRepository):
             ORDER BY decision_timestamp DESC
             LIMIT ?
         """
-        with self.connection() as conn:
-            rows = conn.execute(query, (ticker, n)).fetchall()
+        try:
+            with self.connection() as conn:
+                rows = conn.execute(query, (ticker, n)).fetchall()
+        except Exception:
+            return []
         out = []
         for (
             pnl_pct,

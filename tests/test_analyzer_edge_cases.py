@@ -58,7 +58,7 @@ def test_compute_signals_generates_multiple_signals(monkeypatch):
     monkeypatch.setattr(analyzer.ta, "rsi", lambda *a, **k: np.array([29.0, 31.0]))
 
     def _macd(*args, **kwargs):
-        return np.array([0.0, 1.0]), np.array([1.0, 0.0])
+        return np.array([0.0, 1.0]), np.array([1.0, 0.0]), np.array([-1.0, 1.0])
 
     monkeypatch.setattr(analyzer.ta, "macd", _macd)
 

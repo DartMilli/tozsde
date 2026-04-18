@@ -2,11 +2,164 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Flask Webapp inditas",
+      "name": "🌐 Flask Admin API (dev)",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/run_dev.py",
-      "console": "integratedTerminal"
+      "console": "integratedTerminal",
+      "env": {
+        "DRY_RUN": "true",
+        "LOGGING_LEVEL": "DEBUG",
+        "FLASK_ENV": "development"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "🔄 Daily – dry-run",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "daily",
+        "--dry-run"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DRY_RUN": "true",
+        "LOGGING_LEVEL": "DEBUG"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "🔄 Daily – VOO dry-run",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "daily",
+        "--ticker",
+        "VOO",
+        "--dry-run"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DRY_RUN": "true",
+        "LOGGING_LEVEL": "DEBUG"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "📊 Backtesting – VOO 2022-2023",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "run-paper-history",
+        "--ticker",
+        "VOO",
+        "--start-date",
+        "2022-01-01",
+        "--end-date",
+        "2023-12-31"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "LOGGING_LEVEL": "DEBUG"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "✅ Validáció – VOO 2022-2023",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "validate",
+        "--ticker",
+        "VOO",
+        "--start-date",
+        "2022-01-01",
+        "--end-date",
+        "2023-12-31"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "LOGGING_LEVEL": "DEBUG"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "🏛️ Governance – full",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "governance",
+        "--mode",
+        "full"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "LOGGING_LEVEL": "DEBUG"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "🤖 RL betanítás – VOO",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "train-rl",
+        "VOO"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "LOGGING_LEVEL": "INFO"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "📈 Walk-forward – VOO",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "walk-forward",
+        "VOO"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "LOGGING_LEVEL": "DEBUG"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "🧪 Pytest – aktuális fájl",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-v",
+        "--tb=short"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "🧪 Pytest – teljes suite debuggal",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/",
+        "-v",
+        "--tb=long",
+        "-x"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
     }
   ]
 }

@@ -1,3 +1,9 @@
+"""DEPRECATED: compatibility shim - use ``app.core.decision`` directly. Will be removed in a future release."""
+
+from app.decision import emit_compat_warning
+
+emit_compat_warning("app.decision.decision_builder")
+
 from app.decision import get_settings
 from app.core.decision.decision_builder import (
     compute_decision_quality,

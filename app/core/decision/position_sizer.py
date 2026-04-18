@@ -77,6 +77,7 @@ def apply_position_sizing(
     equity: float,
     max_position_pct: Optional[float] = None,
     params: Optional[Mapping[str, float]] = None,
+    settings=None,
 ) -> Dict:
     if item.get("decision", {}).get("action_code") != 1:
         return item
@@ -94,9 +95,21 @@ def apply_position_sizing(
     if params:
         cfg.update({k: float(v) for k, v in params.items()})
 
+    regime_policy = (
+        item.get("decision", {}).get("regime_policy")
+        or item.get("payload", {}).get("regime_policy")
+        or {}
+    )
+
+    effective_max_position_pct = max_position_pct
+    if effective_max_position_pct is None and settings is not None:
+        effective_max_position_pct = getattr(settings, "P6_POSITION_MAX_PCT", None)
+    if regime_policy.get("max_position_pct") is not None:
+        effective_max_position_pct = float(regime_policy["max_position_pct"])
+
     safety_discount = float(cfg["P6_SAFETY_DISCOUNT"]) if safety_override else 0.0
 
-    sizer = PositionSizer(max_position_pct=max_position_pct, params=cfg)
+    sizer = PositionSizer(max_position_pct=effective_max_position_pct, params=cfg)
     result = sizer.compute(
         base_position_size=base_size,
         confidence=confidence,
@@ -114,5 +127,6 @@ def apply_position_sizing(
         "wf_factor": result.wf_factor,
         "safety_factor": result.safety_factor,
         "capped": result.capped,
+        "regime_max_position_pct": effective_max_position_pct,
     }
     return item

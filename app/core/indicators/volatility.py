@@ -25,6 +25,7 @@ def atr(high, low, close, period=14):
     high = np.asarray(high, dtype=float)
     low = np.asarray(low, dtype=float)
     close = np.asarray(close, dtype=float)
+    n = len(close)
     fingerprint = fingerprint_multi(high, low, close)
     key = ("atr", fingerprint, period)
 
@@ -37,8 +38,17 @@ def atr(high, low, close, period=14):
                 np.abs(low - prev_close),
             ]
         )
-        series = pd.Series(tr)
-        atr_v = series.rolling(window=period, min_periods=period).mean().values
+        tr[0] = high[0] - low[0]
+
+        # Wilder smoothing: seed with SMA of first `period` bars
+        atr_v = np.full(n, np.nan)
+        if n < period:
+            return atr_v
+
+        atr_v[period - 1] = np.mean(tr[:period])
+        for i in range(period, n):
+            atr_v[i] = (atr_v[i - 1] * (period - 1) + tr[i]) / period
+
         return atr_v
 
     return cached_result(key, _compute)

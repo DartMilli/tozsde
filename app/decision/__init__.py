@@ -1,6 +1,19 @@
 """Decision package DI helpers."""
 
+import os
+import warnings
+
 from app.config.build_settings import build_settings
+
+
+def emit_compat_warning(module_name: str) -> None:
+    if os.getenv("ENABLE_COMPAT_DEPRECATION_WARNINGS", "false").lower() == "true":
+        warnings.warn(
+            f"{module_name} is deprecated; use app.core.decision directly.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
 
 _settings = None
 

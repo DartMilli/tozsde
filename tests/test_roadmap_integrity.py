@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from datetime import date
 from pathlib import Path
 import json
@@ -12,7 +12,7 @@ from app.backtesting.backtester import Backtester
 import app.backtesting.backtester as backtester_module
 import app.indicators.technical as technical
 from app.models.model_reliability import ModelReliabilityAnalyzer
-from app.decision.allocation import allocate_capital, enforce_correlation_limits
+from app.core.decision.allocation import allocate_capital, enforce_correlation_limits
 from app.data_access.data_manager import DataManager
 import main
 
@@ -23,7 +23,7 @@ def test_p0_deterministic_recommendation_output():
         "avg_confidence": 0.7,
         "avg_wf_score": 0.8,
         "action_code": 1,
-        "ensemble_quality": "STABLE",
+        "ensemble_quality": "STRONG",
     }
 
     first = build_recommendation(payload)
@@ -120,7 +120,7 @@ def test_p3_no_trade_is_explicit():
         "avg_confidence": Config.CONFIDENCE_NO_TRADE_THRESHOLD - 0.01,
         "avg_wf_score": 0.8,
         "action_code": 1,
-        "ensemble_quality": "STABLE",
+        "ensemble_quality": "STRONG",
     }
 
     decision = build_recommendation(payload)
@@ -135,7 +135,7 @@ def test_p5_walk_forward_influences_strength():
         "ticker": "TEST",
         "avg_confidence": Config.STRONG_CONFIDENCE_THRESHOLD + 0.05,
         "action_code": 1,
-        "ensemble_quality": "STABLE",
+        "ensemble_quality": "STRONG",
     }
 
     strong_payload = {**base_payload, "avg_wf_score": Config.STRONG_WF_THRESHOLD + 0.05}
@@ -154,7 +154,7 @@ def test_p8_explanation_does_not_change_decision():
         "avg_confidence": 0.6,
         "avg_wf_score": 0.6,
         "action_code": 1,
-        "ensemble_quality": "STABLE",
+        "ensemble_quality": "STRONG",
         "model_votes": [],
     }
 
@@ -271,7 +271,7 @@ def test_p7_allocation_selection_stable_with_more_capital(monkeypatch):
 
     corr = pd.DataFrame([[1.0, 0.0], [0.0, 1.0]], index=["A", "B"], columns=["A", "B"])
     monkeypatch.setattr(
-        "app.decision.allocation._get_correlation_matrix", lambda *args, **kwargs: corr
+        "app.core.decision.allocation._get_correlation_matrix", lambda *args, **kwargs: corr
     )
     low_cap = allocate_capital([d.copy() for d in decisions])
     low_selected = {d["ticker"] for d in low_cap if d.get("allocation_amount", 0) > 0}
@@ -309,7 +309,7 @@ def test_p7_correlation_limits_reduce_weaker_position(monkeypatch):
         [[1.0, 0.95], [0.95, 1.0]], index=["A", "B"], columns=["A", "B"]
     )
     monkeypatch.setattr(
-        "app.decision.allocation._get_correlation_matrix", lambda *args, **kwargs: corr
+        "app.core.decision.allocation._get_correlation_matrix", lambda *args, **kwargs: corr
     )
 
     adjusted = enforce_correlation_limits(decisions, max_correlation=0.7)
@@ -343,3 +343,5 @@ def test_p9_metrics_reflect_partial_failures(test_db):
 
     assert metrics["total_executions"] >= 2
     assert metrics["errors_count"] >= 1
+
+

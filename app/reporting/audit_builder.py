@@ -120,7 +120,7 @@ def build_audit_metadata(payload: dict, decision: dict) -> dict:
     cfg = get_settings()
     if cfg.ENABLE_DRIFT_DETECTION:
         try:
-            from app.decision.drift_detector import PerformanceDriftDetector
+            from app.core.decision.drift_detector import PerformanceDriftDetector
 
             detector = PerformanceDriftDetector()
             ticker = payload.get("ticker")

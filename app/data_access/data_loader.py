@@ -42,6 +42,19 @@ def _conf(settings):
     return None
 
 
+def _has_trading_days(start_d, end_d) -> bool:
+    """Return True if [start_d, end_d] contains at least one weekday (Mon-Fri).
+
+    Prevents spurious yfinance download attempts for weekend-only gaps.
+    """
+    d = start_d
+    while d <= end_d:
+        if d.weekday() < 5:  # Monday=0 ... Friday=4
+            return True
+        d += timedelta(days=1)
+    return False
+
+
 TICKERS = {
     "VOO": {
         "description": "Vanguard S&P 500 ETF: alacsony koltseg, USA top 500 reszveny lefedese",
@@ -102,7 +115,7 @@ def get_supported_tickers():
 
 
 def get_supported_ticker_list():
-    return TICKERS.keys()
+    return list(TICKERS.keys())
 
 
 def load_data(ticker, start=None, end=None, data_manager=None, settings=None):
@@ -162,7 +175,7 @@ def load_data(ticker, start=None, end=None, data_manager=None, settings=None):
         )
 
         # Biztonsagi ellenorzes: ne toltsunk le a jovobol
-        if download_start < end:
+        if download_start < end and _has_trading_days(download_start, end):
             logger.info(f"{ticker}: Data update required {download_start} -> {end}")
             success = download_and_save_data(ticker, download_start, end)
             if not success:
@@ -241,7 +254,7 @@ def ensure_data_cached(
 
     if (end - max_date).days > 3:
         download_start = max_date + timedelta(days=1)
-        if download_start < end:
+        if download_start < end and _has_trading_days(download_start, end):
             logger.info(f"{ticker}: backfilling end gap {download_start} -> {end}")
             if not download_and_save_data(
                 ticker, download_start, end, settings=settings

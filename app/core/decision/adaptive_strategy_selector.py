@@ -4,10 +4,8 @@ Adaptive Strategy Selector (P8 - Learning System)
 
 from typing import Dict, List, Optional
 import random
-import sqlite3
 from datetime import datetime
 
-from app.bootstrap.build_settings import build_settings
 from app.core.decision.adaptive_strategy import (
     StrategyBandit,
     StrategySelection,
@@ -23,12 +21,21 @@ logger = setup_logger(__name__)
 
 
 class AdaptiveStrategySelector:
-    def __init__(self, epsilon: float = 0.1, settings=None):
+    def __init__(self, epsilon: float = 0.1, settings=None, data_manager=None):
         self.epsilon = epsilon
         self.settings = settings
+        self.db_path = getattr(settings, "DB_PATH", None)
 
-        cfg = settings or build_settings()
-        self.db_path = getattr(cfg, "DB_PATH", None)
+        self._dm = data_manager
+        if self._dm is None:
+            try:
+                from app.infrastructure.repositories.data_manager_repository import (
+                    DataManagerRepository as _DM,
+                )
+
+                self._dm = _DM(settings=settings)
+            except Exception:
+                self._dm = None
 
         self.strategies = ["MA_CROSS", "RSI_MEAN", "MACD", "BB_MEAN", "MOMENTUM"]
         self.bandits = self._load_bandits()
@@ -122,46 +129,46 @@ class AdaptiveStrategySelector:
         bandits = {}
 
         try:
-            db_path = self._resolve_db_path()
-            conn = sqlite3.connect(str(db_path))
-            cur = conn.cursor()
+            if self._dm is None:
+                raise Exception("No DataManager available")
 
-            cur.execute(
-                """
-                SELECT name FROM sqlite_master
-                WHERE type='table' AND name='strategy_bandits'
-            """
-            )
+            with self._dm.connection() as conn:
+                cur = conn.cursor()
 
-            if not cur.fetchone():
                 cur.execute(
                     """
-                    CREATE TABLE strategy_bandits (
-                        strategy_name TEXT PRIMARY KEY,
-                        alpha REAL,
-                        beta REAL,
-                        total_trials INTEGER,
-                        last_updated TEXT
-                    )
+                    SELECT name FROM sqlite_master
+                    WHERE type='table' AND name='strategy_bandits'
                 """
                 )
-                conn.commit()
-                logger.info("Created strategy_bandits table")
-            else:
-                cur.execute(
-                    "SELECT strategy_name, alpha, beta, total_trials FROM strategy_bandits"
-                )
-                rows = cur.fetchall()
 
-                for row in rows:
-                    name, alpha, beta, trials = row
-                    bandits[name] = StrategyBandit(
-                        name=name, alpha=alpha, beta=beta, total_trials=trials
+                if not cur.fetchone():
+                    cur.execute(
+                        """
+                        CREATE TABLE strategy_bandits (
+                            strategy_name TEXT PRIMARY KEY,
+                            alpha REAL,
+                            beta REAL,
+                            total_trials INTEGER,
+                            last_updated TEXT
+                        )
+                    """
                     )
+                    conn.commit()
+                    logger.info("Created strategy_bandits table")
+                else:
+                    cur.execute(
+                        "SELECT strategy_name, alpha, beta, total_trials FROM strategy_bandits"
+                    )
+                    rows = cur.fetchall()
 
-                logger.info(f"Loaded {len(bandits)} strategy bandits from database")
+                    for row in rows:
+                        name, alpha, beta, trials = row
+                        bandits[name] = StrategyBandit(
+                            name=name, alpha=alpha, beta=beta, total_trials=trials
+                        )
 
-            conn.close()
+                    logger.info(f"Loaded {len(bandits)} strategy bandits from database")
 
         except Exception as e:
             logger.error(f"Failed to load bandits: {e}")
@@ -176,49 +183,46 @@ class AdaptiveStrategySelector:
 
     def _save_bandits(self):
         try:
-            db_path = self._resolve_db_path()
-            conn = sqlite3.connect(str(db_path))
-            cur = conn.cursor()
+            if self._dm is None:
+                return
 
-            for name, bandit in self.bandits.items():
-                cur.execute(
-                    """
-                    INSERT OR REPLACE INTO strategy_bandits
-                    (strategy_name, alpha, beta, total_trials, last_updated)
-                    VALUES (?, ?, ?, ?, ?)
-                """,
-                    (
-                        name,
-                        bandit.alpha,
-                        bandit.beta,
-                        bandit.total_trials,
-                        datetime.now().isoformat(),
-                    ),
-                )
+            with self._dm.connection() as conn:
+                cur = conn.cursor()
 
-            conn.commit()
-            conn.close()
+                for name, bandit in self.bandits.items():
+                    cur.execute(
+                        """
+                        INSERT OR REPLACE INTO strategy_bandits
+                        (strategy_name, alpha, beta, total_trials, last_updated)
+                        VALUES (?, ?, ?, ?, ?)
+                    """,
+                        (
+                            name,
+                            bandit.alpha,
+                            bandit.beta,
+                            bandit.total_trials,
+                            datetime.now().isoformat(),
+                        ),
+                    )
+
+                conn.commit()
 
         except Exception as e:
             logger.error(f"Failed to save bandits: {e}")
 
     def _resolve_db_path(self):
-        if self.settings is not None and self.db_path:
+        if self.db_path:
             return self.db_path
-        cfg = self.settings or build_settings()
-        db_path = getattr(cfg, "DB_PATH", None)
-        if db_path is not None:
-            return db_path
-        return self.db_path
+        return getattr(self.settings, "DB_PATH", None)
 
 
-def get_top_strategies(n: int = 3) -> List[str]:
-    selector = AdaptiveStrategySelector()
+def get_top_strategies(n: int = 3, settings=None) -> List[str]:
+    selector = AdaptiveStrategySelector(settings=settings)
     stats = selector.get_strategy_stats()
     top_n = stats[:n]
     return [s["strategy"] for s in top_n]
 
 
-def recommend_strategy_for_regime(market_regime: str) -> str:
-    selector = AdaptiveStrategySelector()
+def recommend_strategy_for_regime(market_regime: str, settings=None) -> str:
+    selector = AdaptiveStrategySelector(settings=settings)
     return selector.select_strategy_by_context(market_regime)

@@ -1,15 +1,31 @@
 import logging
 from datetime import date, timedelta
 
-from app.bootstrap.build_settings import build_settings
+from app.config.build_settings import build_settings
 from app.data_access.data_loader import get_market_volatility_index
 from app.infrastructure.repositories import DataManagerRepository
 
 logger = logging.getLogger(__name__)
 
 
+STRICTNESS_MULTIPLIERS = {
+    "RELAXED": {"cooldown": 0.75, "vix": 1.1},
+    "NORMAL": {"cooldown": 1.0, "vix": 1.0},
+    "STRICT": {"cooldown": 1.5, "vix": 0.8},
+}
+
+
 class SafetyRuleEngine:
-    """Applies global safety rules on top of a decision."""
+    """Applies global safety rules on top of a decision.
+
+    Args:
+        history_store: Required – provides decision history for cooldown/drawdown checks.
+        settings: Strongly recommended – pass an explicit Settings instance (injected
+            via bootstrap).  If omitted, ``build_settings()`` is called as a fallback,
+            which performs I/O (.env read, directory creation) and prevents isolated
+            unit testing.  This fallback is **deprecated** and will be removed in a
+            future sprint (A1 – Sprint 14 tech-debt).
+    """
 
     def __init__(self, history_store, settings=None):
         self.history_store = history_store
@@ -17,6 +33,12 @@ class SafetyRuleEngine:
         self.last_check_date = None
         self.is_bear_cache = False
         self._drawdown_disabled_logged = False
+        if settings is None:
+            logger.debug(
+                "SafetyRuleEngine instantiated without explicit settings; "
+                "build_settings() fallback will be used. Pass settings= for "
+                "clean-architecture compliance."
+            )
 
     def apply(
         self,
@@ -27,6 +49,8 @@ class SafetyRuleEngine:
         reasons = []
 
         cfg = self._get_settings()
+        regime_policy = decision.get("regime_policy") or {}
+        strictness = regime_policy.get("safety_strictness", "NORMAL")
         hold_label = getattr(cfg, "ACTION_LABELS")[getattr(cfg, "LANG")][0]
 
         def _force_hold(reason_code: str, reason_text: str):
@@ -37,7 +61,7 @@ class SafetyRuleEngine:
             decision["strength"] = "NO_TRADE"
             reasons.append(reason_text)
 
-        if self._in_cooldown(ticker, today):
+        if self._in_cooldown(ticker, today, strictness=strictness):
             _force_hold("COOLDOWN", "cooldown active")
 
         if self._recent_drawdown(ticker):
@@ -61,7 +85,11 @@ class SafetyRuleEngine:
         current_vix = self._get_market_volatility_index()
 
         cfg = self._get_settings()
-        max_vix = getattr(cfg, "MAX_VIX_THRESHOLD")
+        vix_multiplier = STRICTNESS_MULTIPLIERS.get(
+            strictness,
+            STRICTNESS_MULTIPLIERS["NORMAL"],
+        )["vix"]
+        max_vix = getattr(cfg, "MAX_VIX_THRESHOLD") * vix_multiplier
         if current_vix and current_vix > max_vix:
             if decision["action_code"] == 1:
                 _force_hold(
@@ -72,9 +100,21 @@ class SafetyRuleEngine:
         decision.setdefault("reasons", []).extend(reasons)
         return decision
 
-    def _in_cooldown(self, ticker: str, today: date) -> bool:
+    def _in_cooldown(
+        self,
+        ticker: str,
+        today: date,
+        strictness: str = "NORMAL",
+    ) -> bool:
         cfg = self._get_settings()
-        lookback_days = getattr(cfg, "COOLDOWN_DAYS")
+        cooldown_multiplier = STRICTNESS_MULTIPLIERS.get(
+            strictness,
+            STRICTNESS_MULTIPLIERS["NORMAL"],
+        )["cooldown"]
+        lookback_days = max(
+            1,
+            round(getattr(cfg, "COOLDOWN_DAYS") * cooldown_multiplier),
+        )
         decisions = self.history_store.load_range(
             ticker,
             start=today - timedelta(days=lookback_days),

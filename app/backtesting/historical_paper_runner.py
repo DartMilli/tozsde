@@ -53,7 +53,7 @@ class HistoricalPaperRunner:
                 model_dir=getattr(cfg, "MODEL_DIR", None), env_class=TradingEnv
             ),
             email_notifier=EmailNotifier(),
-            execution_engine=PaperExecutionEngine(self.dm, self.logger),
+            execution_engine=PaperExecutionEngine(self.dm, self.logger, settings=cfg),
             state_repo=self.state_repo,
         )
 

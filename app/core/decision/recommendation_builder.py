@@ -1,6 +1,8 @@
 from typing import Dict, Mapping, Optional
 
 from app.core.decision.decision_builder import compute_decision_quality
+from app.core.decision.ensemble_quality import EnsembleQualityBucket
+from app.domain.types import Decision, PolicyPayload
 
 
 DEFAULT_ACTION_LABELS = {
@@ -11,13 +13,13 @@ DEFAULT_ACTION_LABELS = {
 
 
 def build_recommendation(
-    payload: Dict,
+    payload: PolicyPayload,
     action_labels: Optional[Mapping[int, str]] = None,
     confidence_no_trade_threshold: float = 0.25,
     strong_confidence_threshold: float = 0.75,
     weak_confidence_threshold: float = 0.5,
     strong_wf_threshold: float = 0.6,
-) -> Dict:
+) -> Decision:
     avg_confidence = payload["avg_confidence"]
     avg_wf_score = payload["avg_wf_score"]
     action_code = payload["action_code"]
@@ -46,7 +48,7 @@ def build_recommendation(
             avg_confidence >= strong_confidence_threshold
             and avg_wf_score is not None
             and avg_wf_score >= strong_wf_threshold
-            and ensemble_quality == "STABLE"
+            and ensemble_quality in ("STRONG", EnsembleQualityBucket.STRONG)
         ):
             strength = "STRONG"
         elif avg_confidence < weak_confidence_threshold:

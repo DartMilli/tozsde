@@ -11,7 +11,7 @@ def run_monthly(container, dry_run: bool = False):
 
 
 def run_walk_forward_manual(container, ticker: str, dry_run: bool = False):
-    return container.walk_forward.run(ticker=ticker)
+    return container.walk_forward.run(ticker=ticker, dry_run=dry_run)
 
 
 def run_train_rl_manual(container, ticker: str, dry_run: bool = False):

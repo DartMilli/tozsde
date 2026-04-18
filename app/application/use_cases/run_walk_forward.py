@@ -23,11 +23,15 @@ class RunWalkForwardUseCase:
         self.model_repo = SqliteModelRepository(settings)
         self.metrics_repo = SqliteMetricsRepository(settings)
 
-    def run(self, ticker: str = None) -> UseCaseResult:
+    def run(self, ticker: str = None, dry_run: bool = False) -> UseCaseResult:
         if ticker:
             return ok(
                 "run_walk_forward",
-                data={ticker: run_walk_forward(ticker, metrics_repo=self.metrics_repo)},
+                data={
+                    ticker: run_walk_forward(
+                        ticker, metrics_repo=self.metrics_repo, dry_run=dry_run
+                    )
+                },
                 ticker=ticker,
             )
 
@@ -42,7 +46,9 @@ class RunWalkForwardUseCase:
 
         results = {}
         for symbol in tickers:
-            results[symbol] = run_walk_forward(symbol, metrics_repo=self.metrics_repo)
+            results[symbol] = run_walk_forward(
+                symbol, metrics_repo=self.metrics_repo, dry_run=dry_run
+            )
         return ok(
             "run_walk_forward",
             data=results,

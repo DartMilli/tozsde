@@ -6,9 +6,11 @@
 - README.md: full project overview, CLI usage, validation and ops notes (Windows IDE quick start).
 
 ### Core References
-- MIGRATION_COMPLETED.md: single-file completion marker for full architecture migration closure.
-- SPRINTS.md: sprint history and historical delivery timeline.
-- ARCH_REVIEW.md: architecture review with current addendum.
+- ECONOMIC_EFFICIENCY_ROADMAP.md: 8-feature implementation plan (S19–S23, incl. champion-challenger shadow pipeline, live dashboard shadow summary, /shadow-summary endpoint), improving economic efficiency (reliability ensemble, regime-aware decisions, expectancy gate, risk parity, cost-aware rebalancer, execution cost gate, adaptive strategy, champion-challenger).
+- SPRINTS.md: full sprint history (S1–S18 complete). Architecture migration finished 2026-03-21.
+- ARCH_REVIEW.md: architecture review with pipeline flow overview and sprint addendums.
+- KNOWN_ISSUES.md: code-based catalog of bugs — all fixed as of 2026-04-13 (S18 complete, 1820 tests, 80% coverage).
+- architecture_codeing_guidelines.md: strict architectural layering rules and dependency constraints.
 - COMPATIBILITY_CONTRACT_FREEZE.md: Phase 7.1 frozen compatibility surfaces and change protocol.
 - PHASE7_DEPRECATION_PATH.md: controlled shim retirement sequence and rollback plan.
 - USE_CASE_CONTRACTS.md: unified application use-case input/output contract.
@@ -21,35 +23,34 @@
 - deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md
 
 ### Testing and Validation
-- validation_framework.md (quant validation and governance runner)
-- testing/TEST_STATUS_REPORT.md (includes validation snapshot)
-- testing/go_live_checklist.md (pre-hardware go-live validation)
-- testing/quant_validation_plan.md (validation hardening plan)
-
-### Key Metrics
-See testing/TEST_STATUS_REPORT.md for the latest test counts and coverage.
+- validation_framework.md: quant validation framework + mandatory validation tracks (9 tracks)
+- testing/TEST_STATUS_REPORT.md: latest test counts and coverage
+- testing/go_live_checklist.md: pre-hardware go-live validation checklist
+- testing/TRAIN_RL_CHECKLIST_HU.md: RL betanítási ellenőrzőlista
 
 ## Magyar
 
-### Belepes
-- README.md: teljes attekintes, CLI, validacio, ops (Windows IDE quick start).
+### Belépés
+- README.md: teljes áttekintés, CLI, validáció, ops (Windows IDE quick start).
 
-### Fo dokumentumok
-- SPRINTS.md: sprint tortenet, historikus attekintes.
-- ARCH_REVIEW.md: architektura review, aktualis addendum.
-- FAQ.md: gyakori kerdesek es uzemeltetesi tippek.
-- TROUBLESHOOTING_GUIDE.md: hibakereses es javitas.
+### Fő dokumentumok
+- ECONOMIC_EFFICIENCY_ROADMAP.md: 8 feature implementációs terv (S19–S23, beleértve a champion-challenger shadow pipeline-t, dashboard élő shadow summary-t, /shadow-summary endpointot), gazdasági hatékonyság növelése.
+- SPRINTS.md: sprint történet S1–S18 (mind lezárva). Architek. migráció: 2026-03-21 kész.
+- ARCH_REVIEW.md: architektúra review, pipeline flow, sprint addendumok.
+- KNOWN_ISSUES.md: ismert hibák katalógusa – mind javítva 2026-04-13 (S18 kész, 1820 teszt, 80% coverage).
+- architecture_codeing_guidelines.md: szigorú rétegezési szabályok és függési korlátok.
+- FAQ.md: gyakori kérdések és üzemeltetési tippek.
+- TROUBLESHOOTING_GUIDE.md: hibaelhárítás.
 
-### Telepites
+### Telepítés
 - deployment/RASPBERRY_PI_SETUP_GUIDE.md
 - deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md
 - deployment/DEPLOYMENT_VERIFICATION_CHECKLIST.md
 
-### Teszt es validacio
-- validation_framework.md (quant validacios es governance runner)
-- testing/TEST_STATUS_REPORT.md (validacios snapshot-tal)
-- testing/go_live_checklist.md (go-live ellenorzes)
-- testing/quant_validation_plan.md (validacios terv)
+### Teszt és validáció
+- validation_framework.md: governance runner + 9 kötelező validációs track
+- testing/TEST_STATUS_REPORT.md: aktuális tesztszámok és lefedettség
+- testing/go_live_checklist.md: go-live ellenőrzőlista
+- testing/TRAIN_RL_CHECKLIST_HU.md: RL betanítási ellenőrzőlista
 
-### Metrikak
-Az aktualis tesztszamok es lefedettseg a testing/TEST_STATUS_REPORT.md fajlban van.
+

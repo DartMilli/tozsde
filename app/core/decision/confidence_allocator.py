@@ -3,7 +3,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List
 import logging
-import sqlite3
 
 logger = logging.getLogger(__name__)
 
@@ -35,37 +34,49 @@ class BucketStatistics:
 
 
 class ConfidenceBucketAllocator:
-    def __init__(self, db_path: str = None, base_capital: float = 1000.0):
+    def __init__(
+        self, db_path: str = None, base_capital: float = 1000.0, data_manager=None
+    ):
         self.db_path = db_path
         self.base_capital = base_capital
+        self._dm = data_manager
+        if self._dm is None and self.db_path:
+            try:
+                from app.infrastructure.repositories.data_manager_repository import (
+                    DataManagerRepository as _DM,
+                )
+                from app.config.build_settings import build_settings
+                import dataclasses
+
+                self._dm = _DM(
+                    settings=dataclasses.replace(build_settings(), DB_PATH=self.db_path)
+                )
+            except Exception:
+                self._dm = None
         self._init_db()
 
     def _init_db(self) -> None:
-        if not self.db_path:
+        if self._dm is None:
             return
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            cursor.execute(
+            with self._dm.connection() as conn:
+                conn.cursor().execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS confidence_allocations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        strategy TEXT NOT NULL,
+                        confidence_score REAL NOT NULL,
+                        bucket TEXT NOT NULL,
+                        multiplier REAL NOT NULL,
+                        allocated_capital REAL NOT NULL,
+                        base_capital REAL NOT NULL,
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
                 """
-                CREATE TABLE IF NOT EXISTS confidence_allocations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    strategy TEXT NOT NULL,
-                    confidence_score REAL NOT NULL,
-                    bucket TEXT NOT NULL,
-                    multiplier REAL NOT NULL,
-                    allocated_capital REAL NOT NULL,
-                    base_capital REAL NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-            """
-            )
-
-            conn.commit()
-            conn.close()
-        except sqlite3.Error as e:
+                conn.commit()
+        except Exception as e:
             logger.error(f"Database initialization error: {e}")
 
     def classify_confidence_bucket(self, confidence_score: float) -> ConfidenceBucket:
@@ -129,113 +140,101 @@ class ConfidenceBucketAllocator:
         return allocations
 
     def _persist_allocation(self, allocation: ConfidenceAllocation) -> None:
-        if not self.db_path:
+        if self._dm is None:
             return
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                INSERT INTO confidence_allocations
-                (strategy, confidence_score, bucket, multiplier, allocated_capital, base_capital)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    allocation.strategy,
-                    allocation.confidence_score,
-                    allocation.bucket.value,
-                    allocation.multiplier,
-                    allocation.allocated_capital,
-                    allocation.base_capital,
-                ),
-            )
-
-            conn.commit()
-            conn.close()
-        except sqlite3.Error as e:
+            with self._dm.connection() as conn:
+                conn.cursor().execute(
+                    """
+                    INSERT INTO confidence_allocations
+                    (strategy, confidence_score, bucket, multiplier, allocated_capital, base_capital)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        allocation.strategy,
+                        allocation.confidence_score,
+                        allocation.bucket.value,
+                        allocation.multiplier,
+                        allocation.allocated_capital,
+                        allocation.base_capital,
+                    ),
+                )
+                conn.commit()
+        except Exception as e:
             logger.error(f"Error persisting allocation: {e}")
 
     def get_bucket_statistics(self) -> Dict[ConfidenceBucket, BucketStatistics]:
-        if not self.db_path:
+        if self._dm is None:
             return {}
 
         stats = {}
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            for bucket in ConfidenceBucket:
-                cursor.execute(
-                    """
-                    SELECT COUNT(*), AVG(confidence_score), SUM(allocated_capital), AVG(multiplier)
-                    FROM confidence_allocations
-                    WHERE bucket = ?
-                """,
-                    (bucket.value,),
-                )
-
-                result = cursor.fetchone()
-                if result and result[0] > 0:
-                    stats[bucket] = BucketStatistics(
-                        bucket=bucket,
-                        count=result[0],
-                        avg_confidence=result[1],
-                        total_capital=result[2],
-                        avg_multiplier=result[3],
+            with self._dm.connection() as conn:
+                cursor = conn.cursor()
+                for bucket in ConfidenceBucket:
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*), AVG(confidence_score), SUM(allocated_capital), AVG(multiplier)
+                        FROM confidence_allocations
+                        WHERE bucket = ?
+                    """,
+                        (bucket.value,),
                     )
-
-            conn.close()
-        except sqlite3.Error as e:
+                    result = cursor.fetchone()
+                    if result and result[0] > 0:
+                        stats[bucket] = BucketStatistics(
+                            bucket=bucket,
+                            count=result[0],
+                            avg_confidence=result[1],
+                            total_capital=result[2],
+                            avg_multiplier=result[3],
+                        )
+        except Exception as e:
             logger.error(f"Error retrieving bucket statistics: {e}")
 
         return stats
 
     def get_allocation_history(self, strategy: str = None) -> List[Dict]:
-        if not self.db_path:
+        if self._dm is None:
             return []
 
         records = []
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            if strategy:
-                cursor.execute(
+            with self._dm.connection() as conn:
+                cursor = conn.cursor()
+                if strategy:
+                    cursor.execute(
+                        """
+                        SELECT strategy, confidence_score, bucket, multiplier, allocated_capital, timestamp
+                        FROM confidence_allocations
+                        WHERE strategy = ?
+                        ORDER BY timestamp DESC
+                    """,
+                        (strategy,),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT strategy, confidence_score, bucket, multiplier, allocated_capital, timestamp
+                        FROM confidence_allocations
+                        ORDER BY timestamp DESC
                     """
-                    SELECT strategy, confidence_score, bucket, multiplier, allocated_capital, timestamp
-                    FROM confidence_allocations
-                    WHERE strategy = ?
-                    ORDER BY timestamp DESC
-                """,
-                    (strategy,),
-                )
-            else:
-                cursor.execute(
-                    """
-                    SELECT strategy, confidence_score, bucket, multiplier, allocated_capital, timestamp
-                    FROM confidence_allocations
-                    ORDER BY timestamp DESC
-                """
-                )
-
-            for row in cursor.fetchall():
-                records.append(
-                    {
-                        "strategy": row[0],
-                        "confidence_score": row[1],
-                        "bucket": row[2],
-                        "multiplier": row[3],
-                        "allocated_capital": row[4],
-                        "timestamp": row[5],
-                    }
-                )
-
-            conn.close()
-        except sqlite3.Error as e:
+                    )
+                for row in cursor.fetchall():
+                    records.append(
+                        {
+                            "strategy": row[0],
+                            "confidence_score": row[1],
+                            "bucket": row[2],
+                            "multiplier": row[3],
+                            "allocated_capital": row[4],
+                            "timestamp": row[5],
+                        }
+                    )
+        except Exception as e:
             logger.error(f"Error retrieving allocation history: {e}")
 
         return records

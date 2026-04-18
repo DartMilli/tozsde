@@ -1,15 +1,81 @@
 # Tozsde Trading System - Atfogo architektura review
 
 > **Update (2026-02-09):** Stabilization + Validation completed (Sprint 12). See [SPRINTS.md](SPRINTS.md) for Phase 0-5 changes and validation tooling.
+> **Update (2026-04-02):** Mélyreható kód-alapú elemzés elvégezve (csak forráskód, dokumentáció nélkül). Lásd KNOWN_ISSUES.md az azonosított elméleti és implementációs problémákhoz.
+> **Update (2026-04-07):** Sprint 13 lezárva – összes kritikus hiba javítva. SQLite WAL mode bekapcsolva. Observation vector 11 feature-re bővült (MACD histogram). Governance in-process (`RunGovernanceUseCase`).
+> **Update (2026-04-09):** Sprint 14 review elvégezve – 18 új probléma azonosítva (Q1–Q8, A1–A5, B1–B3, D1–D5). Lásd [SPRINT14_PLAN.md](SPRINT14_PLAN.md) a részletes javítási tervért.
 
-## Addendum (EN)
+### Ismert architektúrális törékeny pontok (Sprint 14 scope)
+
+| ID | Komponens | Probléma |
+|----|-----------|----------|
+| Q6 🔴 | `recommender.py` → `_quality_label()` | `"STABLE"` stringet ad vissza STRONG esetén, de a `SafetyRuleEngine` `"CHAOTIC"` string egyenlőséget vizsgál. Az `EnsembleQualityBucket` enum értékei: `STRONG/NORMAL/WEAK/CHAOTIC` – `"STABLE"` nem létezik az enumban. Chaotic ensemble esetén a safety override **nem aktiválódik**. |
+| Q2 🔴 | `allocation.py` → `allocate_capital()` | Mindig `INITIAL_CAPITAL`-ra allokál, nem az aktuális portfólióértékre. |
+| A1 🟠 | `core/decision/*` | Több core osztály `settings or build_settings()` fallbacket tartalmaz – réteghatár-sértés. |
+| A4 🟠 | `recommender.py` | `_quality_label()` threshold értékei hardcode-oltak, eltérnek a `DEFAULT_THRESHOLDS`-tól. |
+| Q1 🟠 | `fitness.py` → `fitness_single()` | Abszolút pénzösszegek összeadása (dimenzióhiba) – normalizálás szükséges. |
+
+## Addendum – Kód-alapú elemzés (2026-04-02)
+
+### Valós rendszerállapot (csak kódból feltérképezve)
+
+**Pipeline flow összefoglalás:**
+
+| Parancs | Belépő | Végső logika |
+|---------|--------|--------------|
+| `daily` | `main.py → RunDailyPipelineUseCase` | `TradingPipelineService` → döntés → allokáció → `PaperExecutionEngine` → DB + email |
+| `weekly` | `main.py → RunWeeklyReliabilityUseCase` | `ModelReliabilityAnalyzer` → DB mentés |
+| `monthly` | `main.py → RunMonthlyRetrainingUseCase` | WalkForward + (ha ENABLE_RL=true) RL tanítás |
+| `walk-forward <ticker>` | `main.py → RunWalkForwardUseCase` | `WalkForwardOptimizer` → DEAP GA → OOS foldenként |
+| `train-rl <ticker>` | `main.py → TrainRLModelUseCase` | `train_rl_agent()` → DQN+PPO → `ModelPromotionGate` → `.zip` + `.meta.json` |
+| `validate` | `main.py → RunPhase5ValidationUseCase` | `DecisionQualityAnalyzer` + `ConfidenceCalibrator` + `WalkForwardStabilityAnalyzer` + `SafetyStressTester` |
+| `run-paper-history` | `main.py → RunHistoricalPaperUseCase` | `HistoricalPaperRunner` → `bdate_range` iteráció → per nap döntés + végrehajtás |
+| `governance` | `main.py → RunGovernanceUseCase` | pytest + diagnostics + 13 validáció + checklist + reports/ |
+
+**Döntési logika tényleges folyamata:**
+```
+load_data(180 nap) → prepare_df() (indikátorok) → RLModelEnsembleRunner (top 3 modell)
+  → aggregate_weighted_ensemble (confidence × wf_score × rank × recency súlyozás)
+  → scale_confidence_by_volatility()
+  → build_recommendation() (NO_TRADE ha confidence < 0.25)
+  → SafetyRuleEngine (cooldown / drawdown_guard / chaotic_ensemble / bear_market / high_VIX)
+  → apply_decision_policy() → final Decision dict
+```
+
+**Observation vector (RL modellek):** 11 float32 elem:
+`[price_to_sma, bb_pos, rsi/100, adx/100, macd/close, macd_sig/close, macd_hist/close, atr/close, cash/initial, portfolio_pct, is_holding]`
+
+**SQLite séma (15+ tábla, DataManager kezeli):**
+ohlcv, trades, recommendations, decision_history, outcomes, portfolio_state,
+model_reliability, model_trust_metrics, model_registry, decision_effectiveness,
+confidence_calibration, walk_forward_results, wf_stability_metrics,
+safety_stress_results, validation_reports, decision_quality_metrics,
+market_metadata, pipeline_metrics
+
+**Ismert architektúrális eltérések a tervtől:**
+- `app/core/` döntési logikát tartalmaz, nem tiszta domain entitásokat
+- `app/governance/quant_runner.py` subprocess-ként fut, DI bypass-szal
+- `app/main.py` egy régi, párhuzamos CLI – az aktív belépő a gyökér `main.py`
+- Several service-ek (`TradingPipelineService`, `SafetyRuleEngine`) saját `build_settings()` hívással dolgoznak
+- `Settings(frozen=True)` dataclass: immutable, nem módosítható futásidőben
+
+**Azonosított kritikus problémák (részletek: KNOWN_ISSUES.md) – mind javítva 2026-04-07:**
+- ✅ K1: ADX valódi Wilder implementáció – javítva 2026-04-02
+- ✅ K2: PaperExecution SELL AttributeError – javítva 2026-04-02
+- ✅ K3: Commission levonás paper executionben – javítva 2026-04-02
+- ✅ K4: FrozenInstanceError governance futásnál – javítva 2026-04-02
+- ✅ H1-H5: RSI/ATR Wilder-féle EMA simítás, RL stale adatok, ENABLE_RL default, ensemble_quality típus – javítva 2026-04-03
+- ✅ M1-M6: dry_run, Result pattern, env var hiányok, CLI dupl., DI bypass, TypedDict – javítva 2026-04-03
+- ✅ A1-A5: MACD histogram, Bootstrap duplikáció, lazy init, live mode, biztonsági default – javítva 2026-04-03
+
+## Addendum (EN) – Legacy
 This review is historical. The current system includes:
 - Paper execution with portfolio state tracking (PaperExecutionEngine).
 - Historical paper runner with deterministic fallback when no RL models exist.
 - Decision history with outcomes and position sizing persistence.
 - Phase 5 and Phase 6 validation tooling with report integration.
 
-## Addendum (HU)
+## Addendum (HU) – Legacy
 Ez a review historikus. A jelenlegi rendszerben:
 - Paper execution portfolio state mentessel (PaperExecutionEngine).
 - Historikus paper runner determinisztikus fallback-kel, ha nincs RL modell.
@@ -129,9 +195,12 @@ Ez a review historikus. A jelenlegi rendszerben:
 
 ## D) Decisioning & Policy
 **Fajlok:** app/decision/* (recommender.py, decision_engine.py, safety_rules.py, decision_policy.py, recommendation_builder.py, ensemble_aggregator.py, decision_reliability.py)
-- **Ensemble:** RL model votes + confidence + WF score aggregacio.
+
+> **Sprint 14 frissítés:** Az `app/decision/` könyvtár egy **kompatibilitási shim-réteg** – minden fájl az `app/core/decision/` valódi implementációkra hajt végre. Az összes fájl `DEPRECATED` modul-szintű docstringet kapott. Új kódban csak `app.core.decision.*` importot használj. Részletes deprecation terv: [PHASE7_DEPRECATION_PATH.md](PHASE7_DEPRECATION_PATH.md).
+
+- **Ensemble:** RL model votes + confidence + WF score aggregacio. Elavult modellek kizárhatók `MAX_MODEL_AGE_DAYS` env var-ral.
 - **Policy:** reliabilityalapu trade engedelyezes es reward hint.
-- **Safety:** cooldown, drawdown guard, VIX es bear market guard.
+- **Safety:** cooldown, drawdown guard, VIX es bear market guard. Sprint 14 után helyesen tüzeli a CHAOTIC ensemble minőséget (Q6 fix).
 - **Kockazat:** drawdown guard outcomes adatra tamaszkodik, de nincs outcomes tabla (fetch_recent_outcomes stub). Safety engine DataManagert hiv (DBfugges).
 
 ## E) Allocation & Portfolio Optimization

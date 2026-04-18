@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import json
 import logging
-import sqlite3
 
 logger = logging.getLogger(__name__)
 
@@ -38,55 +37,74 @@ class CapitalUtilizationOptimizer:
         max_position_pct: float = 0.05,
         min_position_size: float = 100.0,
         db_path: str = None,
+        data_manager=None,
     ):
         self.total_capital = total_capital
         self.max_position_pct = max_position_pct
         self.min_position_size = min_position_size
         self.db_path = db_path
+        self._dm = data_manager
+        self._db_initialized = False
+        if self._dm is None and self.db_path:
+            try:
+                from app.infrastructure.repositories.data_manager_repository import (
+                    DataManagerRepository as _DM,
+                )
+                from app.config.build_settings import build_settings
+                import dataclasses
+
+                self._dm = _DM(
+                    settings=dataclasses.replace(build_settings(), DB_PATH=self.db_path)
+                )
+            except Exception:
+                self._dm = None
+        # _init_db() is now lazy – it runs only when the DB is first accessed.
+
+    def _ensure_db(self) -> None:
+        """Lazy DB initialisation – called before any DB read/write operation."""
+        if self._db_initialized:
+            return
         self._init_db()
+        self._db_initialized = True
 
     def _init_db(self) -> None:
-        if not self.db_path:
+        if self._dm is None:
             return
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            cursor.execute(
+            with self._dm.connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS position_sizes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ticker TEXT NOT NULL,
+                        optimal_size REAL NOT NULL,
+                        kelly_fraction REAL NOT NULL,
+                        max_position_limit REAL NOT NULL,
+                        risk_adjusted_size REAL NOT NULL,
+                        volatility REAL NOT NULL,
+                        portfolio_weight REAL NOT NULL,
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
                 """
-                CREATE TABLE IF NOT EXISTS position_sizes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ticker TEXT NOT NULL,
-                    optimal_size REAL NOT NULL,
-                    kelly_fraction REAL NOT NULL,
-                    max_position_limit REAL NOT NULL,
-                    risk_adjusted_size REAL NOT NULL,
-                    volatility REAL NOT NULL,
-                    portfolio_weight REAL NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-            """
-            )
-
-            cursor.execute(
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS capital_allocations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        total_capital REAL NOT NULL,
+                        allocated_capital REAL NOT NULL,
+                        unused_capital REAL NOT NULL,
+                        utilization_rate REAL NOT NULL,
+                        diversification_score REAL NOT NULL,
+                        positions_json TEXT NOT NULL,
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
                 """
-                CREATE TABLE IF NOT EXISTS capital_allocations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    total_capital REAL NOT NULL,
-                    allocated_capital REAL NOT NULL,
-                    unused_capital REAL NOT NULL,
-                    utilization_rate REAL NOT NULL,
-                    diversification_score REAL NOT NULL,
-                    positions_json TEXT NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-            """
-            )
-
-            conn.commit()
-            conn.close()
-        except sqlite3.Error as e:
+                conn.commit()
+        except Exception as e:
             logger.error(f"Database initialization error: {e}")
 
     def calculate_kelly_fraction(
@@ -94,12 +112,15 @@ class CapitalUtilizationOptimizer:
         win_rate: float,
         avg_win: float,
         avg_loss: float,
+        kelly_fraction_multiplier: float = 0.5,
     ) -> float:
         if avg_win <= 0 or avg_loss <= 0:
             return 0.0
 
         loss_rate = 1.0 - win_rate
         kelly = (win_rate * avg_win - loss_rate * avg_loss) / avg_win
+        # Apply half-Kelly dampening to reduce volatility risk, then cap at 50%.
+        kelly = kelly * kelly_fraction_multiplier
         kelly = max(0.01, min(0.50, kelly))
 
         return kelly
@@ -188,114 +209,103 @@ class CapitalUtilizationOptimizer:
         return hhi
 
     def _persist_position_size(self, position: PositionSize) -> None:
-        if not self.db_path:
+        if self._dm is None:
             return
 
+        self._ensure_db()
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                INSERT INTO position_sizes
-                (ticker, optimal_size, kelly_fraction, max_position_limit,
-                 risk_adjusted_size, volatility, portfolio_weight)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    position.ticker,
-                    position.optimal_size,
-                    position.kelly_fraction,
-                    position.max_position_limit,
-                    position.risk_adjusted_size,
-                    position.volatility,
-                    position.portfolio_weight,
-                ),
-            )
-
-            conn.commit()
-            conn.close()
-        except sqlite3.Error as e:
+            with self._dm.connection() as conn:
+                conn.cursor().execute(
+                    """
+                    INSERT INTO position_sizes
+                    (ticker, optimal_size, kelly_fraction, max_position_limit,
+                     risk_adjusted_size, volatility, portfolio_weight)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        position.ticker,
+                        position.optimal_size,
+                        position.kelly_fraction,
+                        position.max_position_limit,
+                        position.risk_adjusted_size,
+                        position.volatility,
+                        position.portfolio_weight,
+                    ),
+                )
+                conn.commit()
+        except Exception as e:
             logger.error(f"Error persisting position size: {e}")
 
     def _persist_capital_allocation(self, allocation: CapitalAllocation) -> None:
-        if not self.db_path:
+        if self._dm is None:
             return
 
+        self._ensure_db()
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            positions_json = json.dumps(allocation.positions)
-
-            cursor.execute(
-                """
-                INSERT INTO capital_allocations
-                (total_capital, allocated_capital, unused_capital, utilization_rate,
-                 diversification_score, positions_json)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    allocation.total_capital,
-                    allocation.allocated_capital,
-                    allocation.unused_capital,
-                    allocation.utilization_rate,
-                    allocation.diversification_score,
-                    positions_json,
-                ),
-            )
-
-            conn.commit()
-            conn.close()
-        except (sqlite3.Error, Exception) as e:
+            with self._dm.connection() as conn:
+                conn.cursor().execute(
+                    """
+                    INSERT INTO capital_allocations
+                    (total_capital, allocated_capital, unused_capital, utilization_rate,
+                     diversification_score, positions_json)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        allocation.total_capital,
+                        allocation.allocated_capital,
+                        allocation.unused_capital,
+                        allocation.utilization_rate,
+                        allocation.diversification_score,
+                        json.dumps(allocation.positions),
+                    ),
+                )
+                conn.commit()
+        except Exception as e:
             logger.error(f"Error persisting capital allocation: {e}")
 
     def get_position_history(self, ticker: str = None) -> List[Dict]:
-        if not self.db_path:
+        if self._dm is None:
             return []
 
+        self._ensure_db()
         records = []
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            if ticker:
-                cursor.execute(
+            with self._dm.connection() as conn:
+                cursor = conn.cursor()
+                if ticker:
+                    cursor.execute(
+                        """
+                        SELECT ticker, optimal_size, kelly_fraction, risk_adjusted_size,
+                               volatility, portfolio_weight, timestamp
+                        FROM position_sizes
+                        WHERE ticker = ?
+                        ORDER BY timestamp DESC
+                    """,
+                        (ticker,),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT ticker, optimal_size, kelly_fraction, risk_adjusted_size,
+                               volatility, portfolio_weight, timestamp
+                        FROM position_sizes
+                        ORDER BY timestamp DESC
                     """
-                    SELECT ticker, optimal_size, kelly_fraction, risk_adjusted_size,
-                           volatility, portfolio_weight, timestamp
-                    FROM position_sizes
-                    WHERE ticker = ?
-                    ORDER BY timestamp DESC
-                """,
-                    (ticker,),
-                )
-            else:
-                cursor.execute(
-                    """
-                    SELECT ticker, optimal_size, kelly_fraction, risk_adjusted_size,
-                           volatility, portfolio_weight, timestamp
-                    FROM position_sizes
-                    ORDER BY timestamp DESC
-                """
-                )
-
-            for row in cursor.fetchall():
-                records.append(
-                    {
-                        "ticker": row[0],
-                        "optimal_size": row[1],
-                        "kelly_fraction": row[2],
-                        "risk_adjusted_size": row[3],
-                        "volatility": row[4],
-                        "portfolio_weight": row[5],
-                        "timestamp": row[6],
-                    }
-                )
-
-            conn.close()
-        except sqlite3.Error as e:
+                    )
+                for row in cursor.fetchall():
+                    records.append(
+                        {
+                            "ticker": row[0],
+                            "optimal_size": row[1],
+                            "kelly_fraction": row[2],
+                            "risk_adjusted_size": row[3],
+                            "volatility": row[4],
+                            "portfolio_weight": row[5],
+                            "timestamp": row[6],
+                        }
+                    )
+        except Exception as e:
             logger.error(f"Error retrieving position history: {e}")
 
         return records

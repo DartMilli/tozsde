@@ -1,4 +1,4 @@
-"""
+﻿"""
 Sprint 3.2 - Correlation Threshold Enforcement Tests
 
 Tests for:
@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from unittest.mock import patch, MagicMock
 
-from app.decision.allocation import enforce_correlation_limits
+from app.core.decision.allocation import enforce_correlation_limits
 
 
 class TestCorrelationThresholdEnforcement:
@@ -43,7 +43,7 @@ class TestCorrelationThresholdEnforcement:
             columns=["VOO", "BND"],
         )
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_get:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_get:
             mock_get.return_value = mock_corr_matrix
             result = enforce_correlation_limits(decisions, max_correlation=0.7)
 
@@ -75,7 +75,7 @@ class TestCorrelationThresholdEnforcement:
             columns=["VOO", "SPY"],
         )
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_get:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_get:
             mock_get.return_value = mock_corr_matrix
             result = enforce_correlation_limits(decisions, max_correlation=0.7)
 
@@ -116,7 +116,7 @@ class TestCorrelationThresholdEnforcement:
             columns=["VOO", "SPY", "BND"],
         )
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_get:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_get:
             mock_get.return_value = mock_corr_matrix
             result = enforce_correlation_limits(decisions, max_correlation=0.7)
 
@@ -183,7 +183,7 @@ class TestCorrelationThresholdEnforcement:
             columns=["VOO", "SPY"],
         )
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_get:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_get:
             mock_get.return_value = mock_corr_matrix
             result = enforce_correlation_limits(decisions, max_correlation=0.7)
 
@@ -215,7 +215,7 @@ class TestCorrelationThresholdEnforcement:
             columns=["VOO", "SPY"],
         )
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_get:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_get:
             mock_get.return_value = mock_corr_matrix
             result = enforce_correlation_limits(decisions, max_correlation=0.7)
 
@@ -245,7 +245,7 @@ class TestCorrelationThresholdEnforcement:
             columns=["VOO", "SPY"],
         )
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_get:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_get:
             mock_get.return_value = mock_corr_matrix
             result = enforce_correlation_limits(decisions, max_correlation=0.7)
 
@@ -281,7 +281,7 @@ class TestCorrelationLimitIntegration:
             columns=["VOO", "SPY"],
         )
 
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_get:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_get:
             mock_get.return_value = mock_corr_matrix
             result = enforce_correlation_limits(decisions, max_correlation=0.7)
 
@@ -300,9 +300,11 @@ class TestCorrelationLimitIntegration:
         ]
 
         # Mock an error in correlation matrix retrieval
-        with patch("app.decision.allocation._get_correlation_matrix") as mock_get:
+        with patch("app.core.decision.allocation._get_correlation_matrix") as mock_get:
             mock_get.side_effect = Exception("Database error")
             result = enforce_correlation_limits(decisions)
 
         # Should return unchanged decisions (not crash)
         assert result[0]["allocation_amount"] == 50000, "Returns unchanged on error"
+
+

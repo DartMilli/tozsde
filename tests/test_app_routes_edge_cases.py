@@ -112,12 +112,50 @@ def test_index_renders_dashboard(monkeypatch, client):
         def get_today_recommendations(self):
             return [{"ticker": "VOO"}]
 
+    captured = {}
+
     monkeypatch.setattr("app.ui.app.DataManager", lambda: DummyDM())
     monkeypatch.setattr("app.ui.app.get_supported_tickers", lambda: {"VOO": {}})
-    monkeypatch.setattr("app.ui.app.render_template", lambda *a, **k: "OK")
+
+    def _render_template(*args, **kwargs):
+        captured["template"] = args[0]
+        captured["kwargs"] = kwargs
+        return "OK"
+
+    monkeypatch.setattr(
+        "app.ui.admin_dashboard._build_shadow_status",
+        lambda: {
+            "enabled": True,
+            "total_candidates": 1,
+            "promotion_ready": 0,
+            "tickers": {"VOO": {"champion_model": "champion-1", "challengers": []}},
+        },
+    )
+    monkeypatch.setattr("app.ui.app.render_template", _render_template)
 
     res = client.get("/")
     assert res.status_code == 200
+    assert captured["template"] == "dashboard.html"
+    assert captured["kwargs"]["shadow_summary"]["enabled"] is True
+
+
+def test_shadow_summary_endpoint_returns_status(monkeypatch, client):
+    monkeypatch.setattr(
+        "app.ui.admin_dashboard._build_shadow_status",
+        lambda: {
+            "enabled": True,
+            "total_candidates": 2,
+            "promotion_ready": 1,
+            "tickers": {"VOO": {"champion_model": "champion-1", "challengers": []}},
+        },
+    )
+
+    res = client.get("/shadow-summary")
+
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["enabled"] is True
+    assert data["promotion_ready"] == 1
 
 
 def test_chart_returns_404_on_empty_data(monkeypatch, client):

@@ -84,6 +84,18 @@ curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 **Answer (EN):** SQLite database at the configured path (Config.DB_PATH).
 **Valasz (HU):** SQLite adatbazisban (Config.DB_PATH).
 
+### Q13b (EN): How do I configure which tickers the daily pipeline runs for?
+**Answer (EN):**  
+The system does **not** read a `TICKERS` env var directly. The active ticker list comes from  
+`get_supported_ticker_list()` in `app/data_access/data_loader.py`, which reads the `TICKERS` dict  
+defined in that file. To add or remove tickers, extend the `TICKERS` dict in `data_loader.py`.  
+Tickers listed in `EXCLUDED_TICKERS` (`.env` or `build_settings.py`) are always skipped.
+
+**Valasz (HU):**  
+A rendszer nem olvas `TICKERS` env var-t. Az aktív ticker lista a `app/data_access/data_loader.py`  
+fájlban definiált `TICKERS` szótárból jön. Új ticker hozzáadásához bővítsd ezt a szótárat.  
+Az `EXCLUDED_TICKERS` listán szereplő tickerek minden futásnál ki vannak zárva.
+
 ### Q14 (EN): What is stored in decision_history?
 **Answer (EN):** Decisions, audit metadata, model votes, position sizing, and decision_source for traceability.
 **Valasz (HU):** Dontesek, audit meta, model vote-ok, pozicio meretezes es decision_source.
@@ -118,13 +130,35 @@ python scripts/run_all_tests.py
 **Answer (EN):** Follow docs/deployment/RASPBERRY_PI_SETUP_GUIDE.md and run deploy_rpi.sh.
 **Valasz (HU):** Kovesd a docs/deployment/RASPBERRY_PI_SETUP_GUIDE_HU.md leirast es futtasd a deploy_rpi.sh-t.
 
-### Q18 (EN): What about health checks on Pi?
+## Known Issues and Limitations
+
+### Q18 (EN): Is the ADX indicator correctly implemented?
+**Answer (EN):** Yes. As of 2026-04-07 (Sprint 13), the ADX uses a genuine Wilder-method DM+/DM- implementation. The previous stub returning constant ~30.0 has been replaced. See KNOWN_ISSUES.md K1.
+**Valasz (HU):** Igen. 2026-04-07-tol (Sprint 13) az ADX valodi Wilder-fele DM+/DM- implementaciot hasznal. A korabbi konstans ~30.0 stub-ot felvalto eles szamitas. Lasd KNOWN_ISSUES.md K1.
+
+### Q19 (EN): Does PaperExecution deduct trading commissions?
+**Answer (EN):** Yes. As of 2026-04-07 (Sprint 13), `PaperExecutionEngine` correctly deducts `TRANSACTION_FEE_PCT` on both BUY and SELL. See KNOWN_ISSUES.md K3.
+**Valasz (HU):** Igen. 2026-04-07-tol (Sprint 13) a `PaperExecutionEngine` helyesen levonja a `TRANSACTION_FEE_PCT`-t BUY es SELL eseteben is. Lasd KNOWN_ISSUES.md K3.
+
+### Q20 (EN): Why does monthly retraining not update RL models?
+**Answer (EN):** `ENABLE_RL` defaults to `false`. Set `ENABLE_RL=true` in your environment before running `python main.py monthly`.
+**Valasz (HU):** Az `ENABLE_RL` alapereteke `false`. Allitsd be `ENABLE_RL=true` kornyezeti valtozokent a `python main.py monthly` elott.
+
+### Q21 (EN): Are RSI and ATR using industry-standard formulas?
+**Answer (EN):** Yes. As of 2026-04-07 (Sprint 13), both RSI and ATR use Wilder's exponential smoothing (EMA alpha=1/period), matching TradingView, TA-Lib, and other platforms. See KNOWN_ISSUES.md H1/H2.
+**Valasz (HU):** Igen. 2026-04-07-tol (Sprint 13) az RSI es az ATR is Wilder-fele exponencialis simiast (EMA alpha=1/period) hasznal, konzisztensen a TradingView-val, TA-lib-bel es mas platformokkal. Lasd KNOWN_ISSUES.md H1/H2.
+
+### Q22 (EN): Where are all known problems documented?
+**Answer (EN):** docs/KNOWN_ISSUES.md – categorized by severity (Critical/High/Medium/Low) with fix priorities.
+**Valasz (HU):** docs/KNOWN_ISSUES.md – sulyossag szerint kategorializalva (Critical/High/Medium/Low) javitasi prioritassal.
+
+### Q23 (EN): What about health checks on Pi?
 **Answer (EN):** Admin health endpoint is /admin/health and requires X-Admin-Key. If you use health_check.sh, update its URL or headers accordingly.
 **Valasz (HU):** /admin/health endpoint X-Admin-Key headerrel hasznalhato. A health_check.sh scriptet ehhez igazitsd.
 
 ## Troubleshooting
 
-### Q19 (EN): I see ModuleNotFoundError: app
+### Q24 (EN): I see ModuleNotFoundError: app
 **Answer (EN):** Run from the project root and use the venv python.
 **Valasz (HU):** Futass a projekt gyokerbol es a venv python-t hasznald.
 
@@ -157,6 +191,6 @@ curl http://localhost:5000/admin/health -H "X-Admin-Key: <key>"
 
 ---
 
-**Last Updated:** 2026-03-21  
-**Version:** 1.1  
+**Last Updated:** 2026-04-09  
+**Version:** 1.2  
 **Source of truth for test/coverage:** [testing/TEST_STATUS_REPORT.md](testing/TEST_STATUS_REPORT.md)

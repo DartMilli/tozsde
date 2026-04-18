@@ -53,6 +53,15 @@ from app.core.decision.decision_history_analyzer import (  # noqa: F401
     StrategyStats,
     TickerReliability,
 )
+from app.core.decision.expectancy_gate import (  # noqa: F401
+    ExpectancyGate,
+    ExpectancyResult,
+    bucket_confidence,
+)
+from app.core.decision.implementation_shortfall import (  # noqa: F401
+    ImplementationShortfallEstimator,
+    ShortfallEstimate,
+)
 from app.core.decision.drift_detector import (  # noqa: F401
     PerformanceDriftDetector,
     batch_check_drift,
@@ -98,6 +107,10 @@ from app.core.decision.recommendation_builder import (  # noqa: F401
     build_explanation,
     build_recommendation,
 )
+from app.core.decision.regime_policy import (  # noqa: F401
+    RegimePolicy,
+    get_regime_policy,
+)
 from app.core.decision.rebalancer import (  # noqa: F401
     PortfolioRebalancer,
     check_and_rebalance,
@@ -134,6 +147,9 @@ __all__ = [
     "DecisionReliabilityResult",
     "DecisionHistoryAnalyzer",
     "EnsembleQualityBucket",
+    "ExpectancyGate",
+    "ExpectancyResult",
+    "ImplementationShortfallEstimator",
     "AssetType",
     "BucketStatistics",
     "CapitalAllocation",
@@ -152,6 +168,7 @@ __all__ = [
     "PortfolioRebalancer",
     "PositionSizer",
     "PositionSizingResult",
+    "RegimePolicy",
     "RegimeInfo",
     "RiskParityAllocator",
     "RiskDecomposition",
@@ -159,6 +176,7 @@ __all__ = [
     "StrategyBandit",
     "StrategySelection",
     "StrategyStats",
+    "ShortfallEstimate",
     "TickerReliability",
     "AdaptiveStrategySelector",
     "VolatilityBucket",
@@ -171,6 +189,7 @@ __all__ = [
     "assess_decision_reliability",
     "batch_check_drift",
     "bucket_ensemble_quality",
+    "bucket_confidence",
     "bucket_volatility",
     "build_decision_event",
     "build_explanation",
@@ -193,6 +212,7 @@ __all__ = [
     "find_uncorrelated_assets",
     "extract_model_version",
     "generate_daily_recommendation_payload",
+    "get_regime_policy",
     "get_drifting_tickers",
     "get_low_cost_etf",
     "get_market_regime",
